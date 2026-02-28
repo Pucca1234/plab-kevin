@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import ControlBar from "./components/ControlBar";
 import MetricTable from "./components/MetricTable";
 import EntityMetricTable from "./components/EntityMetricTable";
@@ -209,6 +209,9 @@ export default function Home() {
   const [isFetching, setIsFetching] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const controlsRef = useRef<HTMLElement | null>(null);
+  const [stickyOffsets, setStickyOffsets] = useState({ header: 0, controls: 0 });
 
   const pushError = (message: string, detail?: string) => {
     setErrorLogs((prev) => {
@@ -486,6 +489,14 @@ export default function Home() {
     setPeriodRangeValue(value);
   };
 
+  const handleRemoveSelectedMetric = (metricId: string) => {
+    setSelectedMetricIds((prev) => prev.filter((id) => id !== metricId));
+  };
+
+  const handleClearSelectedMetrics = () => {
+    setSelectedMetricIds([]);
+  };
+
   const openMetricPicker = () => {
     setMetricDraftIds(selectedMetricIds.slice());
     setIsMetricPickerOpen(true);
@@ -571,9 +582,43 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [isReportOpen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const headerEl = headerRef.current;
+    const controlsEl = controlsRef.current;
+    if (!headerEl || !controlsEl) return;
+
+    const updateOffsets = () => {
+      setStickyOffsets({
+        header: Math.ceil(headerEl.getBoundingClientRect().height),
+        controls: Math.ceil(controlsEl.getBoundingClientRect().height)
+      });
+    };
+
+    updateOffsets();
+    const observer = new ResizeObserver(updateOffsets);
+    observer.observe(headerEl);
+    observer.observe(controlsEl);
+    window.addEventListener("resize", updateOffsets);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOffsets);
+    };
+  }, [selectedMetrics.length, measurementUnit, filterOptions.length]);
+
   return (
-    <main className="app-shell">
-      <header className="app-header">
+    <main
+      className="app-shell"
+      style={
+        {
+          "--sticky-header-height": `${stickyOffsets.header}px`,
+          "--sticky-controls-height": `${stickyOffsets.controls}px`,
+          "--table-sticky-top": `${Math.min(stickyOffsets.header + stickyOffsets.controls, 320)}px`
+        } as CSSProperties
+      }
+    >
+      <header className="app-header app-header-sticky" ref={headerRef}>
         <div className="brand">
           <div>
             <h1>
@@ -589,64 +634,55 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="app-layout">
-        <aside className="sidebar">
-          <ControlBar
-            periodUnit={periodUnit}
-            periodRangeValue={periodRangeValue}
-            periodRangeOptions={periodRangeOptions}
-            onPeriodRangeChange={handlePeriodRangeChange}
-            measurementUnit={measurementUnit}
-            onMeasurementUnitChange={handleMeasurementChange}
-            filterOptions={filterOptions}
-            filterValue={filterValue}
-            onFilterChange={handleFilterChange}
-            selectedMetrics={selectedMetrics}
-            onOpenMetricPicker={openMetricPicker}
-            onSearch={handleSearch}
-            isSearchDisabled={isSearchDisabled}
-          />
-          {isLoadingFilter && <div className="card subtle">필터 로딩 중...</div>}
-        </aside>
+      <section className="top-controls-wrap top-controls-sticky" ref={controlsRef}>
+        <ControlBar
+          periodUnit={periodUnit}
+          periodRangeValue={periodRangeValue}
+          periodRangeOptions={periodRangeOptions}
+          onPeriodRangeChange={handlePeriodRangeChange}
+          measurementUnit={measurementUnit}
+          onMeasurementUnitChange={handleMeasurementChange}
+          filterOptions={filterOptions}
+          filterValue={filterValue}
+          onFilterChange={handleFilterChange}
+          selectedMetrics={selectedMetrics}
+          onRemoveSelectedMetric={handleRemoveSelectedMetric}
+          onClearSelectedMetrics={handleClearSelectedMetrics}
+          onOpenMetricPicker={openMetricPicker}
+          onSearch={handleSearch}
+          isSearchDisabled={isSearchDisabled}
+        />
+        {isLoadingFilter && <div className="card subtle">필터 로딩 중...</div>}
+      </section>
 
-        <section className="main-panel">
-          {errorMessage && <div className="card error">Error: {errorMessage}</div>}
-          {missingMetricIds.length > 0 && (
-            <div className="card warning">선택한 지표 중 일부는 현재 결과에 포함되지 않습니다.</div>
-          )}
-          {isLoadingBase ? (
-            <div className="card subtle">지표 정보를 불러오는 중...</div>
-          ) : !showResults ? (
-            <div className="card subtle">옵션을 선택하고 조회를 눌러주세요.</div>
-          ) : (
-            <div className="result-stack">
-              <div className="breadcrumb">
-                {appliedMeasurementUnit === "all"
-                  ? ALL_LABEL
-                  : `${unitLabel[appliedMeasurementUnit]} · ${
-                      appliedFilterValue === ALL_VALUE ? "전체" : appliedFilterValue
-                    }`}
-              </div>
-
-              {appliedMeasurementUnit === "all" ? (
-                <MetricTable
-                  title="전체 지표 추이"
-                  weeks={weeks}
-                  metrics={selectedMetrics}
-                  series={seriesByEntity[ALL_LABEL] ?? {}}
-                />
-              ) : (
-                <EntityMetricTable
-                  weeks={weeks}
-                  entities={entities}
-                  metrics={selectedMetrics}
-                  seriesByEntity={seriesByEntity}
-                />
-              )}
-
-            </div>
-          )}
-        </section>
+      <section className="main-panel">
+        {errorMessage && <div className="card error">Error: {errorMessage}</div>}
+        {missingMetricIds.length > 0 && (
+          <div className="card warning">선택한 지표 중 일부는 현재 결과에 포함되지 않습니다.</div>
+        )}
+        {isLoadingBase ? (
+          <div className="card subtle">지표 정보를 불러오는 중...</div>
+        ) : !showResults ? (
+          <div className="card subtle">옵션을 선택하고 조회를 눌러주세요.</div>
+        ) : (
+          <div className="result-stack">
+            {appliedMeasurementUnit === "all" ? (
+              <MetricTable
+                title="전체 지표 추이"
+                weeks={weeks}
+                metrics={selectedMetrics}
+                series={seriesByEntity[ALL_LABEL] ?? {}}
+              />
+            ) : (
+              <EntityMetricTable
+                weeks={weeks}
+                entities={entities}
+                metrics={selectedMetrics}
+                seriesByEntity={seriesByEntity}
+              />
+            )}
+          </div>
+        )}
       </section>
 
       {showResults && (
