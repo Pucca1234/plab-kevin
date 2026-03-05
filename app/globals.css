@@ -1219,4 +1219,287 @@ main {
     display: flex;
     flex-wrap: wrap;
   }
+
+  .template-section {
+    width: 100%;
+  }
+
+  .template-dropdown {
+    left: 0;
+    right: 0;
+  }
+}
+
+/* ─── Filter Template ─── */
+
+.search-row-template {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.template-section {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.template-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-template-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  min-width: 160px;
+  transition: border 0.2s ease;
+}
+
+.btn-template-select:hover,
+.btn-template-select.is-open {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.template-caret {
+  margin-left: auto;
+  border: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
+
+.btn-template-save {
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--primary-soft);
+  color: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-template-save:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.template-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  z-index: 200;
+  padding: 6px;
+}
+
+.template-dropdown-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.template-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 2px;
+  transition: background 0.15s ease;
+}
+
+.template-dropdown-item:hover {
+  background: #f8fafc;
+}
+
+.template-dropdown-item.is-active {
+  background: var(--primary-soft);
+}
+
+.template-dropdown-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.template-name-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.template-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.template-badge-default {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.template-badge-shared {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.template-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-right: 4px;
+}
+
+.template-action-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.template-action-btn:hover {
+  background: #f1f5f9;
+  color: var(--primary);
+}
+
+.template-action-delete:hover {
+  color: var(--down);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.template-edit-row {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+.template-edit-input {
+  flex: 1;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  outline: none;
+}
+
+/* Template Save Dialog */
+
+.template-save-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 350;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.template-save-dialog {
+  width: min(400px, 100%);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 0;
+}
+
+.template-save-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.template-save-close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.template-save-body {
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.template-save-options {
+  display: flex;
+  gap: 16px;
+}
+
+.template-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.template-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.template-save-footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.template-save-footer .btn-primary {
+  width: auto;
+  min-width: 80px;
 }

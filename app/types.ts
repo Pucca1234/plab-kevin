@@ -36,3 +36,21 @@ export type FilterOption = {
   label: string;
   value: string;
 };
+
+export type FilterTemplateConfig = {
+  periodRangeValue: string;
+  measurementUnit: MeasurementUnit;
+  filterValue: string;
+  selectedMetricIds: string[];
+};
+
+export type FilterTemplate = {
+  id: string;
+  user_id: string;
+  name: string;
+  config: FilterTemplateConfig;
+  is_default: boolean;
+  is_shared: boolean;
+  created_at: string;
+  updated_at: string;
+};
