@@ -2,20 +2,72 @@
 
 ---
 
-## 세션 3: 2026-03-06 (인증 설정 완료 + UI 개선)
+## 세션 5: 2026-03-06 (배포 사이트 버그 점검 + fork push)
 
 ### 완료한 작업
 
 | # | 작업 | 결과 |
 |---|------|------|
-| 1 | .env.local 환경변수 설정 | ✅ 완료 — URL, SERVICE_ROLE_KEY, ANON_KEY, CLIENT_ID, CLIENT_SECRET |
-| 2 | Google Cloud OAuth + Supabase Provider 설정 안내 | ✅ 완료 |
+| 1 | 배포 사이트 지표선택 버그 신고 점검 | ✅ 원인 파악 — 5dbad7b 커밋이 fork에 미푸시 |
+| 2 | 코드 로직 정밀 점검 (page.tsx, ControlBar.tsx, CSS) | ✅ 코드 자체 정상 확인 |
+| 3 | git push fork main | ✅ 완료 — Vercel 자동 재배포 트리거 |
+
+### 핵심 발견
+
+- `5dbad7b` (지표선택 버그 수정)이 `origin/main`에만 push되고 `fork/main`에는 push되지 않았음
+- 배포 사이트(Vercel)는 fork를 소스로 사용 → 수정 전 코드로 배포된 상태
+- `git push fork main`으로 해결
+
+### 알려진 이슈
+
+- 없음
+
+---
+
+## 세션 4: 2026-03-06 (지표선택 버그 수정)
+
+### 완료한 작업
+
+| # | 작업 | 결과 |
+|---|------|------|
+| 1 | 지표선택 기능 점검 | ✅ 버그 2건 발견 |
+| 2 | "전체 해제" 후 기본값 자동 복원 버그 수정 | ✅ 완료 — useRef로 초기화 1회 제한 |
+| 3 | 메트릭 피커 중첩 button HTML 규격 위반 수정 | ✅ 완료 — div[role=button]으로 변경 |
+| 4 | 빌드 검증 | ✅ 통과 |
+| 5 | 커밋 + 푸시 (origin/main) | ✅ 완료 — 5dbad7b |
+
+### 생성/수정한 파일
+
+| 파일 | 변경 |
+|------|------|
+| `app/page.tsx` | 수정 — useEffect 의존성 수정 (hasInitializedMetrics ref 추가), 메트릭 피커 button→div[role=button] |
+
+### 알려진 이슈
+
+- 없음
+
+---
+
+## 세션 3: 2026-03-06 (인증 설정 + UI 개선 + 배포)
+
+### 완료한 작업
+
+| # | 작업 | 결과 |
+|---|------|------|
+| 1 | .env.local 환경변수 설정 | ✅ 완료 |
+| 2 | Google Cloud OAuth + Supabase Provider 설정 | ✅ 완료 |
 | 3 | Supabase filter_templates 마이그레이션 실행 | ✅ 완료 |
-| 4 | 로그인 플로우 테스트 | ✅ 성공 |
-| 5 | 로그아웃 버튼 추가 | ✅ 완료 — 헤더 header-meta 영역 |
-| 6 | 사용자 이름 표시 | ✅ 완료 — Google 프로필명, 로그아웃 옆 |
-| 7 | 필터 초기화 버튼 추가 | ✅ 완료 — 필터 드롭다운 옆 위치 |
-| 8 | 템플릿 저장/불러오기 테스트 | ✅ 정상 작동 확인 |
+| 4 | 로그인 플로우 테스트 (로컬) | ✅ 성공 |
+| 5 | 로그아웃 버튼 추가 | ✅ 완료 |
+| 6 | 사용자 이름 표시 | ✅ 완료 |
+| 7 | 필터 초기화 버튼 추가 | ✅ 완료 |
+| 8 | 템플릿 저장/불러오기 테스트 | ✅ 정상 작동 |
+| 9 | feature/auth → main 머지 + 푸시 | ✅ 완료 |
+| 10 | GitHub 포크 (sanghyunkim-gif) | ✅ 완료 |
+| 11 | Vercel 배포 (본인 계정) | ✅ 완료 — social-match-dashboard-mvp-two.vercel.app |
+| 12 | Supabase Site URL + Redirect URLs 설정 | ✅ 완료 |
+| 13 | Google Cloud origins/redirects 배포 URL 추가 | ✅ 완료 |
+| 14 | 배포 환경 로그인 테스트 | ✅ 성공 |
 
 ### 생성/수정한 파일
 
@@ -24,11 +76,7 @@
 | `app/page.tsx` | 수정 — createClient import, userName 상태, 로그아웃 버튼, 사용자명 표시, 필터 초기화 핸들러 |
 | `app/components/ControlBar.tsx` | 수정 — onResetFilters prop 추가, 초기화 버튼 UI |
 | `app/globals.css` | 수정 — header-meta flex, logout-btn, user-name 스타일 추가 |
-
-### 다음 세션 작업
-
-1. feature/auth 브랜치 커밋 및 main PR 생성
-2. 추가 UI 개선 (필요 시)
+| `middleware.ts` | 수정 — 환경변수 미설정 시 미들웨어 스킵 가드 |
 
 ### 알려진 이슈
 

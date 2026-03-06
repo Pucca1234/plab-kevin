@@ -54,3 +54,25 @@ export type FilterTemplate = {
   created_at: string;
   updated_at: string;
 };
+
+export type MetricSummaryItem = {
+  metricId: string;
+  name: string;
+  latest: number | null;
+  delta: number | null;
+  format: "number" | "percent";
+};
+
+export type ChatContext = {
+  unit: string;
+  filter: string;
+  weeks: string[];
+  primaryMetricId: string;
+  metricSummaries: MetricSummaryItem[];
+};
+
+export type SummaryPayload = {
+  title: string;
+  bullets: string[];
+  caution?: string;
+};

@@ -6,7 +6,8 @@ import ControlBar from "./components/ControlBar";
 import MetricTable from "./components/MetricTable";
 import EntityMetricTable from "./components/EntityMetricTable";
 import ErrorLogPanel, { ErrorLogItem } from "./components/ErrorLogPanel";
-import { Entity, FilterOption, FilterTemplate, FilterTemplateConfig, MeasurementUnit, Metric, PeriodUnit } from "./types";
+import { ChatContext, Entity, FilterOption, FilterTemplate, FilterTemplateConfig, MeasurementUnit, Metric, PeriodUnit, SummaryPayload } from "./types";
+import AiChat from "./components/AiChat";
 
 const ALL_LABEL = "전체";
 const ALL_VALUE = "all";
@@ -96,17 +97,6 @@ type HeatmapRow = {
   metrics: Record<string, number>;
 };
 
-type SummaryPayload = {
-  title: string;
-  bullets: string[];
-  caution?: string;
-};
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
 
 const fetchJson = async <T,>(input: RequestInfo, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, init);
@@ -201,14 +191,9 @@ export default function Home() {
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [isChatLoading, setIsChatLoading] = useState(false);
-
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
   const [isErrorLogOpen, setIsErrorLogOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
-  const [isReportOpen, setIsReportOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
   const controlsRef = useRef<HTMLElement | null>(null);
@@ -549,42 +534,6 @@ export default function Home() {
     }
   };
 
-  const handleChatSend = async () => {
-    const message = chatInput.trim();
-    if (!message || isChatLoading) return;
-    const userMessage: ChatMessage = { id: `${Date.now()}-user`, role: "user", content: message };
-    setChatMessages((prev) => [...prev, userMessage]);
-    setChatInput("");
-
-    try {
-      setIsChatLoading(true);
-      const context = buildContext(
-        weeks,
-        selectedMetrics,
-        selectedMetrics[0]?.id ?? null,
-        seriesByEntity,
-        appliedMeasurementUnit,
-        appliedFilterValue === ALL_VALUE ? ALL_LABEL : appliedFilterValue
-      );
-      const response = await fetchJson<{ reply: string }>("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, context })
-      });
-      const assistantMessage: ChatMessage = {
-        id: `${Date.now()}-assistant`,
-        role: "assistant",
-        content: response.reply
-      };
-      setChatMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      const messageText = (error as Error).message;
-      pushError("AI 응답 실패", messageText);
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
   // --- 템플릿 CRUD ---
   const loadTemplates = async () => {
     try {
@@ -686,14 +635,17 @@ export default function Home() {
 
   const isSearchDisabled = isLoadingBase || isLoadingHeatmap;
 
-  useEffect(() => {
-    if (!isReportOpen) return;
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsReportOpen(false);
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [isReportOpen]);
+  const chatContext = useMemo<ChatContext | null>(() => {
+    if (!showResults) return null;
+    return buildContext(
+      weeks,
+      selectedMetrics,
+      selectedMetrics[0]?.id ?? null,
+      seriesByEntity,
+      appliedMeasurementUnit,
+      appliedFilterValue === ALL_VALUE ? ALL_LABEL : appliedFilterValue
+    ) as ChatContext;
+  }, [showResults, weeks, selectedMetrics, seriesByEntity, appliedMeasurementUnit, appliedFilterValue]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -823,15 +775,12 @@ export default function Home() {
         )}
       </section>
 
-      {showResults && (
-        <button
-          type="button"
-          className="ai-fab"
-          onClick={() => setIsReportOpen(true)}
-        >
-          AI 분석 리포트
-        </button>
-      )}
+      <AiChat
+        visible={showResults}
+        summary={summary}
+        isSummaryLoading={isSummaryLoading}
+        context={chatContext}
+      />
 
       {isMetricPickerOpen && (
         <div className="metric-picker-overlay" onClick={() => setIsMetricPickerOpen(false)}>
@@ -892,64 +841,6 @@ export default function Home() {
               </button>
             </div>
           </aside>
-        </div>
-      )}
-
-      {isReportOpen && (
-        <div className="report-modal-overlay" onClick={() => setIsReportOpen(false)}>
-          <div className="report-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="report-modal-header">
-              <div className="card-title">AI 분석 리포트</div>
-              <button type="button" className="report-modal-close" onClick={() => setIsReportOpen(false)}>
-                닫기
-              </button>
-            </div>
-            <div className="report-modal-body">
-              <div className="report-summary">
-                {isSummaryLoading ? (
-                  <p>요약을 생성하는 중...</p>
-                ) : summary ? (
-                  <>
-                    <h3>{summary.title}</h3>
-                    <ul>
-                      {summary.bullets.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                    {summary.caution && <p className="note">{summary.caution}</p>}
-                  </>
-                ) : (
-                  <p>조회 후 자동 요약이 표시됩니다.</p>
-                )}
-              </div>
-              <div className="report-chat">
-                <div className="chat-messages">
-                  {chatMessages.length === 0 && (
-                    <div className="chat-empty">질문을 입력하면 데이터 기반으로 답변합니다.</div>
-                  )}
-                  {chatMessages.map((message) => (
-                    <div key={message.id} className={`chat-bubble ${message.role}`}>
-                      {message.content}
-                    </div>
-                  ))}
-                </div>
-                <div className="chat-input">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    placeholder="예: 이번 기간의 핵심 지표는 어떤 추세인가요?"
-                    onChange={(event) => setChatInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") handleChatSend();
-                    }}
-                  />
-                  <button type="button" onClick={handleChatSend} disabled={isChatLoading}>
-                    전송
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
