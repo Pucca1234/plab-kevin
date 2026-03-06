@@ -1,11 +1,12 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createClient } from "@/app/lib/supabase/client";
 import ControlBar from "./components/ControlBar";
 import MetricTable from "./components/MetricTable";
 import EntityMetricTable from "./components/EntityMetricTable";
 import ErrorLogPanel, { ErrorLogItem } from "./components/ErrorLogPanel";
-import { Entity, FilterOption, MeasurementUnit, Metric, PeriodUnit } from "./types";
+import { Entity, FilterOption, FilterTemplate, FilterTemplateConfig, MeasurementUnit, Metric, PeriodUnit } from "./types";
 
 const ALL_LABEL = "전체";
 const ALL_VALUE = "all";
@@ -213,6 +214,10 @@ export default function Home() {
   const controlsRef = useRef<HTMLElement | null>(null);
   const [stickyOffsets, setStickyOffsets] = useState({ header: 0, controls: 0 });
 
+  const [templates, setTemplates] = useState<FilterTemplate[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+
   const pushError = (message: string, detail?: string) => {
     setErrorLogs((prev) => {
       const next: ErrorLogItem[] = [
@@ -227,6 +232,13 @@ export default function Home() {
       return next.slice(0, 50);
     });
   };
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      const meta = data.user?.user_metadata;
+      setUserName(meta?.full_name || meta?.name || data.user?.email || null);
+    });
+  }, []);
 
   useEffect(() => {
     const originalError = console.error;
@@ -571,6 +583,105 @@ export default function Home() {
     }
   };
 
+  // --- 템플릿 CRUD ---
+  const loadTemplates = async () => {
+    try {
+      const response = await fetchJson<{ templates: FilterTemplate[] }>("/api/filter-templates");
+      setTemplates(response.templates ?? []);
+      return response.templates ?? [];
+    } catch {
+      // 미인증 상태에서는 조용히 실패
+      return [];
+    }
+  };
+
+  useEffect(() => {
+    let canceled = false;
+
+    const init = async () => {
+      const loaded = await loadTemplates();
+      if (canceled) return;
+      const defaultTemplate = loaded.find((t) => t.is_default);
+      if (defaultTemplate) {
+        applyTemplateConfig(defaultTemplate);
+      }
+    };
+
+    init();
+    return () => { canceled = true; };
+  }, []);
+
+  const applyTemplateConfig = (template: FilterTemplate) => {
+    const config = template.config as FilterTemplateConfig;
+    setPeriodRangeValue(config.periodRangeValue ?? "recent_8");
+    setMeasurementUnit(config.measurementUnit ?? "all");
+    setFilterValue(config.filterValue ?? ALL_VALUE);
+    if (config.selectedMetricIds?.length) {
+      setSelectedMetricIds(config.selectedMetricIds);
+    }
+    setActiveTemplateId(template.id);
+  };
+
+  const handleApplyTemplate = (template: FilterTemplate) => {
+    applyTemplateConfig(template);
+  };
+
+  const handleSaveTemplate = async (name: string, isShared: boolean, isDefault: boolean) => {
+    const config: FilterTemplateConfig = {
+      periodRangeValue,
+      measurementUnit,
+      filterValue,
+      selectedMetricIds
+    };
+    try {
+      const response = await fetchJson<{ template: FilterTemplate }>("/api/filter-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, config, is_shared: isShared, is_default: isDefault })
+      });
+      setActiveTemplateId(response.template.id);
+      await loadTemplates();
+    } catch (error) {
+      pushError("템플릿 저장 실패", (error as Error).message);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      await fetchJson(`/api/filter-templates/${id}`, { method: "DELETE" });
+      if (activeTemplateId === id) setActiveTemplateId(null);
+      await loadTemplates();
+    } catch (error) {
+      pushError("템플릿 삭제 실패", (error as Error).message);
+    }
+  };
+
+  const handleRenameTemplate = async (id: string, name: string) => {
+    try {
+      await fetchJson(`/api/filter-templates/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      await loadTemplates();
+    } catch (error) {
+      pushError("템플릿 이름 수정 실패", (error as Error).message);
+    }
+  };
+
+  const handleSetDefaultTemplate = async (id: string) => {
+    try {
+      await fetchJson(`/api/filter-templates/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_default: true })
+      });
+      await loadTemplates();
+    } catch (error) {
+      pushError("기본 템플릿 설정 실패", (error as Error).message);
+    }
+  };
+
   const isSearchDisabled = isLoadingBase || isLoadingHeatmap;
 
   useEffect(() => {
@@ -631,6 +742,17 @@ export default function Home() {
         </div>
         <div className="header-meta">
           <span>데이터 소스: Supabase</span>
+          {userName && <span className="user-name">{userName}</span>}
+          <button
+            className="logout-btn"
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              window.location.href = "/login";
+            }}
+          >
+            로그아웃
+          </button>
         </div>
       </header>
 
@@ -651,6 +773,20 @@ export default function Home() {
           onOpenMetricPicker={openMetricPicker}
           onSearch={handleSearch}
           isSearchDisabled={isSearchDisabled}
+          templates={templates}
+          activeTemplateId={activeTemplateId}
+          onApplyTemplate={handleApplyTemplate}
+          onSaveTemplate={handleSaveTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
+          onRenameTemplate={handleRenameTemplate}
+          onSetDefaultTemplate={handleSetDefaultTemplate}
+          onResetFilters={() => {
+            setPeriodRangeValue("recent_8");
+            setMeasurementUnit("all");
+            setFilterValue(ALL_VALUE);
+            setSelectedMetricIds(preferredDefaultMetricIds.filter((id) => metrics.some((m) => m.id === id)));
+            setActiveTemplateId(null);
+          }}
         />
         {isLoadingFilter && <div className="card subtle">필터 로딩 중...</div>}
       </section>
