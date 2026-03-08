@@ -84,6 +84,11 @@ const periodRangeSizeMap: Record<string, number> = {
   recent_24: 24
 };
 
+const buildCommit =
+  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
+  process.env.VERCEL_GIT_COMMIT_SHA ||
+  "";
+
 type MetricRow = {
   metric: string;
   korean_name: string;
@@ -754,6 +759,7 @@ export default function Home() {
         </div>
         <div className="header-meta">
           <span>데이터 소스: Supabase</span>
+          {buildCommit && <span>build: {buildCommit.slice(0, 7)}</span>}
           {userName && <span className="user-name">{userName}</span>}
           <button
             className="logout-btn"
