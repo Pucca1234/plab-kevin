@@ -73,6 +73,31 @@
   - 데이터 결과 테이블 첫 행 sticky 고정은 현재 비활성화
     - 스크롤/레이아웃 충돌 이슈로 별도 브랜치에서 재설계 예정
 
+## 2026-03-08 운영 이슈 기록
+- 증상:
+  - 로그인 시 `/login` 반복 진입(루프)
+  - 로그인 완료 후 `social-match-dashboard-mvp-two.vercel.app`로 이동
+  - 최신 기능 미반영처럼 보이는 혼선
+- 원인:
+  - Supabase Auth Redirect URL이 `-two` 도메인으로 설정
+  - middleware 인증 실패 시 즉시 로그인 리다이렉트
+  - canonical 도메인과 보조 도메인 혼용
+- 조치:
+  - middleware에서 `/api` 제외 및 인증 조회 실패 시 강제 리다이렉트 완화
+  - OAuth redirect/callback을 `NEXT_PUBLIC_APP_URL` 기준 canonical URL로 고정
+  - `/login?code=...` 유입 시 로그인 페이지에서 코드 교환 처리
+  - 헤더에 `build: <commit>` 표시로 배포 버전 식별
+
+## 운영 도메인 원칙
+- Canonical 운영 도메인:
+  - `https://social-match-dashboard-mvp.vercel.app`
+- Supabase Auth URL 설정:
+  - Site URL = `https://social-match-dashboard-mvp.vercel.app`
+  - Redirect URLs:
+    - `https://social-match-dashboard-mvp.vercel.app/auth/callback`
+    - `http://localhost:3000/auth/callback`
+- `-two` 도메인은 운영 로그인 경로에서 제외(필요 시 Preview 전용)
+
 ## 이슈 진단 메모 (2026-02-22)
 - 증상:
   - `all`, `area_group`는 정상이나 `area`, `stadium_group`, `stadium`에서 최근값이 0으로 과다 노출
@@ -91,6 +116,9 @@ npm install
 2. 환경변수 설정 (`.env.local`)
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_APP_URL` (운영: `https://social-match-dashboard-mvp.vercel.app`)
 
 3. 개발 실행
 ```bash

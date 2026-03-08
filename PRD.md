@@ -125,6 +125,36 @@
   - 증감 스파크라인 색상: 검정
   - 추세선: 회색 점선 오버레이 추가
 
+### 7.9 2026-03-08 운영 장애 대응 기록
+- 증상:
+  - Vercel 배포 후 로그인 시 `/login` 반복 또는 2~3회 시도 후 진입
+  - 사용자 체감상 최신 기능 미반영
+  - 로그인 완료 후 `social-match-dashboard-mvp-two.vercel.app`로 도메인이 변경됨
+- 원인:
+  - OAuth Redirect URL이 `-two` 도메인으로 설정되어 있어 콜백이 잘못된 도메인으로 유입
+  - middleware가 인증 조회 실패 시 즉시 `/login`으로 리다이렉트하여 루프 가능성 존재
+  - 배포 도메인 혼선(`-two` vs canonical)으로 최신 반영 여부 판단이 어려움
+- 조치:
+  - middleware 안정화:
+    - `/api` 경로 matcher 제외
+    - `supabase.auth.getUser()` 실패 시 즉시 강제 리다이렉트하지 않도록 완화
+  - OAuth canonical 고정:
+    - 로그인 요청 redirectTo를 `NEXT_PUBLIC_APP_URL` 기준으로 고정
+    - `/auth/callback` 완료 후 리다이렉트를 canonical URL로 고정
+    - `/login?code=...` 유입 시 login page에서 코드 교환 처리 추가
+  - 배포 식별:
+    - 헤더에 `build: <commit>` 표시로 실제 배포 버전 즉시 확인
+
+## 8. 운영 도메인 원칙
+- Canonical 운영 도메인은 단일값만 사용:
+  - `https://social-match-dashboard-mvp.vercel.app`
+- Supabase Auth URL 정책:
+  - `Site URL` = canonical 운영 도메인
+  - Redirect URLs:
+    - `https://social-match-dashboard-mvp.vercel.app/auth/callback`
+    - `http://localhost:3000/auth/callback`
+- `-two` 같은 보조 도메인은 운영 로그인 경로에 등록하지 않음(필요 시 Preview 전용으로만 사용)
+
 ### 7.5 2026-02-22 장애 원인 및 조치
 - 현상:
   - `area/stadium_group/stadium` 최근 주차 조회 시 0 값 과다 노출
@@ -149,7 +179,7 @@
   - 필터 옵션 API를 MV 기반으로 전환하고 TTL 캐시 적용
   - heatmap API의 지원 지표 목록 조회 캐시 적용
 
-## 8. 검증 체계
+## 9. 검증 체계
 ### 8.1 로컬 검증
 - 스크립트: `scripts/validate-weekly-agg-mv.mjs`
 - 명령: `npm run data:validate-mv`
@@ -167,7 +197,7 @@
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
 
-## 9. 운영 자동화
+## 10. 운영 자동화
 ### 9.1 Supabase CLI
 - 가이드: `SUPABASE_CLI_WORKFLOW.md`
 - 스크립트:
@@ -182,12 +212,12 @@
 - 기능:
   - build + data validation + commit
   - 옵션으로 push/PR 생성
-## 10. 비기능 요구사항
+## 11. 비기능 요구사항
 - UTF-8 인코딩 강제(`predev`, `prebuild`)
 - 원천 테이블 스키마 변경 금지
 - 신규 리소스는 별도 파일/마이그레이션으로 관리
 
-## 11. 수용 기준 (현재)
+## 12. 수용 기준 (현재)
 - `stadium_group`, `stadium` 조회 결과 정상 노출
 - 전체 지표 검증(`data:validate-mv`) 결과:
   - `missingRows = 0`
