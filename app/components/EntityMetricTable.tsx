@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Entity, Metric } from "../types";
+import { Entity, FilterOption, Metric } from "../types";
 import Sparkline from "./Sparkline";
 import { formatValue } from "../lib/format";
 
@@ -12,6 +12,12 @@ type EntityMetricTableProps = {
   seriesByEntity: Record<string, Record<string, number[]>>;
   showDelta?: boolean;
   onShowDeltaChange?: (next: boolean) => void;
+  onEntitySelect?: (entityName: string) => void;
+  entityFilterOptions?: FilterOption[];
+  entityFilterValue?: string;
+  onEntityFilterSelect?: (value: string) => void;
+  drilldownPathItems?: { label: string; targetDepth: number; isCurrent: boolean }[];
+  onDrilldownNavigate?: (targetDepth: number) => void;
 };
 
 const formatDelta = (metric: Metric, delta: number | null) => {
@@ -40,7 +46,13 @@ export default function EntityMetricTable({
   metrics,
   seriesByEntity,
   showDelta = true,
-  onShowDeltaChange
+  onShowDeltaChange,
+  onEntitySelect,
+  entityFilterOptions = [],
+  entityFilterValue,
+  onEntityFilterSelect,
+  drilldownPathItems = [],
+  onDrilldownNavigate
 }: EntityMetricTableProps) {
   const weekColumnCount = weeks.length;
   const defaultWidths = useMemo(() => [180, 120, 120, ...Array(weekColumnCount).fill(120)], [weekColumnCount]);
@@ -48,6 +60,8 @@ export default function EntityMetricTable({
   const resizeIndexRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const [isEntityFilterOpen, setIsEntityFilterOpen] = useState(false);
+  const entityFilterRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setColumnWidths(defaultWidths);
@@ -78,6 +92,17 @@ export default function EntityMetricTable({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isEntityFilterOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (entityFilterRef.current && !entityFilterRef.current.contains(event.target as Node)) {
+        setIsEntityFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isEntityFilterOpen]);
+
   const gridTemplateColumns = useMemo(
     () => columnWidths.map((width) => `${Math.round(width)}px`).join(" "),
     [columnWidths]
@@ -98,11 +123,72 @@ export default function EntityMetricTable({
           </label>
         )}
       </div>
+      {drilldownPathItems.length > 0 && (
+        <div className="drilldown-path" aria-label="드릴다운 경로">
+          {drilldownPathItems.map((item, index) => (
+            <span key={`${item.label}-${index}`} className="drilldown-path-item">
+              {item.isCurrent || !onDrilldownNavigate ? (
+                <span className={`drilldown-node ${item.isCurrent ? "is-current" : ""}`}>{item.label}</span>
+              ) : (
+                <button
+                  type="button"
+                  className="drilldown-node is-link"
+                  onClick={() => onDrilldownNavigate(item.targetDepth)}
+                >
+                  {item.label}
+                </button>
+              )}
+              {index < drilldownPathItems.length - 1 && <span className="drilldown-sep">&gt;</span>}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="table-scroll">
         <div className="data-grid entity-grid">
           <div className="data-row data-header" style={{ gridTemplateColumns } as CSSProperties}>
-            <div className="data-cell data-entity is-resizable">
-              엔티티
+            <div className="data-cell data-entity is-resizable entity-header-cell" ref={entityFilterRef}>
+              {onEntityFilterSelect ? (
+                <button
+                  type="button"
+                  className="entity-filter-trigger"
+                  onClick={() => setIsEntityFilterOpen((prev) => !prev)}
+                >
+                  엔티티
+                  <svg
+                    className="entity-filter-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M4 6H20L14 13V18L10 20V13L4 6Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              ) : (
+                "엔티티"
+              )}
+              {onEntityFilterSelect && isEntityFilterOpen && (
+                <div className="entity-filter-menu">
+                  {entityFilterOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`entity-filter-option ${entityFilterValue === option.value ? "is-active" : ""}`}
+                      onClick={() => {
+                        onEntityFilterSelect(option.value);
+                        setIsEntityFilterOpen(false);
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 className="col-resizer"
@@ -147,8 +233,19 @@ export default function EntityMetricTable({
               const isFirst = index === 0;
               return (
                 <div key={`${entity.id}-${metric.id}`} className="data-row" style={{ gridTemplateColumns } as CSSProperties}>
-                  <div className={`data-cell data-entity ${isFirst ? "" : "is-empty"}`}>
-                    <span className="name-title">{entity.name}</span>
+                  <div className={`data-cell data-entity ${isFirst ? "is-clickable" : "is-empty"}`}>
+                    {isFirst && onEntitySelect ? (
+                      <button
+                        type="button"
+                        className="entity-cell-btn"
+                        onClick={() => onEntitySelect(entity.name)}
+                        title={`${entity.name} 기준으로 필터/드릴다운`}
+                      >
+                        {entity.name}
+                      </button>
+                    ) : (
+                      <span className="name-title">{entity.name}</span>
+                    )}
                   </div>
                   <div className="data-cell data-metric">
                     <span className="name-title">{metric.name}</span>
