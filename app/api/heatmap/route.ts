@@ -16,6 +16,8 @@ type HeatmapRequestBody = {
   metrics: string[];
   filterValue?: string | null;
   primaryMetricId?: string;
+  parentUnit?: (typeof allowedUnits)[number] | null;
+  parentValue?: string | null;
 };
 
 const buildHeatmapCacheKey = (params: {
@@ -23,11 +25,17 @@ const buildHeatmapCacheKey = (params: {
   filterValue: string | null;
   weeks: string[];
   metrics: string[];
+  parentUnit?: string | null;
+  parentValue?: string | null;
 }) => {
   const filterKey = params.filterValue && params.filterValue.trim() !== "" ? params.filterValue.trim() : "all";
   const weeksKey = params.weeks.join("|");
   const metricsKey = params.metrics.join("|");
-  return `heatmap:${params.measureUnit}:${filterKey}:${weeksKey}:${metricsKey}`;
+  const parentKey =
+    params.parentUnit && params.parentValue
+      ? `${params.parentUnit}:${params.parentValue.trim()}`
+      : "none";
+  return `heatmap:${params.measureUnit}:${filterKey}:${weeksKey}:${metricsKey}:${parentKey}`;
 };
 
 const getSupportedMetricIdsCached = unstable_cache(
@@ -47,7 +55,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { measureUnit, filterValue, weeks, metrics, primaryMetricId } = payload;
+  const { measureUnit, filterValue, weeks, metrics, primaryMetricId, parentUnit, parentValue } = payload;
 
   if (Array.isArray(weeks) && weeks.length > 0) {
     const firstWeek = weeks[0];
@@ -60,7 +68,9 @@ export async function POST(request: Request) {
       firstWeek,
       lastWeek,
       metricsLength: Array.isArray(metrics) ? metrics.length : null,
-      primaryMetricId
+      primaryMetricId,
+      parentUnit,
+      parentValue
     });
   } else {
     console.log("[heatmap] request", {
@@ -69,7 +79,9 @@ export async function POST(request: Request) {
       filterValue,
       weeksLength: Array.isArray(weeks) ? weeks.length : null,
       metricsLength: Array.isArray(metrics) ? metrics.length : null,
-      primaryMetricId
+      primaryMetricId,
+      parentUnit,
+      parentValue
     });
   }
 
@@ -78,7 +90,9 @@ export async function POST(request: Request) {
     weeks: "string[]",
     metrics: "string[]",
     filterValue: "string|null (optional)",
-    primaryMetricId: "string (optional)"
+    primaryMetricId: "string (optional)",
+    parentUnit: "string|null (optional)",
+    parentValue: "string|null (optional)"
   };
 
   const badRequest = (reason: string) => {
@@ -109,6 +123,14 @@ export async function POST(request: Request) {
   if (filterValue !== null && filterValue !== undefined && typeof filterValue !== "string") {
     return badRequest("filterValue must be a string or null");
   }
+  if (parentUnit !== null && parentUnit !== undefined) {
+    if (typeof parentUnit !== "string" || !allowedUnits.includes(parentUnit as (typeof allowedUnits)[number])) {
+      return badRequest("parentUnit must be one of: all, area_group, area, stadium_group, stadium");
+    }
+  }
+  if (parentValue !== null && parentValue !== undefined && typeof parentValue !== "string") {
+    return badRequest("parentValue must be a string or null");
+  }
 
   if (!Array.isArray(metrics) || metrics.length === 0) {
     return badRequest("metrics is required as a non-empty string array");
@@ -125,11 +147,17 @@ export async function POST(request: Request) {
 
   try {
     const normalizedFilter = filterValue && filterValue.trim() !== "" ? filterValue : null;
+    const normalizedParentUnit =
+      parentUnit && parentUnit !== "all" ? (parentUnit as Exclude<(typeof allowedUnits)[number], "all">) : null;
+    const normalizedParentValue =
+      parentValue && parentValue.trim() !== "" ? parentValue.trim() : null;
     const cacheKey = buildHeatmapCacheKey({
       measureUnit,
       filterValue: normalizedFilter,
       weeks,
-      metrics: metricIds
+      metrics: metricIds,
+      parentUnit: normalizedParentUnit,
+      parentValue: normalizedParentValue
     });
 
     const getHeatmapCached = unstable_cache(
@@ -140,7 +168,9 @@ export async function POST(request: Request) {
             measureUnit: measureUnit as (typeof allowedUnits)[number],
             filterValue: normalizedFilter,
             weeks,
-            metrics: metricIds ? [...metricIds] : undefined
+            metrics: metricIds ? [...metricIds] : undefined,
+            parentUnit: normalizedParentUnit,
+            parentValue: normalizedParentValue
           },
           timings
         );

@@ -10,6 +10,7 @@ const WEEK_LIMIT_DEFAULT = 104;
 const POSTGREST_PAGE_SIZE = 1000;
 
 type QueryMeasureUnit = "all" | "area_group" | "area" | "stadium_group" | "stadium";
+type QueryDrilldownUnit = Exclude<QueryMeasureUnit, "all">;
 
 type WeekEntry = { week: string; startDate: string | null };
 type MetricDictRow = {
@@ -253,12 +254,16 @@ const getHeatmapFromBaseTable = async ({
   measureUnit,
   filterValue,
   weeks,
-  metricIds
+  metricIds,
+  parentUnit,
+  parentValue
 }: {
   measureUnit: QueryMeasureUnit;
   filterValue: string | null;
   weeks: string[];
   metricIds: string[];
+  parentUnit?: QueryDrilldownUnit | null;
+  parentValue?: string | null;
 }) => {
   if (measureUnit === "all") {
     const selectColumns = Array.from(new Set(["week", "dimension_type", "area", ...metricIds])).join(",");
@@ -373,6 +378,9 @@ const getHeatmapFromBaseTable = async ({
     if (filterValue) {
       query = query.eq(unitColumn, filterValue);
     }
+    if (parentUnit && parentValue && columnByUnit[parentUnit]) {
+      query = query.eq(columnByUnit[parentUnit], parentValue);
+    }
     return query;
   });
 
@@ -449,8 +457,38 @@ export async function getMetricDictionary(timings?: { queryMs?: number; processM
   return result;
 }
 
-export async function getFilterOptions(measureUnit: QueryMeasureUnit) {
+export async function getFilterOptions(
+  measureUnit: QueryMeasureUnit,
+  options?: { parentUnit?: QueryDrilldownUnit | null; parentValue?: string | null }
+) {
   if (measureUnit === "all") return [ALL_LABEL];
+
+  const parentUnit = options?.parentUnit;
+  const parentValue = options?.parentValue && options.parentValue.trim().length > 0 ? options.parentValue.trim() : null;
+
+  if (parentUnit && parentValue) {
+    const unitColumn = columnByUnit[measureUnit];
+    const parentColumn = columnByUnit[parentUnit];
+
+    const data = await fetchPagedRows<Record<string, string | null>>((from, to) => {
+      let query = applyBaseFilters(
+        schemaClient
+          .from(tableName(BASE_TABLE))
+          .select(unitColumn)
+          .eq("dimension_type", measureUnit)
+          .not(unitColumn, "is", null)
+          .eq(parentColumn, parentValue)
+          .order(unitColumn, { ascending: true, nullsFirst: false })
+          .range(from, to)
+      );
+      return query;
+    });
+
+    const values = (data ?? [])
+      .map((row) => row[unitColumn])
+      .filter((value): value is string => !isBlank(value));
+    return Array.from(new Set(values)).sort();
+  }
 
   const data = await fetchPagedRows<{ filter_value: string | null }>((from, to) =>
     schemaClient
@@ -475,10 +513,12 @@ type HeatmapParams = {
   filterValue: string | null;
   weeks: string[];
   metrics?: string[];
+  parentUnit?: QueryDrilldownUnit | null;
+  parentValue?: string | null;
 };
 
 export async function getHeatmap(
-  { measureUnit, filterValue, weeks, metrics }: HeatmapParams,
+  { measureUnit, filterValue, weeks, metrics, parentUnit, parentValue }: HeatmapParams,
   timings?: { queryMs?: number; processMs?: number }
 ) {
   const supportedMetricIds = await getSupportedMetricIds();
@@ -487,37 +527,52 @@ export async function getHeatmap(
   const metricIds = (requested.length > 0 ? requested : supportedMetricIds).filter((metric) => allowed.has(metric));
   if (metricIds.length === 0) return [];
 
+  const hasParentDrilldown =
+    measureUnit !== "all" && Boolean(parentUnit && parentValue && parentValue.trim().length > 0);
+
   const queryStart = Date.now();
-  let rows = await fetchPagedRows<HeatmapAggRow>((from, to) => {
-    let query = schemaClient
-      .from(tableName(WEEKLY_AGG_VIEW))
-      .select("week,measure_unit,filter_value,metric_id,value")
-      .order("week", { ascending: true })
-      .order("filter_value", { ascending: true, nullsFirst: false })
-      .order("metric_id", { ascending: true })
-      .range(from, to);
+  let rows: HeatmapAggRow[] = [];
+  if (hasParentDrilldown) {
+    rows = await getHeatmapFromBaseTable({
+      measureUnit,
+      filterValue,
+      weeks,
+      metricIds,
+      parentUnit: parentUnit ?? null,
+      parentValue: parentValue ?? null
+    });
+  } else {
+    rows = await fetchPagedRows<HeatmapAggRow>((from, to) => {
+      let query = schemaClient
+        .from(tableName(WEEKLY_AGG_VIEW))
+        .select("week,measure_unit,filter_value,metric_id,value")
+        .order("week", { ascending: true })
+        .order("filter_value", { ascending: true, nullsFirst: false })
+        .order("metric_id", { ascending: true })
+        .range(from, to);
 
-    if (weeks.length > 0) {
-      query = query.in("week", weeks);
-    }
-
-    if (measureUnit === "all") {
-      query = query.eq("measure_unit", "all").eq("filter_value", ALL_LABEL);
-    } else {
-      query = query.eq("measure_unit", measureUnit);
-      if (filterValue) {
-        query = query.eq("filter_value", filterValue);
-      } else {
-        query = query.not("filter_value", "is", null);
+      if (weeks.length > 0) {
+        query = query.in("week", weeks);
       }
-    }
 
-    if (metricIds.length > 0) {
-      query = query.in("metric_id", metricIds);
-    }
+      if (measureUnit === "all") {
+        query = query.eq("measure_unit", "all").eq("filter_value", ALL_LABEL);
+      } else {
+        query = query.eq("measure_unit", measureUnit);
+        if (filterValue) {
+          query = query.eq("filter_value", filterValue);
+        } else {
+          query = query.not("filter_value", "is", null);
+        }
+      }
 
-    return query;
-  });
+      if (metricIds.length > 0) {
+        query = query.in("metric_id", metricIds);
+      }
+
+      return query;
+    });
+  }
   let queryMs = Date.now() - queryStart;
   const requestedWeekSet = new Set(weeks);
   const rowWeekSet = new Set(rows.map((row) => String(row.week ?? "").trim()).filter((week) => week.length > 0));
@@ -531,7 +586,9 @@ export async function getHeatmap(
       measureUnit,
       filterValue,
       weeks: rows.length === 0 ? weeks : fallbackWeeks,
-      metricIds
+      metricIds,
+      parentUnit: parentUnit ?? null,
+      parentValue: parentValue ?? null
     });
     if (rows.length === 0) {
       rows = fallbackRows;

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient, isSupabaseBrowserEnvConfigured } from "@/app/lib/supabase/client";
 import ControlBar from "./components/ControlBar";
 import MetricTable from "./components/MetricTable";
@@ -21,6 +21,13 @@ const unitLabel: Record<MeasurementUnit, string> = {
   region_group: "권역 그룹",
   region: "권역",
   court: "면"
+};
+
+const drilldownUnitLabel: Record<DrilldownUnit, string> = {
+  area_group: "지역그룹",
+  area: "지역",
+  stadium_group: "구장그룹",
+  stadium: "구장"
 };
 
 const metricFormats: Record<string, Metric["format"]> = {};
@@ -104,6 +111,16 @@ type HeatmapRow = {
   metrics: Record<string, number>;
 };
 
+type DrilldownUnit = "area_group" | "area" | "stadium_group" | "stadium";
+type DrilldownParent = { unit: DrilldownUnit; value: string } | null;
+type DrilldownTrailItem = { unit: DrilldownUnit; value: string };
+
+const nextUnitByUnit: Partial<Record<MeasurementUnit, DrilldownUnit>> = {
+  area_group: "area",
+  area: "stadium_group",
+  stadium_group: "stadium"
+};
+
 
 const fetchJson = async <T,>(input: RequestInfo, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, init);
@@ -183,6 +200,9 @@ export default function Home() {
   const [copiedMetricId, setCopiedMetricId] = useState<string | null>(null);
   const [metricSearchTerm, setMetricSearchTerm] = useState("");
   const [showDeltaValues, setShowDeltaValues] = useState(true);
+  const [drilldownParent, setDrilldownParent] = useState<DrilldownParent>(null);
+  const [drilldownTrail, setDrilldownTrail] = useState<DrilldownTrailItem[]>([]);
+  const [appliedDrilldownTrail, setAppliedDrilldownTrail] = useState<DrilldownTrailItem[]>([]);
 
   const [weeks, setWeeks] = useState<string[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -204,10 +224,6 @@ export default function Home() {
   const [isErrorLogOpen, setIsErrorLogOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const headerRef = useRef<HTMLElement | null>(null);
-  const controlsRef = useRef<HTMLElement | null>(null);
-  const [stickyOffsets, setStickyOffsets] = useState({ header: 0, controls: 0 });
-
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -329,9 +345,12 @@ export default function Home() {
       setIsLoadingFilter(true);
       setErrorMessage(null);
       try {
-        const response = await fetchJson<{ options: string[] }>(
-          `/api/filter-options?measureUnit=${measurementUnit}`
-        );
+        const params = new URLSearchParams({ measureUnit: measurementUnit });
+        if (drilldownParent?.unit && drilldownParent?.value) {
+          params.set("parentUnit", drilldownParent.unit);
+          params.set("parentValue", drilldownParent.value);
+        }
+        const response = await fetchJson<{ options: string[] }>(`/api/filter-options?${params.toString()}`);
         if (canceled) return;
 
         const options = response.options ?? [];
@@ -355,7 +374,7 @@ export default function Home() {
     return () => {
       canceled = true;
     };
-  }, [measurementUnit]);
+  }, [measurementUnit, drilldownParent?.unit, drilldownParent?.value]);
 
   const selectedMetrics = useMemo(() => {
     const map = new Map(metrics.map((metric) => [metric.id, metric]));
@@ -399,7 +418,29 @@ export default function Home() {
     return { entities: nextEntities, seriesByEntity: nextSeries };
   };
 
-  const handleSearch = async () => {
+  const runSearch = async (overrides?: {
+    measurementUnit?: MeasurementUnit;
+    filterValue?: string;
+    drilldownParent?: DrilldownParent;
+    drilldownTrail?: DrilldownTrailItem[];
+  }) => {
+    const targetMeasurementUnit =
+      overrides && "measurementUnit" in overrides && overrides.measurementUnit !== undefined
+        ? overrides.measurementUnit
+        : measurementUnit;
+    const targetFilterValue =
+      overrides && "filterValue" in overrides && overrides.filterValue !== undefined
+        ? overrides.filterValue
+        : filterValue;
+    const targetDrilldownParent =
+      overrides && "drilldownParent" in overrides
+        ? (overrides.drilldownParent ?? null)
+        : drilldownParent;
+    const targetDrilldownTrail =
+      overrides && "drilldownTrail" in overrides && overrides.drilldownTrail !== undefined
+        ? overrides.drilldownTrail
+        : drilldownTrail;
+
     if (!selectedMetricIds.length) {
       setErrorMessage("지표를 최소 1개 선택해주세요.");
       pushError("지표를 최소 1개 선택해주세요.");
@@ -443,9 +484,11 @@ export default function Home() {
         },
         signal: controller.signal,
         body: JSON.stringify({
-          measureUnit: measurementUnit,
-          filterValue: filterValue === ALL_VALUE ? null : filterValue,
-        weeks: nextWeeks,
+          measureUnit: targetMeasurementUnit,
+          filterValue: targetFilterValue === ALL_VALUE ? null : targetFilterValue,
+          parentUnit: targetDrilldownParent?.unit ?? null,
+          parentValue: targetDrilldownParent?.value ?? null,
+          weeks: nextWeeks,
           metrics: metricIdsForQuery
         })
       });
@@ -454,13 +497,14 @@ export default function Home() {
         response.rows ?? [],
         metricIdsForQuery,
         nextWeeks,
-        measurementUnit
+        targetMeasurementUnit
       );
 
       setEntities(nextEntities);
       setSeriesByEntity(nextSeries);
-      setAppliedMeasurementUnit(measurementUnit);
-      setAppliedFilterValue(filterValue);
+      setAppliedMeasurementUnit(targetMeasurementUnit);
+      setAppliedFilterValue(targetFilterValue);
+      setAppliedDrilldownTrail(targetDrilldownTrail);
       setShowResults(true);
 
       const context = buildContext(
@@ -468,8 +512,8 @@ export default function Home() {
         selectedMetrics,
         selectedMetrics[0]?.id ?? null,
         nextSeries,
-        measurementUnit,
-        filterValue === ALL_VALUE ? ALL_LABEL : filterValue
+        targetMeasurementUnit,
+        targetFilterValue === ALL_VALUE ? ALL_LABEL : targetFilterValue
       );
 
       setIsSummaryLoading(true);
@@ -495,18 +539,141 @@ export default function Home() {
     }
   };
 
+  const handleSearch = async () => {
+    await runSearch();
+  };
+
   const handleMeasurementChange = (value: MeasurementUnit) => {
     setMeasurementUnit(value);
     setFilterValue(ALL_VALUE);
+    setDrilldownParent(null);
+    setDrilldownTrail([]);
   };
 
   const handleFilterChange = (value: string) => {
     setFilterValue(value);
+    setDrilldownParent(null);
+    setDrilldownTrail([]);
   };
 
   const handlePeriodRangeChange = (value: string) => {
     setPeriodRangeValue(value);
   };
+
+  const handleEntityClick = (entityName: string) => {
+    const nextUnit = nextUnitByUnit[measurementUnit];
+    if (!nextUnit) {
+      setFilterValue(entityName);
+      setDrilldownParent(null);
+      setDrilldownTrail([]);
+      void runSearch({
+        measurementUnit,
+        filterValue: entityName,
+        drilldownParent: null,
+        drilldownTrail: []
+      });
+      return;
+    }
+
+    const nextTrail: DrilldownTrailItem[] = [
+      ...drilldownTrail,
+      {
+        unit: measurementUnit as DrilldownUnit,
+        value: entityName
+      }
+    ];
+    const parent: DrilldownParent = {
+      unit: measurementUnit as DrilldownUnit,
+      value: entityName
+    };
+    setMeasurementUnit(nextUnit);
+    setFilterValue(ALL_VALUE);
+    setDrilldownParent(parent);
+    setDrilldownTrail(nextTrail);
+    void runSearch({
+      measurementUnit: nextUnit,
+      filterValue: ALL_VALUE,
+      drilldownParent: parent,
+      drilldownTrail: nextTrail
+    });
+  };
+
+  const handleEntityFilterSelect = (nextValue: string) => {
+    setFilterValue(nextValue);
+    void runSearch({
+      measurementUnit,
+      filterValue: nextValue
+    });
+  };
+
+  const handleDrilldownNavigate = (stage: number) => {
+    const fullTrail = appliedDrilldownTrail.slice();
+    if (fullTrail.length === 0) return;
+
+    const normalizedStage = Math.max(0, Math.min(stage, fullTrail.length));
+    let nextMeasurement: MeasurementUnit;
+    let nextTrail: DrilldownTrailItem[];
+    let nextParent: DrilldownParent = null;
+
+    if (normalizedStage === 0) {
+      nextMeasurement = fullTrail[0].unit;
+      nextTrail = [];
+    } else {
+      nextTrail = fullTrail.slice(0, normalizedStage);
+      const parentNode = nextTrail[nextTrail.length - 1];
+      nextMeasurement = (nextUnitByUnit[parentNode.unit] ?? parentNode.unit) as MeasurementUnit;
+      nextParent = { unit: parentNode.unit, value: parentNode.value };
+    }
+
+    setMeasurementUnit(nextMeasurement);
+    setFilterValue(ALL_VALUE);
+    setDrilldownParent(nextParent);
+    setDrilldownTrail(nextTrail);
+    void runSearch({
+      measurementUnit: nextMeasurement,
+      filterValue: ALL_VALUE,
+      drilldownParent: nextParent,
+      drilldownTrail: nextTrail
+    });
+  };
+
+  const drilldownPathItems = useMemo(() => {
+    if (appliedMeasurementUnit === "all") {
+      return [] as { label: string; targetDepth: number; isCurrent: boolean }[];
+    }
+
+    if (appliedDrilldownTrail.length === 0) {
+      return [
+        {
+          label: `${drilldownUnitLabel[appliedMeasurementUnit as DrilldownUnit] ?? unitLabel[appliedMeasurementUnit] ?? appliedMeasurementUnit}(전체)`,
+          targetDepth: 0,
+          isCurrent: true
+        }
+      ];
+    }
+
+    const items: { label: string; targetDepth: number; isCurrent: boolean }[] = [];
+    const rootUnit = appliedDrilldownTrail[0].unit;
+    items.push({
+      label: `${drilldownUnitLabel[rootUnit] ?? rootUnit}(전체)`,
+      targetDepth: 0,
+      isCurrent: false
+    });
+
+    appliedDrilldownTrail.forEach((node, index) => {
+      const childUnit = nextUnitByUnit[node.unit];
+      if (!childUnit) return;
+      const targetDepth = index + 1;
+      const isCurrent = targetDepth === appliedDrilldownTrail.length;
+      items.push({
+        label: `${drilldownUnitLabel[childUnit] ?? childUnit}(${node.value})`,
+        targetDepth,
+        isCurrent
+      });
+    });
+
+    return items;
+  }, [appliedDrilldownTrail, appliedMeasurementUnit]);
 
   const handleRemoveSelectedMetric = (metricId: string) => {
     setSelectedMetricIds((prev) => prev.filter((id) => id !== metricId));
@@ -629,6 +796,8 @@ export default function Home() {
     setPeriodRangeValue(config.periodRangeValue ?? "recent_8");
     setMeasurementUnit(config.measurementUnit ?? "all");
     setFilterValue(config.filterValue ?? ALL_VALUE);
+    setDrilldownParent(null);
+    setDrilldownTrail([]);
     if (config.selectedMetricIds?.length) {
       setSelectedMetricIds(config.selectedMetricIds);
     }
@@ -709,44 +878,9 @@ export default function Home() {
     ) as ChatContext;
   }, [showResults, weeks, selectedMetrics, seriesByEntity, appliedMeasurementUnit, appliedFilterValue]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (typeof ResizeObserver === "undefined") return;
-    const headerEl = headerRef.current;
-    const controlsEl = controlsRef.current;
-    if (!headerEl || !controlsEl) return;
-
-    const updateOffsets = () => {
-      setStickyOffsets({
-        header: Math.ceil(headerEl.getBoundingClientRect().height),
-        controls: Math.ceil(controlsEl.getBoundingClientRect().height)
-      });
-    };
-
-    updateOffsets();
-    const observer = new ResizeObserver(updateOffsets);
-    observer.observe(headerEl);
-    observer.observe(controlsEl);
-    window.addEventListener("resize", updateOffsets);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateOffsets);
-    };
-  }, [selectedMetrics.length, measurementUnit, filterOptions.length]);
-
   return (
-    <main
-      className="app-shell"
-      style={
-        {
-          "--sticky-header-height": `${stickyOffsets.header}px`,
-          "--sticky-controls-height": `${stickyOffsets.controls}px`,
-          "--table-sticky-top": `${Math.min(stickyOffsets.header + stickyOffsets.controls, 320)}px`
-        } as CSSProperties
-      }
-    >
-      <header className="app-header app-header-sticky" ref={headerRef}>
+    <main className="app-shell">
+      <header className="app-header">
         <div className="brand">
           <div>
             <h1>
@@ -782,7 +916,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="top-controls-wrap top-controls-sticky" ref={controlsRef}>
+      <section className="top-controls-wrap">
         <ControlBar
           periodUnit={periodUnit}
           periodRangeValue={periodRangeValue}
@@ -810,6 +944,8 @@ export default function Home() {
             setPeriodRangeValue("recent_8");
             setMeasurementUnit("all");
             setFilterValue(ALL_VALUE);
+            setDrilldownParent(null);
+            setDrilldownTrail([]);
             setSelectedMetricIds(preferredDefaultMetricIds.filter((id) => metrics.some((m) => m.id === id)));
             setActiveTemplateId(null);
           }}
@@ -845,6 +981,12 @@ export default function Home() {
                 seriesByEntity={seriesByEntity}
                 showDelta={showDeltaValues}
                 onShowDeltaChange={setShowDeltaValues}
+                onEntitySelect={handleEntityClick}
+                entityFilterOptions={filterOptions}
+                entityFilterValue={filterValue}
+                onEntityFilterSelect={handleEntityFilterSelect}
+                drilldownPathItems={drilldownPathItems}
+                onDrilldownNavigate={handleDrilldownNavigate}
               />
             )}
           </div>
