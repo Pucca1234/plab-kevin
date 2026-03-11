@@ -13,8 +13,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_DB_URI: ${{ secrets.SUPABASE_DB_URI }}
       MV_HEALTHCHECK_WEEKS: "3"
       MV_HEALTHCHECK_METRIC: "total_match_cnt"
 
@@ -36,32 +35,15 @@ jobs:
           set -e
           [ -n "${SUPABASE_URL}" ] || (echo "Missing SUPABASE_URL" && exit 1)
           [ -n "${SUPABASE_SERVICE_ROLE_KEY}" ] || (echo "Missing SUPABASE_SERVICE_ROLE_KEY" && exit 1)
-          [ -n "${SUPABASE_PROJECT_REF}" ] || (echo "Missing SUPABASE_PROJECT_REF" && exit 1)
-          [ -n "${SUPABASE_DB_PASSWORD}" ] || (echo "Missing SUPABASE_DB_PASSWORD" && exit 1)
+          [ -n "${SUPABASE_DB_URI}" ] || (echo "Missing SUPABASE_DB_URI" && exit 1)
 
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Resolve DB host IPv4
-        id: resolve_db
-        run: |
-          set -euo pipefail
-          DB_HOST="db.${SUPABASE_PROJECT_REF}.supabase.co"
-          DB_HOSTADDR="$(getent ahostsv4 "${DB_HOST}" 2>/dev/null | awk '{ print $1; exit }' || true)"
-          if [ -z "${DB_HOSTADDR}" ]; then
-            echo "Could not resolve IPv4 for ${DB_HOST}"
-            echo "If your project is IPv6-only, use Supabase pooler endpoint for CI."
-            exit 1
-          fi
-          echo "db_host=${DB_HOST}" >> "$GITHUB_OUTPUT"
-          echo "db_hostaddr=${DB_HOSTADDR}" >> "$GITHUB_OUTPUT"
-
       - name: Rebuild weekly_agg_mv and indexes
-        env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           psql \
-            "host=${{ steps.resolve_db.outputs.db_host }} hostaddr=${{ steps.resolve_db.outputs.db_hostaddr }} port=5432 dbname=postgres user=postgres sslmode=require" \
+            "${SUPABASE_DB_URI}" \
             -v ON_ERROR_STOP=1 \
             -f supabase/sql/refresh_weekly_agg_mv.sql
 
