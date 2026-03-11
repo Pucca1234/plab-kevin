@@ -47,19 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           DB_HOST="db.${SUPABASE_PROJECT_REF}.supabase.co"
-          DB_HOSTADDR="$(python3 - <<'PY'
-import socket
-host = "db.${SUPABASE_PROJECT_REF}.supabase.co"
-ipv4 = ""
-try:
-    infos = socket.getaddrinfo(host, 5432, family=socket.AF_INET, type=socket.SOCK_STREAM)
-    if infos:
-        ipv4 = infos[0][4][0]
-except Exception:
-    ipv4 = ""
-print(ipv4)
-PY
-          )"
+          DB_HOSTADDR="$(getent ahostsv4 "${DB_HOST}" 2>/dev/null | awk '{ print $1; exit }' || true)"
           if [ -z "${DB_HOSTADDR}" ]; then
             echo "Could not resolve IPv4 for ${DB_HOST}"
             echo "If your project is IPv6-only, use Supabase pooler endpoint for CI."
