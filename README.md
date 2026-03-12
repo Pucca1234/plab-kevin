@@ -155,6 +155,7 @@ npm run data:validate-recent-refresh
   - 워크플로: `.github/workflows/weekly-mv-rebuild.yml`
   - 스케줄: 매주 화요일 10:00 KST (UTC `0 1 * * 2`)
   - 실행 SQL: `supabase/sql/refresh_weekly_agg_mv.sql`
+  - 헬스체크 SQL: `supabase/sql/validate_recent_refresh.sql`
   - 필요한 GitHub Secrets:
     - `SUPABASE_URL`
     - `SUPABASE_SERVICE_ROLE_KEY`
@@ -168,14 +169,13 @@ npm run data:validate-recent-refresh
 - 오늘 발생한 오류/조치:
   - 초기: GitHub Actions에서 Direct DB 접속 시 `Network is unreachable` (IPv6 경로)
   - 조치: 워크플로를 `SUPABASE_DB_URI` 기반 접속으로 변경
-  - 헬스체크 실패 시 로그가 `{ message: '' }` 수준으로만 남아 원인 파악이 어려웠음
-  - `scripts/validate-recent-refresh.mjs`에서 query context(`week/unit/metric/queryType`)와 Supabase error payload(`code/details/hint/message`)를 함께 출력하도록 보강
+  - PostgREST 기반 헬스체크는 GitHub Actions 환경에서 대용량 단위(`stadium_group`) count 조회 시 비어 있는 에러 payload로 실패할 수 있어, 워크플로 검증 경로를 DB 직결 SQL(`supabase/sql/validate_recent_refresh.sql`)로 전환
+  - `scripts/validate-recent-refresh.mjs`는 로컬/수동 진단용으로 유지하고, query context(`week/unit/metric/queryType`)와 Supabase error payload(`code/details/hint/message`)를 함께 출력하도록 보강
   - `Weekly MV Rebuild #8` 수동 재실행 결과 `rebuild-and-validate` 전체 성공 확인
   - 로컬에서도 `npm run data:validate-recent-refresh`, `npm run data:validate-mv`(최근 3주, `total_match_cnt`) 재검증 통과
 - 다음 TODO:
   - 배포 UI에서 최신 주차(`26.03.09 - 03.15`) 기준 `all/area/stadium` 결과가 실제 화면에서도 정상 노출되는지 확인
-  - 다음 수동/정기 실행에서 annotation 경고 제거 여부 확인:
-    - `.github/workflows/weekly-mv-rebuild.yml`의 `actions/checkout@v5`, `actions/setup-node@v5` 반영 후 재실행
+  - 다음 수동/정기 실행에서 DB 직결 헬스체크와 annotation 경고 제거 여부 확인
   - `SUPABASE_DB_URI` 운영값 점검:
     - pooler URI 사용 여부, 비밀번호 인코딩, `sslmode` 포함 여부 재확인
 

@@ -48,4 +48,10 @@ jobs:
             -f supabase/sql/refresh_weekly_agg_mv.sql
 
       - name: Validate latest weeks after rebuild
-        run: node scripts/validate-recent-refresh.mjs
+        run: |
+          psql \
+            "${SUPABASE_DB_URI}" \
+            -v ON_ERROR_STOP=1 \
+            -v check_weeks="${MV_HEALTHCHECK_WEEKS}" \
+            -v metric_id="${MV_HEALTHCHECK_METRIC}" \
+            -f supabase/sql/validate_recent_refresh.sql

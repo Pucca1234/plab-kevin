@@ -164,15 +164,17 @@
   - Airbyte 주간 overwrite/refresh 방식으로 원천 테이블이 갱신될 때, 분석용 MV/인덱스 종속성이 깨질 수 있음
 - 오늘 반영:
   - 주간 자동복구 워크플로(`.github/workflows/weekly-mv-rebuild.yml`) main 반영
-  - 재생성 SQL(`supabase/sql/refresh_weekly_agg_mv.sql`) 및 최신 주차 헬스체크(`scripts/validate-recent-refresh.mjs`) 연동
+  - 재생성 SQL(`supabase/sql/refresh_weekly_agg_mv.sql`) 및 최신 주차 헬스체크 연동
 - 오늘 장애/조치:
   - Direct DB 경로는 GitHub Actions IPv4 환경에서 `Network is unreachable`로 실패
   - `SUPABASE_DB_URI` 기반으로 전환 후 재생성 단계 정상화
   - 헬스체크 실패 시 에러 메시지 컨텍스트 부족(`{ message: '' }`) 문제가 있어 스크립트 로그를 보강
-  - `scripts/validate-recent-refresh.mjs`는 실패 시 `week/unit/metric/queryType`와 Supabase error payload(`code/details/hint/message`)를 함께 출력하도록 개선
+  - PostgREST 기반 헬스체크는 GitHub Actions 환경에서 `stadium_group` count 조회 시 비어 있는 에러 payload로 실패할 수 있어, 워크플로 검증 경로를 DB 직결 SQL(`supabase/sql/validate_recent_refresh.sql`)로 전환
+  - `scripts/validate-recent-refresh.mjs`는 로컬/수동 진단용으로 유지하고, 실패 시 `week/unit/metric/queryType`와 Supabase error payload(`code/details/hint/message`)를 함께 출력하도록 개선
   - `Weekly MV Rebuild #8` 수동 재실행 성공, 로컬 최신 3주 기준 `data:validate-recent-refresh` 및 `data:validate-mv`도 통과
 - 다음 작업 TODO:
   - 배포 UI 기준 최신 주차 조회 결과(`all/area/stadium`) 최종 확인
+  - DB 직결 헬스체크 전환 후 워크플로 재실행 결과 확인
   - `actions/checkout@v5`, `actions/setup-node@v5` 반영 후 워크플로 annotation 경고 제거 확인
   - pooler URI 형식/인코딩/sslmode 점검
 
@@ -253,7 +255,7 @@
   - `.github/workflows/weekly-mv-rebuild.yml`
 - 실행 순서:
   - `supabase/sql/refresh_weekly_agg_mv.sql` 실행 (MV 재생성 + 인덱스 보장)
-  - `scripts/validate-recent-refresh.mjs` 실행 (최근 3주/주요 지표 존재 헬스체크)
+  - `supabase/sql/validate_recent_refresh.sql` 실행 (최근 3주/주요 지표 존재 헬스체크)
 - 필요 Secrets:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
