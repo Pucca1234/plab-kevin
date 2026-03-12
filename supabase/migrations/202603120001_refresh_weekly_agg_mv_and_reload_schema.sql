@@ -13,6 +13,49 @@ where period_type = 'week'
   and length(trim(week)) >= 8
   and to_date('20' || substr(week, 1, 8), 'YYYY.MM.DD') <= current_date;
 
+drop materialized view if exists bigquery.entity_hierarchy_mv;
+
+create materialized view bigquery.entity_hierarchy_mv as
+select distinct
+  nullif(trim(area_group), '') as area_group,
+  nullif(trim(area), '') as area,
+  nullif(trim(stadium_group), '') as stadium_group,
+  nullif(trim(stadium), '') as stadium
+from bigquery.data_mart_1_social_match
+where period_type = 'week'
+  and day is null
+  and yoil is null
+  and yoil_group is null
+  and hour is null
+  and time is null
+  and (
+    area_group is not null or
+    area is not null or
+    stadium_group is not null or
+    stadium is not null
+  );
+
+create index if not exists idx_entity_hierarchy_area_group
+  on bigquery.entity_hierarchy_mv (area_group);
+
+create index if not exists idx_entity_hierarchy_area
+  on bigquery.entity_hierarchy_mv (area);
+
+create index if not exists idx_entity_hierarchy_stadium_group
+  on bigquery.entity_hierarchy_mv (stadium_group);
+
+create index if not exists idx_entity_hierarchy_stadium
+  on bigquery.entity_hierarchy_mv (stadium);
+
+create index if not exists idx_entity_hierarchy_area_group_area
+  on bigquery.entity_hierarchy_mv (area_group, area);
+
+create index if not exists idx_entity_hierarchy_area_stadium_group
+  on bigquery.entity_hierarchy_mv (area, stadium_group);
+
+create index if not exists idx_entity_hierarchy_stadium_group_stadium
+  on bigquery.entity_hierarchy_mv (stadium_group, stadium);
+
 drop materialized view if exists bigquery.weekly_agg_mv;
 
 create materialized view bigquery.weekly_agg_mv as

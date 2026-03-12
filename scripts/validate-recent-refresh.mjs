@@ -27,6 +27,7 @@ const supabase = createClient(url, key, { auth: { persistSession: false } });
 const UNITS = ["all", "area_group", "area", "stadium_group", "stadium"];
 const METRIC_ID = process.env.MV_HEALTHCHECK_METRIC || "total_match_cnt";
 const CHECK_WEEKS = Number.parseInt(process.env.MV_HEALTHCHECK_WEEKS || "3", 10);
+const WEEK_FETCH_PAGE_SIZE = 500;
 
 const formatError = (error) => {
   if (!error) return { message: "Unknown error" };
@@ -93,18 +94,51 @@ const formatFailure = ({ week, unit, metricId, rowCount, metricCount }) => {
   return parts.join(", ");
 };
 
-const main = async () => {
-  const { data: weeksData, error: weekErr } = await supabase
-    .schema("bigquery")
-    .from("weeks_view")
-    .select("week")
-    .order("week_start_date", { ascending: false })
-    .limit(CHECK_WEEKS);
-  if (weekErr) throw weekErr;
+const parseWeekStartTime = (week) => {
+  const match = String(week ?? "").trim().match(/^(\d{2}\.\d{2}\.\d{2})/);
+  if (!match) return Number.NEGATIVE_INFINITY;
+  return Date.parse(`20${match[1].replace(/\./g, "-")}T00:00:00Z`);
+};
 
-  const weeks = (weeksData ?? []).map((row) => row.week).filter(Boolean);
+const getRecentWeeks = async (limit) => {
+  const uniqueWeeks = [];
+  const seen = new Set();
+  let from = 0;
+
+  while (uniqueWeeks.length < limit) {
+    const to = from + WEEK_FETCH_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .schema("bigquery")
+      .from("weekly_agg_mv")
+      .select("week")
+      .eq("measure_unit", "all")
+      .eq("filter_value", "전체")
+      .order("week", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+
+    const rows = data ?? [];
+    if (rows.length === 0) break;
+
+    for (const row of rows) {
+      const week = String(row.week ?? "").trim();
+      if (!week || seen.has(week)) continue;
+      seen.add(week);
+      uniqueWeeks.push(week);
+      if (uniqueWeeks.length >= limit) break;
+    }
+
+    if (rows.length < WEEK_FETCH_PAGE_SIZE) break;
+    from += WEEK_FETCH_PAGE_SIZE;
+  }
+
+  return uniqueWeeks.sort((a, b) => parseWeekStartTime(b) - parseWeekStartTime(a));
+};
+
+const main = async () => {
+  const weeks = await getRecentWeeks(CHECK_WEEKS);
   if (weeks.length === 0) {
-    throw new Error("No weeks found in weeks_view.");
+    throw new Error("No recent weeks found in weekly_agg_mv.");
   }
 
   const failures = [];

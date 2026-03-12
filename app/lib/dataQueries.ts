@@ -6,8 +6,10 @@ const SCHEMA_NAME = "bigquery";
 const BASE_TABLE = "data_mart_1_social_match";
 const METRIC_TABLE = "metric_store_native";
 const WEEKLY_AGG_VIEW = "weekly_agg_mv";
+const ENTITY_HIERARCHY_VIEW = "entity_hierarchy_mv";
 const WEEK_LIMIT_DEFAULT = 104;
 const POSTGREST_PAGE_SIZE = 1000;
+const WEEK_FETCH_PAGE_SIZE = 500;
 
 type QueryMeasureUnit = "all" | "area_group" | "area" | "stadium_group" | "stadium";
 type QueryDrilldownUnit = Exclude<QueryMeasureUnit, "all">;
@@ -106,6 +108,14 @@ const toCategoryLabel = (value: unknown) => {
   return text.length > 0 ? text : "";
 };
 
+const parseWeekStartDate = (week: string) => {
+  const match = week.trim().match(/^(\d{2}\.\d{2}\.\d{2})/);
+  if (!match) return null;
+  const iso = `20${match[1].replace(/\./g, "-")}`;
+  const time = Date.parse(`${iso}T00:00:00Z`);
+  return Number.isFinite(time) ? new Date(time).toISOString().slice(0, 10) : null;
+};
+
 const resolveMetricCategory = (row: MetricDictRow, depth: 2 | 3) => {
   if (depth === 2) {
     return (
@@ -123,24 +133,77 @@ const resolveMetricCategory = (row: MetricDictRow, depth: 2 | 3) => {
   );
 };
 
+const getChildEntityValues = async ({
+  measureUnit,
+  parentUnit,
+  parentValue
+}: {
+  measureUnit: QueryDrilldownUnit;
+  parentUnit: QueryDrilldownUnit;
+  parentValue: string;
+}) => {
+  const childColumn = columnByUnit[measureUnit];
+  const parentColumn = columnByUnit[parentUnit];
+  const data = await fetchPagedRows<Record<string, string | null>>((from, to) =>
+    schemaClient
+      .from(tableName(ENTITY_HIERARCHY_VIEW))
+      .select(`${childColumn},${parentColumn}`)
+      .eq(parentColumn, parentValue)
+      .not(childColumn, "is", null)
+      .order(childColumn, { ascending: true, nullsFirst: false })
+      .range(from, to)
+  );
+
+  return Array.from(
+    new Set(
+      (data ?? [])
+        .map((row) => row[childColumn])
+        .filter((value): value is string => !isBlank(value))
+    )
+  ).sort();
+};
+
 const buildWeekEntries = async (limit?: number) => {
   const effectiveLimit = typeof limit === "number" && limit > 0 ? limit : WEEK_LIMIT_DEFAULT;
+  const uniqueWeeks = new Set<string>();
+  const entries: WeekEntry[] = [];
+  let from = 0;
 
-  const { data, error } = await schemaClient
-    .from(tableName("weeks_view"))
-    .select("week,week_start_date")
-    .order("week_start_date", { ascending: false })
-    .limit(effectiveLimit);
+  while (entries.length < effectiveLimit) {
+    const to = from + WEEK_FETCH_PAGE_SIZE - 1;
+    const { data, error } = await schemaClient
+      .from(tableName(WEEKLY_AGG_VIEW))
+      .select("week")
+      .eq("measure_unit", "all")
+      .eq("filter_value", ALL_LABEL)
+      .order("week", { ascending: false })
+      .range(from, to);
 
-  if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
 
-  const rows = (data ?? []) as { week?: string | null; week_start_date?: string | null }[];
-  return rows
-    .map((row) => ({
-      week: typeof row.week === "string" ? row.week.trim() : "",
-      startDate: row.week_start_date ?? null
-    }))
-    .filter((row) => row.week);
+    const rows = (data ?? []) as { week?: string | null }[];
+    if (rows.length === 0) break;
+
+    for (const row of rows) {
+      const week = typeof row.week === "string" ? row.week.trim() : "";
+      if (!week || uniqueWeeks.has(week)) continue;
+      uniqueWeeks.add(week);
+      entries.push({
+        week,
+        startDate: parseWeekStartDate(week)
+      });
+      if (entries.length >= effectiveLimit) break;
+    }
+
+    if (rows.length < WEEK_FETCH_PAGE_SIZE) break;
+    from += WEEK_FETCH_PAGE_SIZE;
+  }
+
+  return entries.sort((a, b) => {
+    const aTime = a.startDate ? Date.parse(`${a.startDate}T00:00:00Z`) : Number.NEGATIVE_INFINITY;
+    const bTime = b.startDate ? Date.parse(`${b.startDate}T00:00:00Z`) : Number.NEGATIVE_INFINITY;
+    return bTime - aTime;
+  });
 };
 
 async function getBaseMetricColumns() {
@@ -467,27 +530,7 @@ export async function getFilterOptions(
   const parentValue = options?.parentValue && options.parentValue.trim().length > 0 ? options.parentValue.trim() : null;
 
   if (parentUnit && parentValue) {
-    const unitColumn = columnByUnit[measureUnit];
-    const parentColumn = columnByUnit[parentUnit];
-
-    const data = await fetchPagedRows<Record<string, string | null>>((from, to) => {
-      let query = applyBaseFilters(
-        schemaClient
-          .from(tableName(BASE_TABLE))
-          .select(unitColumn)
-          .eq("dimension_type", measureUnit)
-          .not(unitColumn, "is", null)
-          .eq(parentColumn, parentValue)
-          .order(unitColumn, { ascending: true, nullsFirst: false })
-          .range(from, to)
-      );
-      return query;
-    });
-
-    const values = (data ?? [])
-      .map((row) => row[unitColumn])
-      .filter((value): value is string => !isBlank(value));
-    return Array.from(new Set(values)).sort();
+    return getChildEntityValues({ measureUnit, parentUnit, parentValue });
   }
 
   const data = await fetchPagedRows<{ filter_value: string | null }>((from, to) =>
@@ -533,14 +576,37 @@ export async function getHeatmap(
   const queryStart = Date.now();
   let rows: HeatmapAggRow[] = [];
   if (hasParentDrilldown) {
-    rows = await getHeatmapFromBaseTable({
-      measureUnit,
-      filterValue,
-      weeks,
-      metricIds,
-      parentUnit: parentUnit ?? null,
-      parentValue: parentValue ?? null
+    const childValues = await getChildEntityValues({
+      measureUnit: measureUnit as QueryDrilldownUnit,
+      parentUnit: parentUnit as QueryDrilldownUnit,
+      parentValue: parentValue!.trim()
     });
+
+    if (childValues.length === 0) {
+      rows = [];
+    } else {
+      rows = await fetchPagedRows<HeatmapAggRow>((from, to) => {
+        let query = schemaClient
+          .from(tableName(WEEKLY_AGG_VIEW))
+          .select("week,measure_unit,filter_value,metric_id,value")
+          .eq("measure_unit", measureUnit)
+          .in("filter_value", childValues)
+          .order("week", { ascending: true })
+          .order("filter_value", { ascending: true, nullsFirst: false })
+          .order("metric_id", { ascending: true })
+          .range(from, to);
+
+        if (weeks.length > 0) {
+          query = query.in("week", weeks);
+        }
+
+        if (metricIds.length > 0) {
+          query = query.in("metric_id", metricIds);
+        }
+
+        return query;
+      });
+    }
   } else {
     rows = await fetchPagedRows<HeatmapAggRow>((from, to) => {
       let query = schemaClient
@@ -556,7 +622,7 @@ export async function getHeatmap(
       }
 
       if (measureUnit === "all") {
-        query = query.eq("measure_unit", "all").eq("filter_value", ALL_LABEL);
+        query = query.eq("measure_unit", "all");
       } else {
         query = query.eq("measure_unit", measureUnit);
         if (filterValue) {
@@ -577,8 +643,7 @@ export async function getHeatmap(
   const requestedWeekSet = new Set(weeks);
   const rowWeekSet = new Set(rows.map((row) => String(row.week ?? "").trim()).filter((week) => week.length > 0));
   const missingWeeks = weeks.filter((week) => requestedWeekSet.has(week) && !rowWeekSet.has(week));
-  const recentWeeks = weeks.slice(0, Math.min(2, weeks.length));
-  const fallbackWeeks = Array.from(new Set([...missingWeeks, ...recentWeeks]));
+  const fallbackWeeks = missingWeeks;
 
   if (allowBaseFallback && (rows.length === 0 || fallbackWeeks.length > 0)) {
     const fallbackStart = Date.now();
