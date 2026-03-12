@@ -170,10 +170,25 @@
   - `SUPABASE_DB_URI` 기반으로 전환 후 재생성 단계 정상화
   - 헬스체크 실패 시 에러 메시지 컨텍스트 부족(`{ message: '' }`) 문제가 있어 스크립트 로그를 보강
   - PostgREST 기반 헬스체크는 GitHub Actions 환경에서 `stadium_group` count 조회 시 비어 있는 에러 payload로 실패할 수 있어, 워크플로 검증 경로를 DB 직결 SQL(`supabase/sql/validate_recent_refresh.sql`)로 전환
+  - SQL 헬스체크 1차 적용 시 `DO $$` 블록 내부 `psql` 변수 치환 문제로 문법 오류가 발생했고, temp summary table 기반으로 수정
   - `scripts/validate-recent-refresh.mjs`는 로컬/수동 진단용으로 유지하고, 실패 시 `week/unit/metric/queryType`와 Supabase error payload(`code/details/hint/message`)를 함께 출력하도록 개선
-  - `Weekly MV Rebuild #8` 수동 재실행 성공, 로컬 최신 3주 기준 `data:validate-recent-refresh` 및 `data:validate-mv`도 통과
+  - `Weekly MV Rebuild #11` 수동 재실행 성공, 로컬 최신 3주 기준 `data:validate-recent-refresh` 및 전체 지원 지표 대상 `data:validate-mv`도 통과
+- 후속 확인:
+  - 배포 UI 기준 최근 3주 데이터에서 일부 빈 값이 확인됨
+  - 원인 분석 결과, MV 자동복구 실패가 아니라 최신 주차 `26.03.09 - 03.15` 원천 적재가 진행 중인 상태로 판단
+  - `all` 기준 완료 주차 `26.03.02 - 03.08`은 41개 지표, 최신 주차 `26.03.09 - 03.15`는 32개 지표만 존재
+  - 최신 주차 누락 확인 지표:
+    - `apply_cancel_fee_to_sales_rate`
+    - `apply_cnt_per_active_user`
+    - `cash_reward_cost_to_sales_rate`
+    - `contribution_margin_rate`
+    - `manager_cost_to_sales_rate`
+    - `matching_rate`
+    - `point_reward_cost_to_sales_rate`
+    - `reward_cost_to_sales_rate`
+    - `stadium_fee_to_sales_rate`
 - 다음 작업 TODO:
-  - 배포 UI 기준 최신 주차 조회 결과(`all/area/stadium`) 최종 확인
+  - 진행 중 주차를 기본 조회에서 제외할지, `집계 진행 중` 상태로 노출할지 정책 결정
   - DB 직결 헬스체크 전환 후 워크플로 재실행 결과 확인
   - `actions/checkout@v5`, `actions/setup-node@v5` 반영 후 워크플로 annotation 경고 제거 확인
   - pooler URI 형식/인코딩/sslmode 점검

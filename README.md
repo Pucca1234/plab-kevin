@@ -170,11 +170,26 @@ npm run data:validate-recent-refresh
   - 초기: GitHub Actions에서 Direct DB 접속 시 `Network is unreachable` (IPv6 경로)
   - 조치: 워크플로를 `SUPABASE_DB_URI` 기반 접속으로 변경
   - PostgREST 기반 헬스체크는 GitHub Actions 환경에서 대용량 단위(`stadium_group`) count 조회 시 비어 있는 에러 payload로 실패할 수 있어, 워크플로 검증 경로를 DB 직결 SQL(`supabase/sql/validate_recent_refresh.sql`)로 전환
+  - SQL 헬스체크 1차 적용 시 `DO $$` 블록 내부의 `psql` 변수 치환 문제로 문법 오류가 발생했고, temp summary table 재사용 방식으로 수정
   - `scripts/validate-recent-refresh.mjs`는 로컬/수동 진단용으로 유지하고, query context(`week/unit/metric/queryType`)와 Supabase error payload(`code/details/hint/message`)를 함께 출력하도록 보강
-  - `Weekly MV Rebuild #8` 수동 재실행 결과 `rebuild-and-validate` 전체 성공 확인
-  - 로컬에서도 `npm run data:validate-recent-refresh`, `npm run data:validate-mv`(최근 3주, `total_match_cnt`) 재검증 통과
+  - `Weekly MV Rebuild #11` 수동 재실행 결과 `rebuild-and-validate` 전체 성공 확인
+  - 로컬에서도 `npm run data:validate-recent-refresh`, `npm run data:validate-mv`(최근 3주, 전체 지원 지표) 재검증 통과
+- 운영 확인 결과:
+  - 배포 UI에서 최근 3주 데이터는 일부 빈 값이 남아 있음
+  - 원인 분석 결과, MV/헬스체크 실패가 아니라 최신 주차 `26.03.09 - 03.15` 원천 적재가 진행 중인 상태로 판단
+  - `all` 기준 완료 주차 `26.03.02 - 03.08`은 41개 지표가 존재하지만, `26.03.09 - 03.15`는 32개 지표만 존재
+  - 최신 주차 누락 확인 지표:
+    - `apply_cancel_fee_to_sales_rate`
+    - `apply_cnt_per_active_user`
+    - `cash_reward_cost_to_sales_rate`
+    - `contribution_margin_rate`
+    - `manager_cost_to_sales_rate`
+    - `matching_rate`
+    - `point_reward_cost_to_sales_rate`
+    - `reward_cost_to_sales_rate`
+    - `stadium_fee_to_sales_rate`
 - 다음 TODO:
-  - 배포 UI에서 최신 주차(`26.03.09 - 03.15`) 기준 `all/area/stadium` 결과가 실제 화면에서도 정상 노출되는지 확인
+  - 진행 중 주차를 기본 조회에서 제외할지, `집계 진행 중` 상태로 노출할지 정책 결정
   - 다음 수동/정기 실행에서 DB 직결 헬스체크와 annotation 경고 제거 여부 확인
   - `SUPABASE_DB_URI` 운영값 점검:
     - pooler URI 사용 여부, 비밀번호 인코딩, `sslmode` 포함 여부 재확인
