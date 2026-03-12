@@ -1,4 +1,4 @@
--- Weekly rebuild for analytic MV after Airbyte overwrite/refresh cycles.
+-- Rebuild analytic MV after upstream Airbyte refresh and force PostgREST schema cache reload.
 -- Aggregation rule:
 -- - *_rate metrics -> AVG
 -- - other metrics  -> MAX

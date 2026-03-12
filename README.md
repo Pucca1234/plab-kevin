@@ -188,6 +188,10 @@ npm run data:validate-recent-refresh
     - `point_reward_cost_to_sales_rate`
     - `reward_cost_to_sales_rate`
     - `stadium_fee_to_sales_rate`
+- 2026-03-12 추가 점검:
+  - Airbyte를 통해 Supabase 원천이 다시 최신화된 직후, PostgREST에서 `bigquery.weeks_view`를 찾지 못하는 `PGRST205`가 재발
+  - 증상상 DB 오브젝트 삭제가 아니라 REST schema cache 미반영 가능성이 높아, MV 재생성 SQL(`supabase/sql/refresh_weekly_agg_mv.sql`)과 신규 migration에 `notify pgrst, 'reload schema'`를 포함
+  - 로컬 DB 자격증명으로는 원격 `db push` 인증이 실패해, 실제 원격 반영은 GitHub Actions 또는 올바른 `SUPABASE_DB_URI`/DB password 기준으로 별도 실행 필요
 - 다음 TODO:
   - 진행 중 주차를 기본 조회에서 제외할지, `집계 진행 중` 상태로 노출할지 정책 결정
   - 다음 수동/정기 실행에서 DB 직결 헬스체크와 annotation 경고 제거 여부 확인

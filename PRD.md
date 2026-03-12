@@ -187,8 +187,12 @@
     - `point_reward_cost_to_sales_rate`
     - `reward_cost_to_sales_rate`
     - `stadium_fee_to_sales_rate`
+  - Airbyte를 통해 Supabase 원천을 다시 최신화한 직후, PostgREST에서 `bigquery.weeks_view`를 찾지 못하는 `PGRST205`가 재발
+  - DB 오브젝트 자체보다 REST schema cache 미반영 가능성이 높아, MV 재생성 SQL(`supabase/sql/refresh_weekly_agg_mv.sql`)과 신규 migration에 `notify pgrst, 'reload schema'`를 반영
+  - 로컬 DB 자격증명으로는 원격 `db push` 인증이 실패해, 실제 원격 반영은 GitHub Actions 또는 올바른 `SUPABASE_DB_URI`/DB password 기준으로 후속 실행 필요
 - 다음 작업 TODO:
   - 진행 중 주차를 기본 조회에서 제외할지, `집계 진행 중` 상태로 노출할지 정책 결정
+  - Airbyte 최신화 직후 `PGRST205` 재발 여부를 모니터링하고, 필요 시 자동 복구 워크플로에 schema reload 단계 유지
   - DB 직결 헬스체크 전환 후 워크플로 재실행 결과 확인
   - `actions/checkout@v5`, `actions/setup-node@v5` 반영 후 워크플로 annotation 경고 제거 확인
   - pooler URI 형식/인코딩/sslmode 점검
