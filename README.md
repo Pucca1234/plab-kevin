@@ -246,6 +246,9 @@ npm run data:validate-recent-refresh
   - 복합 단위도 동일 규칙 반영:
     - `stadium_group_and_time` -> `구장 타임`
     - `stadium_and_time` -> `면 타임`
+- 측정단위 노출 정리:
+  - 원천 데이터에서 제거된 `yoil_and_hour`, `yoil_group_and_hour`는 검색 옵션 `측정단위` 목록에서 제외
+  - `GET /api/measurement-units` 캐시 키를 갱신해 기존 목록 캐시도 즉시 무효화
 - 확장 단위 집계 경로 재구성:
   - 원격 DB에 최근 24주 기준 `bigquery.weekly_expanded_agg_mv` 추가
   - 파일:

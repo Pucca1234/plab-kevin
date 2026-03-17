@@ -245,6 +245,9 @@
   - `stadium` -> `면`
   - `stadium_group_and_time` -> `구장 타임`
   - `stadium_and_time` -> `면 타임`
+- 측정단위 목록 정리:
+  - 원천 제거에 따라 `yoil_and_hour`, `yoil_group_and_hour`는 검색 옵션 `측정단위` 목록에서 retired 처리
+  - `GET /api/measurement-units`는 캐시 버전을 올려 제거된 단위가 기존 응답 캐시에 남지 않도록 조정
 - 확장 단위 집계 전략 변경:
   - 기존 원칙:
     - 확장 단위는 원천 조회 + 인덱스 fallback

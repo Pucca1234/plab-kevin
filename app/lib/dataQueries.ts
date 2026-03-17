@@ -25,6 +25,7 @@ const EXPANDED_MV_UNITS = new Set([
   "yoil_and_hour",
   "yoil_group_and_hour"
 ]);
+const RETIRED_MEASUREMENT_UNITS = new Set(["yoil_and_hour", "yoil_group_and_hour"]);
 const MEASUREMENT_UNIT_LABEL_OVERRIDES: Record<string, string> = {
   all: ALL_LABEL,
   area_group: "지역그룹",
@@ -941,7 +942,9 @@ export async function getMeasurementUnitOptions() {
 
   if (error) throw new Error(error.message);
 
-  const supportedUnits = Array.from(new Set(Object.keys(unitConfigByUnit)));
+  const supportedUnits = Array.from(new Set(Object.keys(unitConfigByUnit))).filter(
+    (unit) => !RETIRED_MEASUREMENT_UNITS.has(unit)
+  );
   const metricLabelMap = new Map(
     ((data ?? []) as { metric: string; korean_name: string | null }[])
       .filter((row) => row.metric)
