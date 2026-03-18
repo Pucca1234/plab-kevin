@@ -36,11 +36,8 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
   const [activeSessionId, setActiveSessionId] = useState(FIRST_SESSION_ID);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [filterAppliedNotice, setFilterAppliedNotice] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const pendingAnalysisRef = useRef(false);
-  const prevContextRef = useRef<ChatContext | null>(null);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? sessions[0];
   const messages = activeSession.messages;
@@ -54,14 +51,6 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 100);
   }, [isOpen, activeSessionId]);
 
-  useEffect(() => {
-    if (!pendingAnalysisRef.current || !dashboardContext) return;
-    if (dashboardContext === prevContextRef.current) return;
-    prevContextRef.current = dashboardContext;
-    pendingAnalysisRef.current = false;
-    setFilterAppliedNotice(null);
-    requestAnalysis("대시보드에 표시된 데이터를 분석해줘.");
-  }, [dashboardContext]);
 
   const handleNewSession = () => {
     const id = newSessionId();
@@ -72,7 +61,7 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
     setActiveSessionId(id);
     setInput("");
     setIsLoading(false);
-    setFilterAppliedNotice(null);
+
   };
 
   const handleCloseSession = (e: React.MouseEvent, sessionId: string) => {
@@ -92,7 +81,7 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
     setActiveSessionId(sessionId);
     setInput("");
     setIsLoading(false);
-    setFilterAppliedNotice(null);
+
   };
 
   const requestAnalysis = useCallback(
@@ -144,8 +133,6 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
         );
 
         if (data.action?.type === "apply_filters") {
-          pendingAnalysisRef.current = true;
-          setFilterAppliedNotice("필터를 적용하고 데이터를 조회하는 중...");
           onApplyFilters(data.action.filters);
         }
       } catch (error) {
@@ -230,8 +217,6 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
         );
 
         if (data.action?.type === "apply_filters") {
-          pendingAnalysisRef.current = true;
-          setFilterAppliedNotice("필터를 적용하고 데이터를 조회하는 중...");
           onApplyFilters(data.action.filters);
         }
       } catch (error) {
@@ -347,18 +332,6 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
             </div>
           </div>
         ))}
-
-        {filterAppliedNotice && (
-          <div className="ai-chat-bubble assistant">
-            <img src="/ai-avatar.png" alt="" className="ai-bubble-avatar" width={24} height={24} />
-            <div className="ai-bubble-content">
-              <div className="ai-filter-notice">
-                <div className="ai-typing"><span /><span /><span /></div>
-                <div className="ai-loading-label">{filterAppliedNotice}</div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {isLoading && (
           <div className="ai-chat-bubble assistant">

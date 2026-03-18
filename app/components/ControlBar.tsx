@@ -270,7 +270,7 @@ export default function ControlBar({
         </button>
         <div className="search-action-group">
           <button type="button" className="btn-primary search-submit-btn" onClick={onSearch} disabled={isSearchDisabled}>
-            조회 및 AI 분석
+            조회
           </button>
         </div>
       </div>

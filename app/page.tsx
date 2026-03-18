@@ -17,8 +17,7 @@ import {
   MeasurementUnit,
   MeasurementUnitOption,
   Metric,
-  PeriodUnit,
-  SummaryPayload
+  PeriodUnit
 } from "./types";
 import AiChat from "./components/AiChat";
 
@@ -266,8 +265,6 @@ export default function Home() {
   const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [summary, setSummary] = useState<SummaryPayload | null>(null);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
   const [isErrorLogOpen, setIsErrorLogOpen] = useState(false);
@@ -633,14 +630,6 @@ export default function Home() {
         measurementUnitLabelMap
       );
 
-      setIsSummaryLoading(true);
-      const summaryResponse = await fetchJson<{ summary: SummaryPayload }>("/api/ai/summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({ context })
-      });
-      setSummary(summaryResponse.summary);
     } catch (error) {
       if ((error as Error).name === "AbortError") {
         pushError("Request canceled");
@@ -1171,27 +1160,6 @@ export default function Home() {
           </div>
         )}
 
-        {summary && !isLoadingHeatmap && (
-          <div className="kpi-summary-card card">
-            <h3 className="kpi-summary-title">{summary.title}</h3>
-            <ul className="kpi-summary-bullets">
-              {summary.bullets.map((bullet, i) => (
-                <li key={i}>{bullet}</li>
-              ))}
-            </ul>
-            {summary.caution && (
-              <p className="kpi-summary-caution">{summary.caution}</p>
-            )}
-          </div>
-        )}
-
-        {isSummaryLoading && !summary && (
-          <div className="kpi-summary-card card kpi-summary-skeleton">
-            <div className="skeleton-line skeleton-title" />
-            <div className="skeleton-line" />
-            <div className="skeleton-line" />
-            <div className="skeleton-line skeleton-short" />
-          </div>
         )}
 
         {isLoadingBase ? (
