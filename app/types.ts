@@ -62,12 +62,28 @@ export type MetricSummaryItem = {
   format: "number" | "percent";
 };
 
+export type MetricSeriesItem = {
+  metricId: string;
+  name: string;
+  values: (number | null)[];
+  format: "number" | "percent";
+};
+
+export type EntitySeriesItem = {
+  entityName: string;
+  metrics: { metricId: string; values: (number | null)[] }[];
+};
+
 export type ChatContext = {
   unit: string;
   filter: string;
   weeks: string[];
   primaryMetricId: string;
   metricSummaries: MetricSummaryItem[];
+  /** 전체(집계) 시계열 — weeks 순서에 대응 */
+  metricSeries: MetricSeriesItem[];
+  /** 엔티티별 시계열 (테이블에 표시되는 행 데이터) */
+  entitySeries: EntitySeriesItem[];
 };
 
 export type SummaryPayload = {
