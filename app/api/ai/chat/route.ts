@@ -41,35 +41,78 @@ function buildSystemPrompt(
 
   let contextBlock = "";
   if (dashboardContext) {
-    const { weeks, metricSummaries, unit, filter } = dashboardContext;
+    const { weeks, metricSummaries, metricSeries, entitySeries, unit, filter } = dashboardContext;
     const rangeLabel = weeks.length ? `${weeks[0]} ~ ${weeks[weeks.length - 1]}` : "미조회";
 
-    const metricsBlock = metricSummaries
+    const summaryBlock = metricSummaries
       .map(
         (m) =>
           `- ${m.name} (${m.metricId}): 최신값 ${formatValue(m.latest, m.format)}, 전주 대비 ${formatDelta(m.delta, m.format)}`
       )
       .join("\n");
 
+    // 전체(집계) 시계열 테이블
+    let seriesTable = "";
+    if (metricSeries?.length && weeks.length) {
+      const header = `| 지표 | ${weeks.join(" | ")} |`;
+      const separator = `|---${"|---".repeat(weeks.length)}|`;
+      const rows = metricSeries.map((ms) => {
+        const vals = ms.values.map((v) => formatValue(v, ms.format));
+        return `| ${ms.name} | ${vals.join(" | ")} |`;
+      });
+      seriesTable = `\n### 전체 시계열 데이터 (주차별)\n${header}\n${separator}\n${rows.join("\n")}`;
+    }
+
+    // 엔티티별 시계열 테이블
+    let entityTable = "";
+    if (entitySeries?.length && metricSeries?.length && weeks.length) {
+      const metricNames = metricSeries.map((ms) => ms.name);
+      const metricFormats = Object.fromEntries(metricSeries.map((ms) => [ms.metricId, ms.format]));
+      const header = `| 엔티티 | 지표 | ${weeks.join(" | ")} |`;
+      const separator = `|---|---${"|---".repeat(weeks.length)}|`;
+      const rows: string[] = [];
+      for (const entity of entitySeries) {
+        for (const em of entity.metrics) {
+          const mn = metricSeries.find((ms) => ms.metricId === em.metricId);
+          if (!mn) continue;
+          const fmt = metricFormats[em.metricId] ?? "number";
+          const vals = em.values.map((v) => formatValue(v, fmt as "number" | "percent"));
+          rows.push(`| ${entity.entityName} | ${mn.name} | ${vals.join(" | ")} |`);
+        }
+      }
+      if (rows.length) {
+        entityTable = `\n### 엔티티별 시계열 데이터\n${header}\n${separator}\n${rows.join("\n")}`;
+      }
+    }
+
+    const entityCount = entitySeries?.length ?? 0;
+    const dataNote = entityCount > 0
+      ? `\n**포함된 데이터: ${entityCount}개 엔티티 × ${metricSummaries.length}개 지표 × ${weeks.length}주 시계열 — 아래 테이블에서 개별 엔티티 값을 확인하고 분석에 활용하세요.**`
+      : "";
+
     contextBlock = `
 ## 현재 대시보드에 표시된 데이터
 - 기간: ${rangeLabel} (${weeks.length}주)
 - 분석 단위: ${unit}
 - 필터: ${filter}
+${dataNote}
 
-### 지표 현황
-${metricsBlock}
+### 지표 요약 (전체 평균)
+${summaryBlock}
+${seriesTable}
+${entityTable}
 `;
   }
 
   return `당신은 플랩풋볼(PLAB) 대시보드의 AI 어시스턴트 KEVIN입니다.
-사용자와 대화하면서 원하는 분석 조건을 파악하고, 대시보드 필터를 자동으로 설정합니다.
-
+사용자와 대화하면서 데이터를 분석하고, 대시보드 필터를 자동으로 설정합니다.
+${contextBlock}
 ## 핵심 규칙
-1. 데이터를 직접 조회하지 않습니다. 대신 대시보드의 필터를 설정하여 데이터를 표시합니다.
-2. 사용자가 분석을 요청하면, 필요한 조건(기간, 단위, 필터, 지표)을 대화로 확인한 후 필터를 적용합니다.
-3. 이미 조건이 명확한 경우 바로 필터를 적용합니다. 모호한 경우에만 질문합니다.
-4. 필터를 적용할 때는 반드시 응답 텍스트 끝에 JSON 블록을 포함합니다.
+1. 아래 "현재 대시보드에 표시된 데이터" 섹션에 전체 시계열과 **개별 엔티티별 시계열**이 포함되어 있습니다. 분석 요청이 오면 이 데이터를 **반드시 직접 계산하여** 답변하세요.
+2. 데이터가 아직 없거나 다른 조건이 필요하면, 대시보드 필터를 설정하여 데이터를 표시합니다.
+3. 사용자가 분석을 요청하면, 필요한 조건(기간, 단위, 필터, 지표)을 대화로 확인한 후 필터를 적용합니다.
+4. 이미 조건이 명확한 경우 바로 필터를 적용합니다. 모호한 경우에만 질문합니다.
+5. 필터를 적용할 때는 반드시 응답 텍스트 끝에 JSON 블록을 포함합니다.
 
 ## 사용 가능한 옵션
 - 기간: ${periodList}
@@ -95,11 +138,14 @@ ${metricsBlock}
 - filterValue가 전체인 경우 "__ALL__"을 사용하세요.
 - metricIds는 반드시 위 지표 목록의 id 값을 사용하세요.
 
-## 대시보드에 데이터가 표시된 후 분석 요청이 오면
-데이터 컨텍스트를 기반으로 인사이트를 제공하세요:
-- 추세 분석, 변동 원인 추정, 액션 아이템을 포함
-- 간결하고 명확하게 답변
-${contextBlock}
+## 분석 규칙
+데이터가 표시된 상태에서 분석 요청이 오면, 위 "현재 대시보드에 표시된 데이터"의 **엔티티별 시계열 테이블**을 직접 읽어서 분석하세요:
+- 주차별 추세 분석: 상승/하락/정체 구간을 구체적 수치와 함께 설명
+- 엔티티 간 비교: 상위/하위 엔티티 순위를 실제 값으로 계산하여 제시
+- 이상치 탐지: 급격한 변동이 있는 주차/엔티티 지적
+- 평균, 합계, 순위 등 요청 시 테이블 값을 직접 계산
+- 차트를 생성할 때는 반드시 실제 데이터 값을 사용하세요 (추측 금지)
+- 간결하지만 구체적 수치를 포함하여 답변
 ## 차트 시각화
 사용자가 도식화, 차트, 그래프를 요청하면 다음 형식의 차트 블록을 응답에 포함하세요:
 \`\`\`chart
@@ -254,7 +300,7 @@ export async function POST(request: Request) {
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 1024,
+      max_tokens: 4096,
       system: systemPrompt,
       messages: messages.map((m) => ({
         role: m.role as "user" | "assistant",
