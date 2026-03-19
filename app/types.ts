@@ -84,6 +84,8 @@ export type ChatContext = {
   metricSeries: MetricSeriesItem[];
   /** 엔티티별 시계열 (테이블에 표시되는 행 데이터) */
   entitySeries: EntitySeriesItem[];
+  /** 전체 엔티티 수 (entitySeries가 잘렸을 수 있음) */
+  totalEntityCount?: number;
 };
 
 export type SummaryPayload = {

@@ -196,7 +196,7 @@ const pickDefaultMetricIds = (metricIds: string[]) => {
   return metricIds.slice(0, Math.min(metricIds.length, 6));
 };
 
-const MAX_ENTITY_ROWS = 50;
+/** 엔티티 시계열 AI 컨텍스트 전달 제한 없음 — 전체 전달 */
 
 const computeAggregateFromEntities = (
   entityEntries: [string, Record<string, number[]>][],
@@ -262,8 +262,16 @@ const buildContext = (
   }));
 
   // 엔티티별 시계열 데이터 (전체 행 제외, 최대 MAX_ENTITY_ROWS개)
-  const entitySeries = entityEntries
-    .slice(0, MAX_ENTITY_ROWS)
+  // 첫 번째 지표의 최신값(index 0) 기준 내림차순 정렬 → 상위 엔티티 우선 포함
+  const primaryMetricIdForSort = metrics[0]?.id ?? null;
+  const sortedEntityEntries = entityEntries.slice().sort((a, b) => {
+    if (!primaryMetricIdForSort) return 0;
+    const aVal = a[1][primaryMetricIdForSort]?.[0] ?? 0;
+    const bVal = b[1][primaryMetricIdForSort]?.[0] ?? 0;
+    return bVal - aVal;
+  });
+  const totalEntityCount = sortedEntityEntries.length;
+  const entitySeries = sortedEntityEntries
     .map(([entityName, entityMetrics]) => ({
       entityName,
       metrics: metrics.map((metric) => ({
@@ -280,6 +288,7 @@ const buildContext = (
     metricSummaries,
     metricSeries,
     entitySeries,
+    totalEntityCount,
   };
 };
 

@@ -3,7 +3,7 @@ import type { ChatContext, AiChatAvailableOptions } from "@/app/types";
 
 type ApiMessage = { role: "user" | "assistant" | "system"; content: string };
 
-const MAX_BYTES = 200_000;
+const MAX_BYTES = 500_000;
 const MAX_HISTORY = 20;
 
 const SONNET_MODEL = "claude-sonnet-4-5-20250929";
@@ -59,7 +59,7 @@ function buildSystemPrompt(
 
   let contextBlock = "";
   if (dashboardContext) {
-    const { weeks, metricSummaries, metricSeries, entitySeries, unit, filter } = dashboardContext;
+    const { weeks, metricSummaries, metricSeries, entitySeries, unit, filter, totalEntityCount } = dashboardContext;
     const rangeLabel = weeks.length ? `${weeks[0]} ~ ${weeks[weeks.length - 1]}` : "미조회";
 
     const summaryBlock = metricSummaries
@@ -104,8 +104,10 @@ function buildSystemPrompt(
     }
 
     const entityCount = entitySeries?.length ?? 0;
+    const total = totalEntityCount ?? entityCount;
+    const truncated = total > entityCount;
     const dataNote = entityCount > 0
-      ? `\n**포함된 데이터: ${entityCount}개 엔티티 × ${metricSummaries.length}개 지표 × ${weeks.length}주 시계열 — 아래 테이블에서 개별 엔티티 값을 확인하고 분석에 활용하세요.**`
+      ? `\n**포함된 데이터: ${entityCount}개 엔티티${truncated ? ` (전체 ${total}개 중 상위)` : ""} × ${metricSummaries.length}개 지표 × ${weeks.length}주 시계열 — 첫 번째 지표 기준 내림차순 정렬. 아래 테이블에서 개별 엔티티 값을 확인하고 분석에 활용하세요.**`
       : "";
 
     contextBlock = `
