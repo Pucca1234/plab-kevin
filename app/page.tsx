@@ -198,6 +198,24 @@ const pickDefaultMetricIds = (metricIds: string[]) => {
 
 const MAX_ENTITY_ROWS = 50;
 
+const computeAggregateFromEntities = (
+  entityEntries: [string, Record<string, number[]>][],
+  metrics: Metric[],
+  weekCount: number
+): Record<string, number[]> => {
+  const result: Record<string, number[]> = {};
+  for (const metric of metrics) {
+    const allSeries = entityEntries.map(([, em]) => em[metric.id] ?? []);
+    const avg: number[] = [];
+    for (let i = 0; i < weekCount; i++) {
+      const vals = allSeries.map((s) => s[i]).filter((v) => typeof v === "number" && !Number.isNaN(v));
+      avg.push(vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0);
+    }
+    result[metric.id] = avg;
+  }
+  return result;
+};
+
 const buildContext = (
   weeks: string[],
   metrics: Metric[],
@@ -210,7 +228,17 @@ const buildContext = (
   const unitName =
     measurementUnit === "all" ? ALL_LABEL : measurementUnitLabelMap[measurementUnit] ?? measurementUnit;
   const entityKey = measurementUnit === "all" ? ALL_LABEL : filterValue;
-  const series = seriesByEntity[entityKey] ?? seriesByEntity[ALL_LABEL] ?? {};
+  const directSeries = seriesByEntity[entityKey] ?? seriesByEntity[ALL_LABEL] ?? {};
+  const entityEntries = Object.entries(seriesByEntity).filter(([key]) => key !== ALL_LABEL);
+
+  // 집계 키가 없으면 엔티티 평균으로 대체
+  const hasDirectData = Object.keys(directSeries).some((k) => (directSeries[k]?.length ?? 0) > 0);
+  const series = hasDirectData
+    ? directSeries
+    : entityEntries.length > 0
+      ? computeAggregateFromEntities(entityEntries, metrics, weeks.length)
+      : directSeries;
+
   const latestIndex = 0;
 
   const metricSummaries = metrics.map((metric) => {
@@ -222,7 +250,10 @@ const buildContext = (
   });
 
   // 전체(집계) 시계열 데이터
-  const aggregateSeries = seriesByEntity[ALL_LABEL] ?? {};
+  const rawAggregate = seriesByEntity[ALL_LABEL] ?? {};
+  const hasAggregateData = Object.keys(rawAggregate).some((k) => (rawAggregate[k]?.length ?? 0) > 0);
+  const aggregateSeries = hasAggregateData ? rawAggregate : series;
+
   const metricSeries = metrics.map((metric) => ({
     metricId: metric.id,
     name: metric.name,
@@ -231,8 +262,7 @@ const buildContext = (
   }));
 
   // 엔티티별 시계열 데이터 (전체 행 제외, 최대 MAX_ENTITY_ROWS개)
-  const entitySeries = Object.entries(seriesByEntity)
-    .filter(([key]) => key !== ALL_LABEL)
+  const entitySeries = entityEntries
     .slice(0, MAX_ENTITY_ROWS)
     .map(([entityName, entityMetrics]) => ({
       entityName,
