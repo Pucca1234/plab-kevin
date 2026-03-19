@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Metric } from "../types";
 import { formatValue } from "../lib/format";
 import Sparkline from "./Sparkline";
@@ -55,20 +55,49 @@ export default function MetricTable({
   onShowDeltaChange
 }: MetricTableProps) {
   const weekColumnCount = weeks.length;
-  const defaultWidths = useMemo(() => [180, 100, ...Array(weekColumnCount).fill(100)], [weekColumnCount]);
-  const [columnWidths, setColumnWidths] = useState<number[]>(defaultWidths);
+  const colCount = 2 + weekColumnCount;
+  const [columnWidths, setColumnWidths] = useState<number[]>([180, 100, ...Array(weekColumnCount).fill(100)]);
   const resizeIndexRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const manualResized = useRef(new Set<number>());
+  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setColumnWidths(defaultWidths);
-  }, [defaultWidths]);
+    setColumnWidths([180, 100, ...Array(weekColumnCount).fill(100)]);
+    manualResized.current.clear();
+  }, [weekColumnCount]);
+
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    const rows = Array.from(grid.querySelectorAll(".data-row")) as HTMLElement[];
+    if (!rows.length) return;
+    const maxContentStr = Array(colCount).fill("max-content").join(" ");
+    const origStyles = rows.map((r) => r.style.gridTemplateColumns);
+    rows.forEach((r) => { r.style.gridTemplateColumns = maxContentStr; });
+    const maxW = new Array(colCount).fill(0);
+    rows.forEach((r) => {
+      for (let i = 0; i < Math.min(r.children.length, colCount); i++) {
+        const w = (r.children[i] as HTMLElement).offsetWidth;
+        if (w > maxW[i]) maxW[i] = w;
+      }
+    });
+    rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
+    setColumnWidths((prev) => {
+      const next = maxW.map((w, i) =>
+        manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
+      );
+      if (prev.length === next.length && prev.every((v, i) => v === next[i])) return prev;
+      return next;
+    });
+  }, [weeks, metrics, series, showDelta, colCount]);
 
   const startResize = (index: number, clientX: number) => {
     resizeIndexRef.current = index;
     startXRef.current = clientX;
-    startWidthRef.current = columnWidths[index] ?? 120;
+    startWidthRef.current = columnWidths[index] ?? 100;
+    manualResized.current.add(index);
   };
 
   useEffect(() => {
@@ -96,7 +125,7 @@ export default function MetricTable({
   );
 
   const grid = (
-    <div className="data-grid">
+    <div className="data-grid" ref={gridRef}>
       {showHeader && (
         <div className="data-row data-header" style={{ gridTemplateColumns } as CSSProperties}>
           <div className="data-cell data-name is-resizable">

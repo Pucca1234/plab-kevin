@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Entity, FilterOption, MeasurementUnitOption, Metric } from "../types";
 import Sparkline from "./Sparkline";
 import { formatValue } from "../lib/format";
@@ -65,18 +65,21 @@ export default function EntityMetricTable({
   onDrilldownClose
 }: EntityMetricTableProps) {
   const weekColumnCount = weeks.length;
-  const defaultWidths = useMemo(() => [140, 100, 90, ...Array(weekColumnCount).fill(100)], [weekColumnCount]);
-  const [columnWidths, setColumnWidths] = useState<number[]>(defaultWidths);
+  const colCount = 3 + weekColumnCount;
+  const [columnWidths, setColumnWidths] = useState<number[]>([140, 100, 90, ...Array(weekColumnCount).fill(100)]);
   const resizeIndexRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const manualResized = useRef(new Set<number>());
+  const gridRef = useRef<HTMLDivElement>(null);
   const [isEntityFilterOpen, setIsEntityFilterOpen] = useState(false);
   const entityFilterRef = useRef<HTMLDivElement | null>(null);
   const drilldownMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setColumnWidths(defaultWidths);
-  }, [defaultWidths]);
+    setColumnWidths([140, 100, 90, ...Array(weekColumnCount).fill(100)]);
+    manualResized.current.clear();
+  }, [weekColumnCount]);
 
   useEffect(() => {
     const handleMove = (event: MouseEvent) => {
@@ -112,10 +115,36 @@ export default function EntityMetricTable({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [expandedEntityName, isEntityFilterOpen, onDrilldownClose]);
 
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    const rows = Array.from(grid.querySelectorAll(".data-row")) as HTMLElement[];
+    if (!rows.length) return;
+    const maxContentStr = Array(colCount).fill("max-content").join(" ");
+    const origStyles = rows.map((r) => r.style.gridTemplateColumns);
+    rows.forEach((r) => { r.style.gridTemplateColumns = maxContentStr; });
+    const maxW = new Array(colCount).fill(0);
+    rows.forEach((r) => {
+      for (let i = 0; i < Math.min(r.children.length, colCount); i++) {
+        const w = (r.children[i] as HTMLElement).offsetWidth;
+        if (w > maxW[i]) maxW[i] = w;
+      }
+    });
+    rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
+    setColumnWidths((prev) => {
+      const next = maxW.map((w, i) =>
+        manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
+      );
+      if (prev.length === next.length && prev.every((v, i) => v === next[i])) return prev;
+      return next;
+    });
+  }, [weeks, metrics, entities, seriesByEntity, showDelta, colCount]);
+
   const startResize = (index: number, clientX: number) => {
     resizeIndexRef.current = index;
     startXRef.current = clientX;
-    startWidthRef.current = columnWidths[index] ?? 120;
+    startWidthRef.current = columnWidths[index] ?? 100;
+    manualResized.current.add(index);
   };
 
   const gridTemplateColumns = useMemo(
@@ -167,7 +196,7 @@ export default function EntityMetricTable({
         </div>
       )}
       <div className="table-scroll">
-        <div className="data-grid entity-grid">
+        <div className="data-grid entity-grid" ref={gridRef}>
           <div className="data-row data-header" style={{ gridTemplateColumns } as CSSProperties}>
             <div className="data-cell data-entity is-resizable entity-header-cell" ref={entityFilterRef}>
               {onEntityFilterSelect ? (
