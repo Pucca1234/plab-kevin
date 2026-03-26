@@ -294,7 +294,7 @@ const buildContext = (
 
 export default function Home() {
   const [periodUnit] = useState<PeriodUnit>("week");
-  const [periodRangeValues, setPeriodRangeValues] = useState<string[]>(["recent_8"]);
+  const [periodRangeValue, setPeriodRangeValue] = useState<string>("recent_8");
   const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>("all");
   const [measurementUnitOptions, setMeasurementUnitOptions] = useState<MeasurementUnitOption[]>([
     { value: "all", label: ALL_LABEL }
@@ -352,12 +352,7 @@ export default function Home() {
     weeks.join("|")
   ]);
 
-  const effectivePeriodRangeValue = useMemo(() => {
-    if (periodRangeValues.length === 0) return "recent_8";
-    return periodRangeValues.reduce((max, v) =>
-      (periodRangeSizeMap[v] ?? 0) > (periodRangeSizeMap[max] ?? 0) ? v : max
-    );
-  }, [periodRangeValues]);
+  const effectivePeriodRangeValue = periodRangeValue || "recent_8";
 
   const measurementUnitLabelMap = useMemo(
     () =>
@@ -717,7 +712,7 @@ export default function Home() {
 
   // Handle AI filter apply
   const handleAiApplyFilters = useCallback((filters: FilterAction["filters"]) => {
-    if (filters.periodRangeValue) setPeriodRangeValues([filters.periodRangeValue]);
+    if (filters.periodRangeValue) setPeriodRangeValue(filters.periodRangeValue);
     if (filters.measurementUnit) setMeasurementUnit(filters.measurementUnit as MeasurementUnit);
     if (filters.filterValue) {
       const resolved = filters.filterValue === "__ALL__" ? ALL_VALUE : filters.filterValue;
@@ -775,8 +770,8 @@ export default function Home() {
     setPendingDrilldown(null);
   };
 
-  const handlePeriodRangeChange = (values: string[]) => {
-    setPeriodRangeValues(values);
+  const handlePeriodRangeChange = (value: string) => {
+    setPeriodRangeValue(value);
   };
 
   const handleEntityClick = (entityName: string) => {
@@ -1041,7 +1036,7 @@ export default function Home() {
 
   const applyTemplateConfig = (template: FilterTemplate) => {
     const config = template.config as FilterTemplateConfig;
-    setPeriodRangeValues(config.periodRangeValue ? [config.periodRangeValue] : ["recent_8"]);
+    setPeriodRangeValue(config.periodRangeValue ?? "recent_8");
     setMeasurementUnit(config.measurementUnit ?? "all");
     const resolvedFilter = config.filterValue ?? ALL_VALUE;
     setFilterValue(resolvedFilter);
@@ -1076,7 +1071,7 @@ export default function Home() {
       setActiveTemplateId(response.template.id);
       await loadTemplates();
     } catch (error) {
-      pushError("템플릿 저장 실패", (error as Error).message);
+      pushError("템플릿 생성 실패", (error as Error).message);
     }
   };
 
@@ -1178,7 +1173,7 @@ export default function Home() {
       <section className="top-controls-wrap">
         <ControlBar
           periodUnit={periodUnit}
-          periodRangeValues={periodRangeValues}
+          periodRangeValue={periodRangeValue}
           periodRangeOptions={periodRangeOptions}
           onPeriodRangeChange={handlePeriodRangeChange}
           measurementUnit={measurementUnit}
@@ -1201,7 +1196,7 @@ export default function Home() {
           onRenameTemplate={handleRenameTemplate}
           onSetDefaultTemplate={handleSetDefaultTemplate}
           onResetFilters={() => {
-            setPeriodRangeValues(["recent_8"]);
+            setPeriodRangeValue("recent_8");
             setMeasurementUnit("all");
             setFilterValue(ALL_VALUE);
             setFilterSelectedValues([]);
@@ -1212,7 +1207,7 @@ export default function Home() {
             setActiveTemplateId(null);
           }}
           onApplyDefault={() => {
-            setPeriodRangeValues(["recent_8"]);
+            setPeriodRangeValue("recent_8");
             setMeasurementUnit("all");
             setFilterValue(ALL_VALUE);
             setFilterSelectedValues([]);

@@ -11,9 +11,9 @@ import MultiSelectDropdown from "./MultiSelectDropdown";
 
 type ControlBarProps = {
   periodUnit: PeriodUnit;
-  periodRangeValues: string[];
+  periodRangeValue: string;
   periodRangeOptions: { label: string; value: string }[];
-  onPeriodRangeChange: (values: string[]) => void;
+  onPeriodRangeChange: (value: string) => void;
   measurementUnit: MeasurementUnit;
   measurementUnitOptions: MeasurementUnitOption[];
   onMeasurementUnitChange: (value: MeasurementUnit) => void;
@@ -39,7 +39,7 @@ type ControlBarProps = {
 
 export default function ControlBar({
   periodUnit,
-  periodRangeValues,
+  periodRangeValue,
   periodRangeOptions,
   onPeriodRangeChange,
   measurementUnit,
@@ -101,15 +101,6 @@ export default function ControlBar({
     setEditingName("");
   };
 
-  const periodRangeLabel = useMemo(() => {
-    if (periodRangeValues.length === 0) return "선택";
-    if (periodRangeValues.length === periodRangeOptions.length) return "전체";
-    return periodRangeOptions
-      .filter((o) => periodRangeValues.includes(o.value))
-      .map((o) => o.label)
-      .join(", ");
-  }, [periodRangeValues, periodRangeOptions]);
-
   const filterDropdownOptions = useMemo(
     () => filterOptions.filter((o) => o.value !== "all"),
     [filterOptions]
@@ -118,10 +109,19 @@ export default function ControlBar({
   const filterLabel = useMemo(() => {
     if (filterValues.length === 0) return "선택";
     if (filterValues.length === filterDropdownOptions.length) return "전체";
-    return filterDropdownOptions
+    const MAX_LEN = 5;
+    const labels = filterDropdownOptions
       .filter((o) => filterValues.includes(o.value))
-      .map((o) => o.label)
-      .join(", ");
+      .map((o) => o.label);
+    let result = "";
+    for (const label of labels) {
+      const next = result ? `${result}, ${label}` : label;
+      if (next.length > MAX_LEN) {
+        return result ? `${result}...` : `${label.slice(0, MAX_LEN)}...`;
+      }
+      result = next;
+    }
+    return result;
   }, [filterValues, filterDropdownOptions]);
 
   const currentUserId = templates.find((template) => template.id === activeTemplateId)?.user_id;
@@ -211,7 +211,7 @@ export default function ControlBar({
           type="button"
           className="template-tab template-tab-add"
           onClick={() => setIsSaveDialogOpen(true)}
-          title="현재 필터를 템플릿으로 저장"
+          title="현재 필터를 템플릿으로 생성"
         >
           +
         </button>
@@ -248,16 +248,16 @@ export default function ControlBar({
               <option value="week">주</option>
             </select>
           </label>
-          <div className="field search-field search-field-period-range">
+          <label className="field search-field search-field-period-range">
             <span className="field-label">기간범위</span>
-            <MultiSelectDropdown
-              options={periodRangeOptions}
-              selectedValues={periodRangeValues}
-              onChange={onPeriodRangeChange}
-              label={periodRangeLabel}
-              searchPlaceholder="기간 검색..."
-            />
-          </div>
+            <select value={periodRangeValue} onChange={(event) => onPeriodRangeChange(event.target.value)}>
+              {periodRangeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <div className="filter-divider" />
         <label className="field search-field search-field-measurement-select">
@@ -296,7 +296,7 @@ export default function ControlBar({
         <div className="template-save-overlay" onClick={() => setIsSaveDialogOpen(false)}>
           <div className="template-save-dialog" onClick={(event) => event.stopPropagation()}>
             <div className="template-save-header">
-              <span className="card-title">템플릿 저장</span>
+              <span className="card-title">템플릿 생성</span>
               <button
                 type="button"
                 className="template-save-close"
