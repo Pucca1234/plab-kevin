@@ -168,6 +168,16 @@ export default function ControlBar({
               >
                 <span className="template-tab-name">{template.name}</span>
                 {template.is_default && <span className="template-tab-badge">기본</span>}
+                <span
+                  className="template-tab-delete"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => { event.stopPropagation(); onDeleteTemplate(template.id); }}
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.stopPropagation(); onDeleteTemplate(template.id); } }}
+                  title="템플릿 삭제"
+                >
+                  ×
+                </span>
               </button>
             )}
             {contextMenuId === template.id && (

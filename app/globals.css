@@ -2312,6 +2312,28 @@ main {
   color: var(--primary);
 }
 
+.template-tab-delete {
+  display: none;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 1px;
+  border-radius: 3px;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.template-tab-delete:hover {
+  color: var(--down);
+  background: var(--error-soft);
+}
+
+.template-tab:hover .template-tab-delete,
+.template-tab.is-active .template-tab-delete {
+  display: inline-flex;
+}
+
 .template-tab-default {
   font-weight: 700;
   color: var(--ink);
