@@ -2367,7 +2367,7 @@ main {
   border-radius: var(--radius-sm);
   white-space: nowrap;
   width: auto;
-  background: var(--ink);
+  background: var(--primary);
   border: none;
   color: var(--on-primary);
   cursor: pointer;
@@ -2375,7 +2375,23 @@ main {
 }
 
 .template-save-btn:hover {
-  background: var(--secondary);
+  background: var(--primary-hover);
+}
+
+.save-toast {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--success);
+  padding: 3px 10px;
+  white-space: nowrap;
+  animation: toast-fade 1.5s ease-in-out forwards;
+}
+
+@keyframes toast-fade {
+  0% { opacity: 0; transform: translateY(2px); }
+  15% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Tab inline edit */

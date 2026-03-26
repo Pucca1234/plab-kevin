@@ -72,8 +72,11 @@ export default function ControlBar({
 }: ControlBarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingDefault, setEditingDefault] = useState(false);
+  const [defaultTabName, setDefaultTabName] = useState("새 탭");
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const [saveToast, setSaveToast] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -122,13 +125,32 @@ export default function ControlBar({
   return (
     <div className="control-bar-wrap">
       <div className="template-tabs">
-        <button
-          type="button"
-          className={`template-tab template-tab-default ${activeTemplateId === null ? "is-active" : ""}`}
-          onClick={onApplyDefault}
-        >
-          새 탭
-        </button>
+        {editingDefault ? (
+          <div className="template-tab-edit">
+            <input
+              type="text"
+              className="template-tab-edit-input"
+              value={defaultTabName}
+              onChange={(event) => setDefaultTabName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") setEditingDefault(false);
+                if (event.key === "Escape") setEditingDefault(false);
+              }}
+              onBlur={() => setEditingDefault(false)}
+              autoFocus
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={`template-tab template-tab-default ${activeTemplateId === null ? "is-active" : ""}`}
+            onClick={onApplyDefault}
+            onDoubleClick={() => setEditingDefault(true)}
+            title="더블클릭: 이름 수정"
+          >
+            {defaultTabName}
+          </button>
+        )}
         {templates.map((template) => (
           <div key={template.id} className="template-tab-wrap" style={{ position: "relative" }}>
             {editingId === template.id ? (
@@ -219,11 +241,14 @@ export default function ControlBar({
             } else {
               onSaveDefaultConfig();
             }
+            setSaveToast(true);
+            setTimeout(() => setSaveToast(false), 1500);
           }}
           title={activeTemplateId ? "현재 탭에 필터 상태 저장" : "새 탭에 현재 상태 저장"}
         >
           저장
         </button>
+        {saveToast && <span className="save-toast">저장 완료</span>}
       </div>
       <div className="search-panel card control-bar-body">
       <div className="search-row search-row-metrics">
