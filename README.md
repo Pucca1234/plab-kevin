@@ -275,6 +275,30 @@ npm run data:validate-recent-refresh
     - 같은 조건 drilldown options: 약 0.03~0.22초
   - 특정 조합(예: `area_group_and_time=경기 | A 평일 비프라임(-17)` -> `stadium_group_and_time`)은 timeout이 아니라 실제 `0 rows` 조합으로 정리되었고, 드릴다운 옵션 노출은 서버 재기동/새로고침 후 최신 결과 기준으로 동작
 
+## 2026-03-31 운영 점검 (주간 MV 재생성/최신 주차 노출)
+- 주간 MV 재생성 실패 원인:
+  - GitHub Actions `Weekly MV Rebuild`가 `2026-03-24`, `2026-03-31` 두 차례 연속 실패
+  - 직접 원격 DB 실행으로 확인한 결과, `refresh_weekly_agg_mv.sql`에서 `entity_hierarchy_mv`를 먼저 drop하고 있었고, 이 시점에 `weekly_expanded_agg_mv`가 해당 MV를 참조 중이라 재생성이 즉시 중단됨
+  - 원격 DB `statement_timeout=2min`도 존재해, 재생성 시간이 긴 상황에서 실패 위험을 더 키우고 있었음
+- 조치:
+  - `refresh_weekly_agg_mv.sql`에서 `weekly_expanded_agg_mv`/type을 먼저 drop하도록 순서 수정
+  - 재생성 SQL 시작/종료에 `set statement_timeout = 0` / `reset statement_timeout` 추가
+  - `.github/workflows/weekly-mv-rebuild.yml` 재생성 step에 `PGOPTIONS="-c statement_timeout=0"` 추가
+  - 이미 retired된 `yoil_and_hour`, `yoil_group_and_hour` rebuild/index 로직 제거
+- 검증:
+  - 원격 DB에서 재생성 SQL 수동 실행 성공
+  - 실제 재생성 소요 시간은 약 19분
+  - `supabase/sql/validate_recent_refresh.sql` 기준 최근 3주(`26.03.16 - 03.22`, `26.03.23 - 03.29`, `26.03.30 - 04.05`) 정상
+- `/api/weeks` 최신 주차 누락 수정:
+  - 증상:
+    - 로컬에서 최근 8주 조회 시 최신 2주(`26.03.23 - 03.29`, `26.03.30 - 04.05`)가 빠지고 `26.03.16 - 03.22`까지만 노출
+  - 원인:
+    - 주차 목록을 `weekly_agg_mv`의 전체 `all` 행에서 가져오면서, 주차당 다수 metric row(83행) 기준 정렬/페이지네이션이 섞여 최신 주차가 누락됨
+  - 조치:
+    - `getWeeksData()`는 `measure_unit='all'`, `filter_value='전체'`, `metric_id='total_match_cnt'` 기준 1행/주만 조회하도록 수정
+  - 결과:
+    - `/api/weeks?n=8`이 최신 8주를 안정적으로 반환
+
 ## Supabase 배포 워크플로
 - 마이그레이션: `supabase/migrations/202602210001_weekly_agg_mv_v2.sql`
 - 마이그레이션: `supabase/migrations/202602220001_weekly_agg_mv_filter_options_idx.sql`

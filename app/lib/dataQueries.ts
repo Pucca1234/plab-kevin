@@ -14,6 +14,7 @@ const WEEK_FETCH_PAGE_SIZE = 500;
 const EXPANDED_UNIT_PAGE_SIZE = 25;
 const ENTITY_LABEL_SEPARATOR = " | ";
 const AGG_KEY_SEPARATOR = "\u001f";
+const WEEK_INDEX_METRIC_ID = "total_match_cnt";
 const LEGACY_MV_UNITS = new Set(["all", "area_group", "area", "stadium_group", "stadium"]);
 const EXPANDED_MV_UNITS = new Set([
   "area_group_and_time",
@@ -472,39 +473,27 @@ const getConstrainedEntityValues = async ({
 
 const buildWeekEntries = async (limit?: number) => {
   const effectiveLimit = typeof limit === "number" && limit > 0 ? limit : WEEK_LIMIT_DEFAULT;
-  const uniqueWeeks = new Set<string>();
-  const entries: WeekEntry[] = [];
-  let from = 0;
+  const { data, error } = await schemaClient
+    .from(tableName(WEEKLY_AGG_VIEW))
+    .select("week")
+    .eq("measure_unit", "all")
+    .eq("filter_value", ALL_LABEL)
+    .eq("metric_id", WEEK_INDEX_METRIC_ID)
+    .order("week", { ascending: false })
+    .limit(effectiveLimit);
 
-  while (entries.length < effectiveLimit) {
-    const to = from + WEEK_FETCH_PAGE_SIZE - 1;
-    const { data, error } = await schemaClient
-      .from(tableName(WEEKLY_AGG_VIEW))
-      .select("week")
-      .eq("measure_unit", "all")
-      .eq("filter_value", ALL_LABEL)
-      .order("week", { ascending: false })
-      .range(from, to);
+  if (error) throw new Error(error.message);
 
-    if (error) throw new Error(error.message);
-
-    const rows = (data ?? []) as { week?: string | null }[];
-    if (rows.length === 0) break;
-
-    for (const row of rows) {
+  const entries = ((data ?? []) as { week?: string | null }[])
+    .map((row) => {
       const week = typeof row.week === "string" ? row.week.trim() : "";
-      if (!week || uniqueWeeks.has(week)) continue;
-      uniqueWeeks.add(week);
-      entries.push({
+      if (!week) return null;
+      return {
         week,
         startDate: parseWeekStartDate(week)
-      });
-      if (entries.length >= effectiveLimit) break;
-    }
-
-    if (rows.length < WEEK_FETCH_PAGE_SIZE) break;
-    from += WEEK_FETCH_PAGE_SIZE;
-  }
+      } satisfies WeekEntry;
+    })
+    .filter((entry): entry is WeekEntry => entry !== null);
 
   return entries.sort((a, b) => {
     const aTime = a.startDate ? Date.parse(`${a.startDate}T00:00:00Z`) : Number.NEGATIVE_INFINITY;
