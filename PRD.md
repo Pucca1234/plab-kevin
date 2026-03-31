@@ -283,6 +283,32 @@
   - 특정 parent/child 조합은 timeout이 아니라 실제 `0 rows` 조합으로 정리:
     - 예: `area_group_and_time=경기 | A 평일 비프라임(-17)` -> `stadium_group_and_time`
 
+### 7.14 2026-03-31 주간 MV 재생성 장애 원인 및 최신 주차 누락 수정
+- 주간 MV 재생성 장애:
+  - GitHub Actions `Weekly MV Rebuild`는 `2026-03-24`, `2026-03-31` 스케줄 런에서 연속 실패했고, `2026-03-17` 런은 성공
+  - 직접 원격 DB에서 `supabase/sql/refresh_weekly_agg_mv.sql`을 실행해 확인한 결과, `weekly_expanded_agg_mv`가 `entity_hierarchy_mv`를 참조하는 상태에서 `entity_hierarchy_mv`를 먼저 drop하려 해 재생성이 중단됨
+  - 원격 DB `statement_timeout=2min`도 설정돼 있어 장시간 재생성에 추가 리스크가 있었음
+- 조치:
+  - `refresh_weekly_agg_mv.sql`
+    - `weekly_expanded_agg_mv`와 type을 먼저 drop하도록 순서 수정
+    - 실행 전후 `set statement_timeout = 0` / `reset statement_timeout` 추가
+    - retired 단위 `yoil_and_hour`, `yoil_group_and_hour` 관련 rebuild/index 제거
+  - `.github/workflows/weekly-mv-rebuild.yml`
+    - rebuild step에 `PGOPTIONS="-c statement_timeout=0"` 추가
+- 운영 검증:
+  - 원격 DB 수동 재생성 성공
+  - 재생성 완료 시간 약 19분, 현재 workflow `timeout-minutes: 30` 내에서 수용 가능
+  - `validate_recent_refresh.sql` 기준 최근 3주(`26.03.16 - 03.22`, `26.03.23 - 03.29`, `26.03.30 - 04.05`)의 legacy 단위(`all/area_group/area/stadium_group/stadium`) 데이터 존재 확인
+- 최신 주차 누락 수정:
+  - 증상:
+    - 로컬 `/api/weeks?n=8`이 최신 2주를 누락하고 `26.03.16 - 03.22`까지만 반환
+  - 원인:
+    - `getWeeksData()`가 `weekly_agg_mv`의 `all` 단위 전체 row에서 주차를 수집했고, 주차당 다수 metric row가 존재해 정렬/페이지네이션이 왜곡됨
+  - 조치:
+    - `getWeeksData()`는 `measure_unit='all'`, `filter_value='전체'`, `metric_id='total_match_cnt'` 기준 1 row per week만 읽도록 수정
+  - 결과:
+    - `/api/weeks`는 최신 주차를 안정적으로 반환하며, Airbyte 반영 후 최신 8/12/24주 노출 누락을 줄임
+
 ## 8. 운영 도메인 원칙
 - Canonical 운영 도메인은 단일값만 사용:
   - `https://social-match-dashboard-mvp.vercel.app`
@@ -361,6 +387,9 @@
 - 실행 순서:
   - `supabase/sql/refresh_weekly_agg_mv.sql` 실행 (MV 재생성 + 인덱스 보장)
   - `supabase/sql/validate_recent_refresh.sql` 실행 (최근 3주/주요 지표 존재 헬스체크)
+- 운영 주의사항:
+  - 재생성 SQL은 `weekly_expanded_agg_mv` -> `entity_hierarchy_mv` -> `weekly_agg_mv` 순서로 의존성을 해소한 뒤 다시 생성해야 함
+  - 원격 DB 기본 `statement_timeout` 영향 없이 끝까지 수행되도록 workflow와 SQL 양쪽에서 timeout을 해제
 - 필요 Secrets:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
