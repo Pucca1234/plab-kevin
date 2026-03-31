@@ -3,6 +3,8 @@
 -- - *_rate metrics -> AVG
 -- - other metrics  -> MAX
 
+set statement_timeout = 0;
+
 create or replace view bigquery.weeks_view as
 select distinct
   week,
@@ -13,6 +15,8 @@ where period_type = 'week'
   and length(trim(week)) >= 8
   and to_date('20' || substr(week, 1, 8), 'YYYY.MM.DD') <= current_date;
 
+drop materialized view if exists bigquery.weekly_expanded_agg_mv;
+drop type if exists bigquery.weekly_expanded_agg_mv cascade;
 drop materialized view if exists bigquery.entity_hierarchy_mv;
 
 create materialized view bigquery.entity_hierarchy_mv as
@@ -186,21 +190,6 @@ unit_rows as (
   where dimension_type = 'hour'
     and hour is not null
 
-  union all
-
-  select week, 'yoil_and_hour'::text, concat_ws(' | ', yoil, hour), metric_id, value
-  from base
-  where dimension_type = 'yoil_and_hour'
-    and yoil is not null
-    and hour is not null
-
-  union all
-
-  select week, 'yoil_group_and_hour'::text, concat_ws(' | ', yoil_group, hour), metric_id, value
-  from base
-  where dimension_type = 'yoil_group_and_hour'
-    and yoil_group is not null
-    and hour is not null
 )
 select
   week,
@@ -225,9 +214,6 @@ create index if not exists idx_weekly_agg_mv_unit_filter_week_metric
 
 create index if not exists idx_weekly_agg_mv_unit_metric_filter
   on bigquery.weekly_agg_mv (measure_unit, metric_id, filter_value);
-
-drop materialized view if exists bigquery.weekly_expanded_agg_mv;
-drop type if exists bigquery.weekly_expanded_agg_mv cascade;
 
 create materialized view bigquery.weekly_expanded_agg_mv as
 with recent_weeks as (
@@ -300,9 +286,7 @@ base as (
       'stadium_group_and_time',
       'stadium_and_time',
       'time',
-      'hour',
-      'yoil_and_hour',
-      'yoil_group_and_hour'
+      'hour'
     )
     and m.value_num is not null
 ),
@@ -429,47 +413,6 @@ unit_rows as (
   where dimension_type = 'hour'
     and hour is not null
 
-  union all
-
-  select
-    week,
-    'yoil_and_hour'::text,
-    concat_ws(' | ', yoil, hour),
-    area_group,
-    area,
-    stadium_group,
-    stadium,
-    time,
-    hour,
-    yoil,
-    yoil_group,
-    metric_id,
-    value
-  from base
-  where dimension_type = 'yoil_and_hour'
-    and yoil is not null
-    and hour is not null
-
-  union all
-
-  select
-    week,
-    'yoil_group_and_hour'::text,
-    concat_ws(' | ', yoil_group, hour),
-    area_group,
-    area,
-    stadium_group,
-    stadium,
-    time,
-    hour,
-    yoil,
-    yoil_group,
-    metric_id,
-    value
-  from base
-  where dimension_type = 'yoil_group_and_hour'
-    and yoil_group is not null
-    and hour is not null
 )
 select
   week,
@@ -530,12 +473,6 @@ create index if not exists idx_weekly_expanded_agg_mv_unit_week_time
 create index if not exists idx_weekly_expanded_agg_mv_unit_week_hour
   on bigquery.weekly_expanded_agg_mv (measure_unit, week, hour);
 
-create index if not exists idx_weekly_expanded_agg_mv_unit_week_yoil
-  on bigquery.weekly_expanded_agg_mv (measure_unit, week, yoil);
-
-create index if not exists idx_weekly_expanded_agg_mv_unit_week_yoil_group
-  on bigquery.weekly_expanded_agg_mv (measure_unit, week, yoil_group);
-
 create index if not exists idx_weekly_expanded_agg_mv_unit_metric_week_area_group_time
   on bigquery.weekly_expanded_agg_mv (measure_unit, metric_id, week, area_group, time);
 
@@ -549,3 +486,5 @@ create index if not exists idx_weekly_expanded_agg_mv_unit_metric_week_stadium_t
   on bigquery.weekly_expanded_agg_mv (measure_unit, metric_id, week, stadium, time);
 
 notify pgrst, 'reload schema';
+
+reset statement_timeout;
