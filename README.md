@@ -33,8 +33,12 @@
   - 실제 런타임 검증
   - fallback/성능 최적화
 - BigQuery 런타임 검증 전제:
-  - 로컬/서버에서 `Application Default Credentials` 또는 service account key가 필요함
-  - 예: `gcloud auth application-default login`
+  - 지원 인증 방식:
+    - `BIGQUERY_SERVICE_ACCOUNT_JSON`
+    - `BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64`
+    - `BIGQUERY_ACCESS_TOKEN`
+    - 로컬 `gcloud auth login` fallback
+  - Vercel 배포 시에는 service account JSON 계열 env 사용 권장
 
 ## API
 - `GET /api/metrics`

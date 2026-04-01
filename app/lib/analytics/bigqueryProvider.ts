@@ -1,7 +1,6 @@
 import "server-only";
 import type { AnalyticsProvider } from "./types";
-import type { BigQueryDate } from "@google-cloud/bigquery";
-import { bigqueryClient } from "./bigqueryClient";
+import { runBigQueryQuery } from "./bigqueryClient";
 import {
   ALL_LABEL,
   COLUMN_BY_UNIT,
@@ -28,7 +27,7 @@ type BigQueryMetricRow = {
 
 type BigQueryWeekRow = {
   week: string | null;
-  week_start_date: BigQueryDate | string | null;
+  week_start_date: string | null;
 };
 
 type BigQueryHeatmapAggRow = {
@@ -42,6 +41,7 @@ type BigQueryHeatmapAggRow = {
 const projectId = process.env.BIGQUERY_PROJECT_ID?.trim() || "plabfootball-51bf5";
 const dataMartDataset = process.env.BIGQUERY_DATASET_SOURCE_DATA_MART?.trim() || "data_mart";
 const googleSheetsDataset = process.env.BIGQUERY_DATASET_SOURCE_GOOGLESHEETS?.trim() || "googlesheets";
+const servingDataset = process.env.BIGQUERY_DATASET_SERVING?.trim() || "kevin_serving";
 const sourceTable = `\`${projectId}.${dataMartDataset}.data_mart_1_social_match\``;
 const metricTable = `\`${projectId}.${googleSheetsDataset}.metric_store_native\``;
 const metricColumnBlacklist = new Set([
@@ -74,13 +74,6 @@ const notImplemented = (method: string): never => {
   throw new Error(`BigQuery analytics provider is not implemented yet: ${method}`);
 };
 
-const getWeekStartDateText = (value: BigQueryDate | string | null) => {
-  if (!value) return null;
-  if (typeof value === "string") return value;
-  if ("value" in value && typeof value.value === "string") return value.value;
-  return String(value);
-};
-
 const parseMetricCategory = (value: unknown) => {
   const text = String(value ?? "").trim();
   return text.length > 0 ? text : null;
@@ -110,22 +103,17 @@ const buildSourceEntityFilterClause = (unit: string, entityLabel: string | null)
 };
 
 const getSourceMetricColumns = async () => {
-  const [metadata] = await bigqueryClient.dataset(dataMartDataset, { projectId }).table("data_mart_1_social_match").getMetadata();
-  const fields = (metadata.schema?.fields ?? []) as { name?: string }[];
-  return fields
-    .map((field) => String(field.name ?? "").trim())
+  const rows = await runBigQueryQuery<{ column_name: string }>(`
+    select column_name
+    from \`${projectId}.${dataMartDataset}.INFORMATION_SCHEMA.COLUMNS\`
+    where table_name = 'data_mart_1_social_match'
+  `);
+  return rows
+    .map((row) => String(row.column_name ?? "").trim())
     .filter((name) => name.length > 0 && !metricColumnBlacklist.has(name));
 };
 
-const runQuery = async <T>(query: string, params?: Record<string, unknown>) => {
-  const [rows] = await bigqueryClient.query({
-    query,
-    params,
-    useLegacySql: false,
-    location: "asia-northeast3"
-  });
-  return rows as T[];
-};
+const runQuery = async <T>(query: string) => runBigQueryQuery<T>(query);
 
 const isRateMetric = (metricId: string) => metricId.endsWith("_rate");
 
@@ -209,15 +197,14 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
         select week, week_start_date
         from weeks
         order by week_start_date desc
-        limit @limit
-      `,
-      { limit }
+        limit ${limit}
+      `
     );
 
     const entries = rows
       .map((row) => ({
         week: String(row.week ?? "").trim(),
-        startDate: getWeekStartDateText(row.week_start_date)
+        startDate: row.week_start_date ? String(row.week_start_date) : null
       }))
       .filter((row) => row.week.length > 0);
 
@@ -346,7 +333,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       const parentColumn = sanitizeIdentifier(COLUMN_BY_UNIT[parentUnit]);
       const rows = await runQuery<Record<string, string | null>>(`
         select distinct ${childColumn}
-        from \`${projectId}.kevin_serving.entity_hierarchy\`
+        from \`${projectId}.${servingDataset}.entity_hierarchy\`
         where ${parentColumn} = '${parentValue.replace(/'/g, "\\'")}'
           and ${childColumn} is not null
         order by ${childColumn}
