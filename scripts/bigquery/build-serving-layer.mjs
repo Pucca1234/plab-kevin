@@ -211,9 +211,7 @@ end;
 
 const buildSql = (metrics) => {
   const metricStructs = buildMetricStructs(metrics);
-  return `create schema if not exists \`${projectId}.${servingDataset}\`;
-
-create or replace view \`${projectId}.${servingDataset}.weeks_view\` as
+  return `create or replace view \`${projectId}.${servingDataset}.weeks_view\` as
 select distinct
   week,
   parse_date('%Y.%m.%d', concat('20', substr(week, 1, 8))) as week_start_date

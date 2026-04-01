@@ -1,5 +1,3 @@
-create schema if not exists `plabfootball-51bf5.kevin_serving`;
-
 create or replace view `plabfootball-51bf5.kevin_serving.weeks_view` as
 select distinct
   week,
