@@ -10,12 +10,18 @@
 ## 기술 스택
 - Frontend: Next.js 14, React, TypeScript
 - Data: Supabase(Postgres, schema `bigquery`)
+- Analytics backend migration: provider-based split (`supabase` -> `bigquery`)
 - Source Tables:
   - `bigquery.data_mart_1_social_match`
   - `bigquery.metric_store_native`
 - Supporting Views:
   - `bigquery.weeks_view`
   - `bigquery.weekly_agg_mv`
+
+## 전환 작업 상태
+- 현재 analytics read path는 provider 구조로 분리 중입니다.
+- 기본값은 `ANALYTICS_BACKEND=supabase`이며, 기존 동작을 유지합니다.
+- BigQuery provider는 아직 뼈대만 추가된 상태입니다.
 
 ## API
 - `GET /api/metrics`
