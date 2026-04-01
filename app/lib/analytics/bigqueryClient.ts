@@ -84,22 +84,31 @@ const getServiceAccountAccessToken = async () => {
 };
 
 const getAccessToken = async () => {
-  const tokenFromEnv = process.env.BIGQUERY_ACCESS_TOKEN?.trim();
-  if (tokenFromEnv) return tokenFromEnv;
-
   const serviceAccountToken = await getServiceAccountAccessToken();
   if (serviceAccountToken) return serviceAccountToken;
 
   try {
     const gcloudCommand = resolveGcloudCommand();
-    const quoted = gcloudCommand.includes(" ") ? `"${gcloudCommand}"` : gcloudCommand;
-    return execFileSync("cmd.exe", ["/d", "/s", "/c", `${quoted} auth print-access-token`], {
+    if (process.platform === "win32") {
+      return execFileSync(
+        "powershell.exe",
+        ["-NoProfile", "-Command", `& '${gcloudCommand.replace(/'/g, "''")}' auth print-access-token`],
+        {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"]
+        }
+      ).trim();
+    }
+
+    return execFileSync(gcloudCommand, ["auth", "print-access-token"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"]
     }).trim();
-  } catch (error) {
+  } catch {
+    const tokenFromEnv = process.env.BIGQUERY_ACCESS_TOKEN?.trim();
+    if (tokenFromEnv) return tokenFromEnv;
     throw new Error(
-      "BigQuery access token is unavailable. Set BIGQUERY_ACCESS_TOKEN, configure BIGQUERY_SERVICE_ACCOUNT_JSON(_BASE64), or run `gcloud auth login`."
+      "BigQuery access token is unavailable. Configure BIGQUERY_SERVICE_ACCOUNT_JSON(_BASE64), run `gcloud auth login`, or set BIGQUERY_ACCESS_TOKEN."
     );
   }
 };
