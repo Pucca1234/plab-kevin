@@ -12,10 +12,20 @@
   - Heatmap 기반 비교
   - AI 요약 및 질문 응답
 
+### 2.1 2026-04-01 전환 기준
+- `plab-kevin`은 기존 `social-match-dashboard-mvp`와 분리된 별도 repo / 별도 Vercel 프로젝트다.
+- `plab-kevin`의 분석 source of truth는 Supabase가 아니라 BigQuery다.
+- BigQuery source는 read-only로 취급하며, 신규 객체는 `kevin_serving` dataset에만 생성한다.
+- 실제 서비스 원천은 플랩풋볼 MySQL이며, BigQuery source 테이블은 예약 쿼리로 매일 07:50 KST 기준 갱신된다.
+- 운영 메모:
+  - 대부분 07:50 KST 전후 자동 완료
+  - 간헐적으로 수동 재실행으로 늦게 반영되는 날이 있음
+  - serving rebuild는 매일 08:30 KST 기준 실행하고, 늦은 반영분은 다음날 스케줄에서 따라잡는 것을 기본 정책으로 한다.
+
 ## 3. 데이터 구조
 ### 3.1 원천 테이블 (Read-only)
-- `bigquery.data_mart_1_social_match`
-- `bigquery.metric_store_native`
+- `plabfootball-51bf5.data_mart.data_mart_1_social_match`
+- `plabfootball-51bf5.googlesheets.metric_store_native`
 
 ### 3.2 보조 뷰
 - `bigquery.weeks_view`
@@ -27,6 +37,21 @@
 - 규칙:
   - `cnt` 계열: `MAX`
   - `rate` 계열: `AVG`
+
+### 3.4 BigQuery serving layer (`plab-kevin`)
+- dataset: `plabfootball-51bf5.kevin_serving`
+- 객체:
+  - `weeks_view` (`VIEW`)
+  - `entity_hierarchy` (`BASE TABLE`)
+  - `weekly_agg` (`BASE TABLE`)
+  - `weekly_expanded_agg` (`BASE TABLE`)
+- 생성 스크립트:
+  - `scripts/bigquery/build-serving-layer.mjs`
+- 검증 스크립트:
+  - `scripts/bigquery/validate-serving-layer.mjs`
+- 운영 원칙:
+  - source BigQuery 테이블은 수정하지 않음
+  - serving dataset만 재생성/갱신
 
 ## 4. 집계/정확도 규칙
 ### 4.1 측정 단위
@@ -309,6 +334,33 @@
   - 결과:
     - `/api/weeks`는 최신 주차를 안정적으로 반환하며, Airbyte 반영 후 최신 8/12/24주 노출 누락을 줄임
 
+### 7.14 2026-04-01 BigQuery 전환 프로젝트(`plab-kevin`)
+- 새 프로젝트 구성:
+  - GitHub repo `Pucca1234/plab-kevin`
+  - Vercel project `plab-kevin`
+  - branch 기반 개발 후 별도 production URL로 검증
+- analytics provider 분리:
+  - `dataQueries.ts` facade 유지
+  - `provider.ts`, `supabaseProvider.ts`, `bigqueryProvider.ts` 구조 도입
+- BigQuery serving layer 반영:
+  - `kevin_serving.weeks_view`
+  - `kevin_serving.entity_hierarchy`
+  - `kevin_serving.weekly_agg`
+  - `kevin_serving.weekly_expanded_agg`
+- 정합성 원칙:
+  - `plab-kevin`은 legacy Supabase 결과가 아니라 BigQuery 원천 기준으로 판단
+  - parity 비교 결과 차이는 우선 BigQuery source와 대조해 해석
+- 배포 이슈/조치:
+  - 초기 Vercel project preset이 `Other`로 설정되어 `@vercel/static-build`가 선택되며 production에서 `404 NOT_FOUND` 발생
+  - project framework를 `nextjs`로 수정하고 `vercel.json`으로 Next.js builder를 고정
+  - Supabase redirect URL에 `plab-kevin` 도메인 추가
+  - middleware 제거 후 production 배포 안정화
+  - 현재 production 핵심 확인:
+    - `/`
+    - `/api/weeks`
+    - `/api/filter-options`
+    - `/api/heatmap`
+
 ## 8. 운영 도메인 원칙
 - Canonical 운영 도메인은 단일값만 사용:
   - `https://social-match-dashboard-mvp.vercel.app`
@@ -394,6 +446,27 @@
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SUPABASE_DB_URI`
+
+### 9.4 BigQuery serving rebuild 스케줄 (`plab-kevin`)
+- 목적:
+  - BigQuery source 갱신 이후 `kevin_serving` 집계 레이어를 자동 재생성
+  - `plab-kevin`이 BigQuery source와 가장 가까운 serving 데이터를 사용하도록 유지
+- 실행 시각:
+  - 매일 08:30 KST (GitHub Actions cron: `30 23 * * *`)
+- 워크플로:
+  - `.github/workflows/bigquery-serving-rebuild.yml`
+- 실행 순서:
+  - `npm run bq:build-serving`
+  - `npm run bq:validate-serving`
+- 재생성 대상:
+  - `kevin_serving.entity_hierarchy`
+  - `kevin_serving.weekly_agg`
+  - `kevin_serving.weekly_expanded_agg`
+- 참고:
+  - `kevin_serving.weeks_view`는 source를 바라보는 `VIEW`
+  - source 예약 쿼리 반영이 지연되거나 수동 반영이 늦어진 날은, 당일 08:30 KST rebuild에 포함되지 않을 수 있으며 다음날 스케줄에서 반영하는 것을 허용
+- 필요 Secrets:
+  - `BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64`
 ## 11. 비기능 요구사항
 - UTF-8 인코딩 강제(`predev`, `prebuild`)
 - 원천 테이블 스키마 변경 금지

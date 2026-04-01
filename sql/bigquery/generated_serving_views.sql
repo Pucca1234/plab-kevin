@@ -10,8 +10,26 @@ where period_type = 'week'
   and length(trim(week)) >= 8
   and parse_date('%Y.%m.%d', concat('20', substr(week, 1, 8))) <= current_date('Asia/Seoul');
 
-drop view if exists `plabfootball-51bf5.kevin_serving.entity_hierarchy`;
-drop table if exists `plabfootball-51bf5.kevin_serving.entity_hierarchy`;
+
+begin
+  if exists (
+    select 1
+    from `plabfootball-51bf5.kevin_serving.INFORMATION_SCHEMA.TABLES`
+    where table_name = 'entity_hierarchy'
+  ) then
+    execute immediate (
+      select if(
+        table_type = 'VIEW',
+        'drop view `plabfootball-51bf5.kevin_serving.entity_hierarchy`',
+        'drop table `plabfootball-51bf5.kevin_serving.entity_hierarchy`'
+      )
+      from `plabfootball-51bf5.kevin_serving.INFORMATION_SCHEMA.TABLES`
+      where table_name = 'entity_hierarchy'
+      limit 1
+    );
+  end if;
+end;
+
 
 create table `plabfootball-51bf5.kevin_serving.entity_hierarchy`
 cluster by area_group, area, stadium_group, stadium as
@@ -34,8 +52,26 @@ where period_type = 'week'
     stadium is not null
   );
 
-drop view if exists `plabfootball-51bf5.kevin_serving.weekly_agg`;
-drop table if exists `plabfootball-51bf5.kevin_serving.weekly_agg`;
+
+begin
+  if exists (
+    select 1
+    from `plabfootball-51bf5.kevin_serving.INFORMATION_SCHEMA.TABLES`
+    where table_name = 'weekly_agg'
+  ) then
+    execute immediate (
+      select if(
+        table_type = 'VIEW',
+        'drop view `plabfootball-51bf5.kevin_serving.weekly_agg`',
+        'drop table `plabfootball-51bf5.kevin_serving.weekly_agg`'
+      )
+      from `plabfootball-51bf5.kevin_serving.INFORMATION_SCHEMA.TABLES`
+      where table_name = 'weekly_agg'
+      limit 1
+    );
+  end if;
+end;
+
 
 create table `plabfootball-51bf5.kevin_serving.weekly_agg`
 partition by week_start_date
@@ -197,8 +233,26 @@ select
 from unit_rows
 group by week, week_start_date, measure_unit, filter_value, metric_id;
 
-drop view if exists `plabfootball-51bf5.kevin_serving.weekly_expanded_agg`;
-drop table if exists `plabfootball-51bf5.kevin_serving.weekly_expanded_agg`;
+
+begin
+  if exists (
+    select 1
+    from `plabfootball-51bf5.kevin_serving.INFORMATION_SCHEMA.TABLES`
+    where table_name = 'weekly_expanded_agg'
+  ) then
+    execute immediate (
+      select if(
+        table_type = 'VIEW',
+        'drop view `plabfootball-51bf5.kevin_serving.weekly_expanded_agg`',
+        'drop table `plabfootball-51bf5.kevin_serving.weekly_expanded_agg`'
+      )
+      from `plabfootball-51bf5.kevin_serving.INFORMATION_SCHEMA.TABLES`
+      where table_name = 'weekly_expanded_agg'
+      limit 1
+    );
+  end if;
+end;
+
 
 create table `plabfootball-51bf5.kevin_serving.weekly_expanded_agg`
 partition by week_start_date

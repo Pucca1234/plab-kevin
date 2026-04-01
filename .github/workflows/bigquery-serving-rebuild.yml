@@ -1,0 +1,43 @@
+name: BigQuery Serving Rebuild
+
+on:
+  schedule:
+    # Daily 08:30 KST = previous day 23:30 UTC
+    - cron: "30 23 * * *"
+  workflow_dispatch:
+
+jobs:
+  rebuild-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BIGQUERY_PROJECT_ID: "plabfootball-51bf5"
+      BIGQUERY_LOCATION: "asia-northeast3"
+      BIGQUERY_DATASET_SOURCE_DATA_MART: "data_mart"
+      BIGQUERY_DATASET_SOURCE_GOOGLESHEETS: "googlesheets"
+      BIGQUERY_DATASET_SERVING: "kevin_serving"
+      BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64 }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify required secrets
+        run: |
+          set -e
+          [ -n "${BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64}" ] || (echo "Missing BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64" && exit 1)
+
+      - name: Rebuild serving layer
+        run: npm run bq:build-serving
+
+      - name: Validate serving layer
+        run: npm run bq:validate-serving

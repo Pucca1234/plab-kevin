@@ -134,7 +134,7 @@ const runBigQueryStatement = async (query) => {
       query,
       useLegacySql: false,
       location,
-      timeoutMs: 120000,
+      timeoutMs: 600000,
       maxResults: 100000
     })
   });
@@ -188,11 +188,26 @@ const buildMetricStructs = (metrics) =>
     .map((metric) => `    struct('${metric}' as metric_id, cast(\`${metric}\` as float64) as value)`)
     .join(",\n");
 
-const splitStatements = (sql) =>
-  sql
-    .split(/;\s*(?:\r?\n|$)/)
-    .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0);
+const buildDropObjectSql = (tableName) => `
+begin
+  if exists (
+    select 1
+    from \`${projectId}.${servingDataset}.INFORMATION_SCHEMA.TABLES\`
+    where table_name = '${tableName}'
+  ) then
+    execute immediate (
+      select if(
+        table_type = 'VIEW',
+        'drop view \`${projectId}.${servingDataset}.${tableName}\`',
+        'drop table \`${projectId}.${servingDataset}.${tableName}\`'
+      )
+      from \`${projectId}.${servingDataset}.INFORMATION_SCHEMA.TABLES\`
+      where table_name = '${tableName}'
+      limit 1
+    );
+  end if;
+end;
+`;
 
 const buildSql = (metrics) => {
   const metricStructs = buildMetricStructs(metrics);
@@ -208,8 +223,7 @@ where period_type = 'week'
   and length(trim(week)) >= 8
   and parse_date('%Y.%m.%d', concat('20', substr(week, 1, 8))) <= current_date('Asia/Seoul');
 
-drop view if exists \`${projectId}.${servingDataset}.entity_hierarchy\`;
-drop table if exists \`${projectId}.${servingDataset}.entity_hierarchy\`;
+${buildDropObjectSql("entity_hierarchy")}
 
 create table \`${projectId}.${servingDataset}.entity_hierarchy\`
 cluster by area_group, area, stadium_group, stadium as
@@ -232,8 +246,7 @@ where period_type = 'week'
     stadium is not null
   );
 
-drop view if exists \`${projectId}.${servingDataset}.weekly_agg\`;
-drop table if exists \`${projectId}.${servingDataset}.weekly_agg\`;
+${buildDropObjectSql("weekly_agg")}
 
 create table \`${projectId}.${servingDataset}.weekly_agg\`
 partition by week_start_date
@@ -303,8 +316,7 @@ select
 from unit_rows
 group by week, week_start_date, measure_unit, filter_value, metric_id;
 
-drop view if exists \`${projectId}.${servingDataset}.weekly_expanded_agg\`;
-drop table if exists \`${projectId}.${servingDataset}.weekly_expanded_agg\`;
+${buildDropObjectSql("weekly_expanded_agg")}
 
 create table \`${projectId}.${servingDataset}.weekly_expanded_agg\`
 partition by week_start_date
@@ -412,11 +424,8 @@ const main = async () => {
   mkdirSync(dirname(generatedSqlFilePath), { recursive: true });
   writeFileSync(generatedSqlFilePath, sql, "utf8");
 
-  const statements = splitStatements(sql);
-  for (const [index, statement] of statements.entries()) {
-    console.log(`Executing statement ${index + 1}/${statements.length}...`);
-    await runBigQueryStatement(statement);
-  }
+  console.log("Executing serving layer rebuild script...");
+  await runBigQueryStatement(sql);
 
   console.log(`Generated SQL written to ${generatedSqlFilePath}`);
   console.log(`Serving layer applied to ${projectId}.${servingDataset}`);

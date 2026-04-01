@@ -14,6 +14,7 @@
     "sb:push": "powershell -ExecutionPolicy Bypass -File scripts/supabase/push.ps1",
     "sb:refresh-mv": "powershell -ExecutionPolicy Bypass -File scripts/supabase/refresh-weekly-agg-mv.ps1",
     "bq:build-serving": "node scripts/bigquery/build-serving-layer.mjs",
+    "bq:validate-serving": "node scripts/bigquery/validate-serving-layer.mjs",
     "data:validate-mv": "node scripts/validate-weekly-agg-mv.mjs",
     "data:validate-recent-refresh": "node scripts/validate-recent-refresh.mjs",
     "data:compare-apis": "node scripts/compare-analytics-apis.mjs",
