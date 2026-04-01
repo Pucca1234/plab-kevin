@@ -15,6 +15,7 @@
     "sb:refresh-mv": "powershell -ExecutionPolicy Bypass -File scripts/supabase/refresh-weekly-agg-mv.ps1",
     "data:validate-mv": "node scripts/validate-weekly-agg-mv.mjs",
     "data:validate-recent-refresh": "node scripts/validate-recent-refresh.mjs",
+    "data:compare-apis": "node scripts/compare-analytics-apis.mjs",
     "release:prepare": "powershell -ExecutionPolicy Bypass -File scripts/release/prepare-pr.ps1"
   },
   "dependencies": {

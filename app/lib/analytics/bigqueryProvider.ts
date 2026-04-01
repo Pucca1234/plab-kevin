@@ -178,6 +178,11 @@ const buildFilterValueExpression = (measureUnit: string) => {
   throw new Error(`Unsupported entity label expression for unit: ${measureUnit}`);
 };
 
+const buildNotNullChecksForUnit = (measureUnit: string) =>
+  getEntityColumnsForUnit(measureUnit)
+    .map((column) => ` and ${sanitizeIdentifier(column)} is not null`)
+    .join("");
+
 export const bigqueryAnalyticsProvider: AnalyticsProvider = {
   getWeeksData: async (options) => {
     const limit = typeof options?.limit === "number" && options.limit > 0 ? options.limit : 104;
@@ -340,6 +345,21 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       `);
       return rows
         .map((row) => String(row[childColumn] ?? "").trim())
+        .filter((value) => value.length > 0);
+    }
+
+    if (!parentUnit && LEGACY_MV_UNITS.has(measureUnit)) {
+      const filterValueExpression = buildFilterValueExpression(measureUnit);
+      const rows = await runQuery<{ filter_value: string | null }>(`
+        select distinct ${filterValueExpression} as filter_value
+        from ${sourceTable}
+        where period_type = 'week'
+          and dimension_type = '${unitConfig.dimensionType}'
+          ${buildNotNullChecksForUnit(measureUnit)}
+        order by filter_value
+      `);
+      return rows
+        .map((row) => String(row.filter_value ?? "").trim())
         .filter((value) => value.length > 0);
     }
 
