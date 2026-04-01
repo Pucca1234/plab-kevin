@@ -1,5 +1,5 @@
 {
-  "name": "plab-dashbaord",
+  "name": "plab-kevin",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,14 +13,19 @@
     "sb:link": "powershell -ExecutionPolicy Bypass -File scripts/supabase/link.ps1",
     "sb:push": "powershell -ExecutionPolicy Bypass -File scripts/supabase/push.ps1",
     "sb:refresh-mv": "powershell -ExecutionPolicy Bypass -File scripts/supabase/refresh-weekly-agg-mv.ps1",
+    "bq:build-serving": "node scripts/bigquery/build-serving-layer.mjs",
+    "bq:validate-serving": "node scripts/bigquery/validate-serving-layer.mjs",
     "data:validate-mv": "node scripts/validate-weekly-agg-mv.mjs",
     "data:validate-recent-refresh": "node scripts/validate-recent-refresh.mjs",
+    "data:compare-apis": "node scripts/compare-analytics-apis.mjs",
     "release:prepare": "powershell -ExecutionPolicy Bypass -File scripts/release/prepare-pr.ps1"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@google-cloud/bigquery": "^8.1.1",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.90.1",
+    "google-auth-library": "^10.6.2",
     "next": "14.2.5",
     "react": "18.2.0",
     "react-dom": "18.2.0",

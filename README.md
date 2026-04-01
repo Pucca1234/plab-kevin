@@ -1,6 +1,6 @@
-﻿# Kevin Dashboard (MVP)
+﻿# PLAB Kevin
 
-플랩풋볼 운영/매칭 데이터를 주간 단위로 분석하는 내부 대시보드입니다.
+플랩풋볼 운영/매칭 데이터를 주간 단위로 분석하는 내부 대시보드의 BigQuery 전환 프로젝트입니다.
 
 ## 핵심 목적
 - 최근 8/12/24주 성과 추이 확인
@@ -10,12 +10,72 @@
 ## 기술 스택
 - Frontend: Next.js 14, React, TypeScript
 - Data: Supabase(Postgres, schema `bigquery`)
+- Analytics backend migration: provider-based split (`supabase` -> `bigquery`)
 - Source Tables:
   - `bigquery.data_mart_1_social_match`
   - `bigquery.metric_store_native`
 - Supporting Views:
   - `bigquery.weeks_view`
   - `bigquery.weekly_agg_mv`
+
+## 전환 작업 상태
+- 현재 analytics read path는 provider 구조로 분리되어 있습니다.
+- 기본값은 `ANALYTICS_BACKEND=bigquery`이며, `plab-kevin`의 분석 응답은 BigQuery를 source of truth로 사용합니다.
+- BigQuery provider 구현 완료 범위:
+  - `metrics`
+  - `measurement-units`
+  - `weeks`
+  - `filter-options`
+  - `drilldown-options`
+  - `heatmap`
+- `kevin_serving` serving layer 구성 완료:
+  - `weeks_view` (`VIEW`)
+  - `entity_hierarchy` (`BASE TABLE`)
+  - `weekly_agg` (`BASE TABLE`)
+  - `weekly_expanded_agg` (`BASE TABLE`)
+- BigQuery 런타임 검증 전제:
+  - 지원 인증 방식:
+    - `BIGQUERY_SERVICE_ACCOUNT_JSON`
+    - `BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64`
+    - `BIGQUERY_ACCESS_TOKEN`
+    - 로컬 `gcloud auth login` fallback
+  - Vercel 배포 시에는 service account JSON 계열 env 사용 권장
+
+## 2026-04-01 BigQuery 전환 작업 이력
+- 새 프로젝트 구성:
+  - GitHub repo `Pucca1234/plab-kevin`
+  - Vercel project `plab-kevin`
+  - production URL `https://plab-kevin.vercel.app`
+- analytics provider 분리:
+  - `app/lib/analytics/provider.ts`
+  - `app/lib/analytics/supabaseProvider.ts`
+  - `app/lib/analytics/bigqueryProvider.ts`
+- BigQuery source 연결:
+  - `plabfootball-51bf5.data_mart.data_mart_1_social_match`
+  - `plabfootball-51bf5.googlesheets.metric_store_native`
+- BigQuery serving layer 구축:
+  - dataset: `plabfootball-51bf5.kevin_serving`
+  - build script: `scripts/bigquery/build-serving-layer.mjs`
+  - parity report: `BIGQUERY_PARITY_REPORT_20260401.md`
+- Vercel 배포 이슈 해결:
+  - 초기에는 프로젝트 preset이 `Other`로 잡혀 `@vercel/static-build`로 배포되며 production URL이 `404 NOT_FOUND`
+  - 프로젝트 framework를 `nextjs`로 수정하고 `vercel.json`으로 Next.js builder 고정
+  - middleware 제거 후 배포 안정화
+  - 현재 production 배포에서 `/`, `/api/weeks`, `/api/filter-options`, `/api/heatmap` 확인 완료
+- 인증/로그인 조정:
+  - Supabase redirect URL에 `plab-kevin` 도메인 추가
+  - 로그인 후 기존 `social-match-dashboard-mvp`로 튀는 문제 해결
+
+## BigQuery 운영 기준
+- `plab-kevin`의 분석 source of truth는 BigQuery입니다.
+- BigQuery source는 read-only로 취급합니다.
+- 실제 서비스 원천은 플랩풋볼 MySQL이며, 아래 BigQuery 테이블은 예약 쿼리로 갱신됩니다.
+  - `data_mart.data_mart_1_social_match`
+  - `googlesheets.metric_store_native`
+- 현재 확인된 운영 기준:
+  - 두 source 테이블 모두 매일 07:50 KST 기준 갱신
+  - 대부분 자동 갱신되지만, 가끔 수동 재실행으로 늦게 반영되는 날이 있음
+  - serving rebuild는 08:30 KST에 실행하고, 지연 반영분은 다음날 스케줄에서 반영하는 것을 기본 정책으로 함
 
 ## API
 - `GET /api/metrics`
@@ -128,7 +188,13 @@ npm install
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_APP_URL` (운영: `https://social-match-dashboard-mvp.vercel.app`)
+- `NEXT_PUBLIC_APP_URL` (운영: `https://plab-kevin.vercel.app`)
+- `ANALYTICS_BACKEND=bigquery`
+- `BIGQUERY_PROJECT_ID=plabfootball-51bf5`
+- `BIGQUERY_LOCATION=asia-northeast3`
+- `BIGQUERY_DATASET_SOURCE_DATA_MART=data_mart`
+- `BIGQUERY_DATASET_SOURCE_GOOGLESHEETS=googlesheets`
+- `BIGQUERY_DATASET_SERVING=kevin_serving`
 
 3. 개발 실행
 ```bash
@@ -161,6 +227,22 @@ npm run data:validate-recent-refresh
     - `SUPABASE_URL`
     - `SUPABASE_SERVICE_ROLE_KEY`
     - `SUPABASE_DB_URI`
+
+- BigQuery serving 자동 재생성/검증
+  - 워크플로: `.github/workflows/bigquery-serving-rebuild.yml`
+  - 스케줄: 매일 08:30 KST (UTC `30 23 * * *`)
+  - 실행:
+    - `npm run bq:build-serving`
+    - `npm run bq:validate-serving`
+  - 재생성 대상:
+    - `kevin_serving.entity_hierarchy`
+    - `kevin_serving.weekly_agg`
+    - `kevin_serving.weekly_expanded_agg`
+  - 참고:
+    - `kevin_serving.weeks_view`는 source를 바라보는 `VIEW`
+    - source 예약 쿼리 반영이 지연되거나 수동 반영이 늦어진 날은, 08:30 KST rebuild에 포함되지 않을 수 있으며 다음날 스케줄에서 반영
+  - 필요한 GitHub Secrets:
+    - `BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64`
 
 ## 2026-03-12 운영 메모 (MV 자동복구)
 - 오늘 확인한 흐름:
@@ -311,3 +393,8 @@ npm run sb:refresh-mv
 ## 참고 문서
 - 요구사항/운영 기준: `PRD.md`
 - 성능/SQL 참고: `PERF_OPTIMIZATION.md`
+- BigQuery 직접 조회 전환 계획: `BIGQUERY_MIGRATION_PLAN.md`
+- BigQuery 전환 Phase 0 정리: `BIGQUERY_PHASE0_DISCOVERY.md`
+- 유지해야 할 분석 API 계약: `ANALYTICS_API_CONTRACT.md`
+- BigQuery serving SQL 초안: `BIGQUERY_SERVING_SQL_DRAFT.md`
+- analytics provider 분리 초안: `ANALYTICS_PROVIDER_INTERFACE.md`
