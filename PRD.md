@@ -405,3 +405,16 @@
   - `missingRows = 0`
   - `mismatchRows = 0` (허용 오차 `MV_VALIDATE_EPSILON` 기준)
 - PR 시 `Data Validation` 워크플로 성공
+
+## 13. 후속 아키텍처 전환 검토
+- 분석 데이터 read path를 `Supabase raw + MV`에서 `BigQuery serving layer`로 전환하는 별도 프로젝트를 검토한다.
+- 목적:
+  - Airbyte 동기화 및 주간 MV 복구 배치 의존도 제거
+  - Supabase는 인증, 템플릿 저장, 사용자 설정 등 앱 기능 데이터 저장소로 유지
+  - 분석 쿼리는 BigQuery를 서버에서 직접 조회
+- 상세 계획 문서:
+  - `BIGQUERY_MIGRATION_PLAN.md`
+  - `BIGQUERY_PHASE0_DISCOVERY.md`
+  - `ANALYTICS_API_CONTRACT.md`
+  - `BIGQUERY_SERVING_SQL_DRAFT.md`
+  - `ANALYTICS_PROVIDER_INTERFACE.md`

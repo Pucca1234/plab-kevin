@@ -1,6 +1,6 @@
-﻿# Kevin Dashboard (MVP)
+﻿# PLAB Kevin
 
-플랩풋볼 운영/매칭 데이터를 주간 단위로 분석하는 내부 대시보드입니다.
+플랩풋볼 운영/매칭 데이터를 주간 단위로 분석하는 내부 대시보드의 BigQuery 전환 프로젝트입니다.
 
 ## 핵심 목적
 - 최근 8/12/24주 성과 추이 확인
@@ -311,3 +311,8 @@ npm run sb:refresh-mv
 ## 참고 문서
 - 요구사항/운영 기준: `PRD.md`
 - 성능/SQL 참고: `PERF_OPTIMIZATION.md`
+- BigQuery 직접 조회 전환 계획: `BIGQUERY_MIGRATION_PLAN.md`
+- BigQuery 전환 Phase 0 정리: `BIGQUERY_PHASE0_DISCOVERY.md`
+- 유지해야 할 분석 API 계약: `ANALYTICS_API_CONTRACT.md`
+- BigQuery serving SQL 초안: `BIGQUERY_SERVING_SQL_DRAFT.md`
+- analytics provider 분리 초안: `ANALYTICS_PROVIDER_INTERFACE.md`
