@@ -21,7 +21,20 @@
 ## 전환 작업 상태
 - 현재 analytics read path는 provider 구조로 분리 중입니다.
 - 기본값은 `ANALYTICS_BACKEND=supabase`이며, 기존 동작을 유지합니다.
-- BigQuery provider는 아직 뼈대만 추가된 상태입니다.
+- BigQuery provider 1차 범위 구현 완료:
+  - `metrics`
+  - `measurement-units`
+  - `weeks`
+  - `filter-options`
+  - `drilldown-options`
+  - `heatmap`
+- 아직 남은 작업:
+  - serving dataset/table 정교화
+  - 실제 런타임 검증
+  - fallback/성능 최적화
+- BigQuery 런타임 검증 전제:
+  - 로컬/서버에서 `Application Default Credentials` 또는 service account key가 필요함
+  - 예: `gcloud auth application-default login`
 
 ## API
 - `GET /api/metrics`
