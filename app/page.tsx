@@ -222,6 +222,20 @@ const fetchJsonWithTimeout = async <T,>(
   }
 };
 
+const getSupabaseAuthHeaders = async () => {
+  if (!isSupabaseBrowserEnvConfigured()) return {} as Record<string, string>;
+  try {
+    const supabase = createClient();
+    const {
+      data: { session }
+    } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+  } catch {
+    return {};
+  }
+};
+
 const getMetricFormat = (metricId: string) =>
   metricFormats[metricId] ?? (metricId.endsWith("_rate") ? "percent" : "number");
 
@@ -1115,7 +1129,9 @@ export default function Home() {
   // --- 템플릿 CRUD ---
   const loadTemplates = async () => {
     try {
-      const response = await fetchJson<{ templates: FilterTemplate[] }>("/api/filter-templates");
+      const response = await fetchJson<{ templates: FilterTemplate[] }>("/api/filter-templates", {
+        headers: await getSupabaseAuthHeaders()
+      });
       setTemplates(response.templates ?? []);
       return response.templates ?? [];
     } catch {
@@ -1170,9 +1186,10 @@ export default function Home() {
       selectedMetricIds
     };
     try {
+      const authHeaders = await getSupabaseAuthHeaders();
       const response = await fetchJson<{ template: FilterTemplate }>("/api/filter-templates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ name, config, is_shared: isShared, is_default: isDefault })
       });
       setActiveTemplateId(response.template.id);
@@ -1191,9 +1208,10 @@ export default function Home() {
       selectedMetricIds: []
     };
     try {
+      const authHeaders = await getSupabaseAuthHeaders();
       const response = await fetchJson<{ template: FilterTemplate }>("/api/filter-templates", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ name, config, is_shared: false, is_default: false })
       });
       setActiveTemplateId(response.template.id);
@@ -1222,9 +1240,10 @@ export default function Home() {
       selectedMetricIds
     };
     try {
+      const authHeaders = await getSupabaseAuthHeaders();
       await fetchJson(`/api/filter-templates/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ config })
       });
       await loadTemplates();
@@ -1235,7 +1254,11 @@ export default function Home() {
 
   const handleDeleteTemplate = async (id: string) => {
     try {
-      await fetchJson(`/api/filter-templates/${id}`, { method: "DELETE" });
+      const authHeaders = await getSupabaseAuthHeaders();
+      await fetchJson(`/api/filter-templates/${id}`, {
+        method: "DELETE",
+        headers: authHeaders
+      });
       if (activeTemplateId === id) setActiveTemplateId(null);
       await loadTemplates();
     } catch (error) {
@@ -1245,9 +1268,10 @@ export default function Home() {
 
   const handleRenameTemplate = async (id: string, name: string) => {
     try {
+      const authHeaders = await getSupabaseAuthHeaders();
       await fetchJson(`/api/filter-templates/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ name })
       });
       await loadTemplates();
@@ -1258,9 +1282,10 @@ export default function Home() {
 
   const handleSetDefaultTemplate = async (id: string) => {
     try {
+      const authHeaders = await getSupabaseAuthHeaders();
       await fetchJson(`/api/filter-templates/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ is_default: true })
       });
       await loadTemplates();
