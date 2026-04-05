@@ -383,6 +383,33 @@
   - `year/month/day`도 `week`와 동일한 수준의 `kevin_serving` serving layer를 설계해 조회 경로를 통일
   - 특히 `day`는 장기적으로 스캔량/비용 영향이 가장 커질 가능성이 높아 우선 serving화 검토
 
+### 7.16 2026-04-05 템플릿 저장 / Kevin AI 복구
+- 템플릿 저장 기능:
+  - 현상:
+    - 새 `plab-kevin` 프로젝트에서 로그인 후에도 템플릿 생성/수정/삭제가 정상 동작하지 않음
+  - 원인:
+    - 템플릿 API가 서버 쿠키 기반 세션만 기대하고 있었고, 신규 프로젝트의 브라우저 로그인 세션과 API 인증 판단이 일치하지 않음
+  - 조치:
+    - 클라이언트가 Supabase access token을 `Authorization: Bearer ...` 형태로 함께 전달
+    - 서버는 쿠키 세션이 없더라도 bearer token 기준으로 사용자를 확인하도록 보강
+  - 반영 파일:
+    - `app/api/filter-templates/route.ts`
+    - `app/api/filter-templates/[id]/route.ts`
+    - `app/lib/supabase/requestUser.ts`
+    - `app/page.tsx`
+- Kevin AI:
+  - 현상:
+    - `plab-kevin`에서 Kevin AI가 기존 운영 프로젝트와 달리 정상 응답하지 않음
+  - 원인:
+    - 새 Vercel project에 `ANTHROPIC_API_KEY`가 누락되어 Anthropic 직접 호출이 불가능했음
+  - 조치:
+    - `plab-kevin` Vercel project에 `ANTHROPIC_API_KEY`를 추가
+    - Kevin AI는 신규 프로젝트에서 직접 Anthropic API를 호출하는 구조를 유지
+- 운영 메모:
+  - `plab-kevin`에서 Kevin AI를 정상 운영하려면 최소 env:
+    - `ANTHROPIC_API_KEY`
+    - `NEXT_PUBLIC_APP_URL`
+
 ## 8. 운영 도메인 원칙
 - Canonical 운영 도메인은 단일값만 사용:
   - `https://social-match-dashboard-mvp.vercel.app`

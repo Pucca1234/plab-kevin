@@ -102,6 +102,21 @@
 - 향후 TODO:
   - `year/month/day`도 `week`와 동일하게 `kevin_serving` 기반 serving layer로 통일 검토
 
+## 2026-04-05 운영 기능 복구
+- 템플릿 저장 기능 복구:
+  - 새 `plab-kevin` 프로젝트에서 템플릿 API가 서버 쿠키 세션만 기대하고 있어, 브라우저 로그인 상태와 API 인증 상태가 어긋나던 문제를 수정
+  - 클라이언트가 Supabase access token을 함께 전달하고, 서버는 bearer token 기준으로도 사용자를 확인하도록 보강
+  - 대상 API:
+    - `GET /api/filter-templates`
+    - `POST /api/filter-templates`
+    - `PATCH /api/filter-templates/[id]`
+    - `DELETE /api/filter-templates/[id]`
+- Kevin AI 복구:
+  - `plab-kevin` Vercel project에 `ANTHROPIC_API_KEY`를 추가해 새 프로젝트에서 직접 Anthropic API를 호출하도록 복구
+  - 운영상 Kevin AI가 정상 동작하려면 아래 env가 필요:
+    - `ANTHROPIC_API_KEY`
+    - `NEXT_PUBLIC_APP_URL`
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`
