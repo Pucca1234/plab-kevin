@@ -43,6 +43,8 @@ type TimedCache<T> = {
   expiresAt: number;
 };
 
+type SupportedPeriodUnit = "year" | "month" | "week" | "day";
+
 const projectId = process.env.BIGQUERY_PROJECT_ID?.trim() || "plabfootball-51bf5";
 const dataMartDataset = process.env.BIGQUERY_DATASET_SOURCE_DATA_MART?.trim() || "data_mart";
 const googleSheetsDataset = process.env.BIGQUERY_DATASET_SOURCE_GOOGLESHEETS?.trim() || "googlesheets";
@@ -54,6 +56,12 @@ const entityHierarchyView = `\`${projectId}.${servingDataset}.entity_hierarchy\`
 const weeklyAggView = `\`${projectId}.${servingDataset}.weekly_agg\``;
 const weeklyExpandedAggView = `\`${projectId}.${servingDataset}.weekly_expanded_agg\``;
 const METADATA_CACHE_TTL_MS = 10 * 60 * 1000;
+const PERIOD_COLUMN_BY_UNIT: Record<SupportedPeriodUnit, string> = {
+  year: "year",
+  month: "month",
+  week: "week",
+  day: "day"
+};
 const metricColumnBlacklist = new Set([
   "_airbyte_raw_id",
   "_airbyte_extracted_at",
@@ -94,11 +102,47 @@ const sanitizeIdentifier = (identifier: string) => {
   return identifier;
 };
 
+const normalizePeriodUnit = (value?: string | null): SupportedPeriodUnit =>
+  value === "year" || value === "month" || value === "day" ? value : "week";
+
+const buildPeriodValueExpression = (periodUnit: SupportedPeriodUnit, qualifier = "") => {
+  const prefix = qualifier ? `${qualifier}.` : "";
+  const column = sanitizeIdentifier(PERIOD_COLUMN_BY_UNIT[periodUnit]);
+  return `cast(${prefix}${column} as string)`;
+};
+
+const buildPeriodStartDateExpression = (periodUnit: SupportedPeriodUnit, qualifier = "") => {
+  const prefix = qualifier ? `${qualifier}.` : "";
+  if (periodUnit === "year") {
+    return `parse_date('%Y.%m.%d', concat('20', cast(${prefix}year as string), '.01.01'))`;
+  }
+  if (periodUnit === "month") {
+    return `parse_date('%Y.%m.%d', concat('20', cast(${prefix}month as string), '.01'))`;
+  }
+  if (periodUnit === "day") {
+    return `parse_date('%Y.%m.%d', concat('20', cast(${prefix}day as string)))`;
+  }
+  return `parse_date('%Y.%m.%d', concat('20', substr(cast(${prefix}week as string), 1, 8)))`;
+};
+
+const buildPeriodVisibilityClause = (periodUnit: SupportedPeriodUnit, periodStartDateExpr: string) => {
+  return ` and ${periodStartDateExpr} <= current_date('Asia/Seoul')`;
+};
+
 const buildWeeksFilterClause = (weeks?: string[]) => {
   const normalized = (weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
   if (normalized.length === 0) return "";
   const joined = normalized.map((week) => `'${escapeBigQueryLiteral(week)}'`).join(", ");
   return ` and week in (${joined})`;
+};
+
+const buildPeriodFilterClause = (periodUnit: SupportedPeriodUnit, periods?: string[], qualifier = "") => {
+  const normalized = (periods ?? []).map((period) => period.trim()).filter((period) => period.length > 0);
+  if (normalized.length === 0) return "";
+  const prefix = qualifier ? `${qualifier}.` : "";
+  const column = sanitizeIdentifier(PERIOD_COLUMN_BY_UNIT[periodUnit]);
+  const joined = normalized.map((period) => `'${escapeBigQueryLiteral(period)}'`).join(", ");
+  return ` and cast(${prefix}${column} as string) in (${joined})`;
 };
 
 const buildSourceEntityFilterClause = (unit: string, entityLabel: string | null) => {
@@ -226,16 +270,171 @@ const buildNotNullChecksForUnit = (measureUnit: string) =>
     .map((column) => ` and ${sanitizeIdentifier(column)} is not null`)
     .join("");
 
+const buildMetricStructs = (metricIds: string[]) =>
+  metricIds
+    .map((metricId) => `struct('${escapeBigQueryLiteral(metricId)}' as metric_id, cast(${sanitizeIdentifier(metricId)} as float64) as value)`)
+    .join(",\n");
+
+const getPeriodsDataFromSource = async (
+  periodUnit: SupportedPeriodUnit,
+  limit: number | undefined,
+  order: "asc" | "desc"
+) => {
+  const periodValueExpr = buildPeriodValueExpression(periodUnit);
+  const periodStartDateExpr = buildPeriodStartDateExpression(periodUnit);
+  const rows = await runQuery<BigQueryWeekRow>(
+    `
+      with periods as (
+        select distinct
+          ${periodValueExpr} as week,
+          ${periodStartDateExpr} as week_start_date
+        from ${sourceTable}
+        where period_type = '${periodUnit}'
+          and ${periodValueExpr} is not null
+          ${buildPeriodVisibilityClause(periodUnit, periodStartDateExpr)}
+      )
+      select week, cast(week_start_date as string) as week_start_date
+      from periods
+      order by week_start_date desc
+      ${typeof limit === "number" && limit > 0 ? `limit ${limit}` : ""}
+    `
+  );
+
+  const entries = rows
+    .map((row) => ({
+      week: String(row.week ?? "").trim(),
+      startDate: row.week_start_date ? String(row.week_start_date) : null
+    }))
+    .filter((row) => row.week.length > 0);
+
+  return order === "desc" ? entries : entries.slice().reverse();
+};
+
+const getFilterOptionsFromSource = async ({
+  measureUnit,
+  periodUnit,
+  periods,
+  parentUnit,
+  parentValue
+}: {
+  measureUnit: string;
+  periodUnit: SupportedPeriodUnit;
+  periods?: string[];
+  parentUnit?: string | null;
+  parentValue?: string | null;
+}) => {
+  const queryUnit = resolveQueryUnitForDrilldownStrict(measureUnit, parentUnit);
+  if (!queryUnit) return [];
+  const queryUnitConfig = getUnitConfig(queryUnit);
+  if (!queryUnitConfig) return [];
+
+  const rows = await runQuery<{ filter_value: string | null }>(`
+    select distinct ${buildFilterValueExpression(measureUnit)} as filter_value
+    from ${sourceTable}
+    where period_type = '${periodUnit}'
+      ${buildPeriodFilterClause(periodUnit, periods)}
+      and dimension_type = '${queryUnitConfig.dimensionType}'
+      ${buildNotNullChecksForUnit(queryUnit)}
+      ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}
+    order by filter_value
+  `);
+
+  return rows
+    .map((row) => String(row.filter_value ?? "").trim())
+    .filter((value) => value.length > 0);
+};
+
+const getHeatmapFromSource = async ({
+  periodUnit,
+  measureUnit,
+  filterValue,
+  periods,
+  metricIds,
+  parentUnit,
+  parentValue
+}: {
+  periodUnit: SupportedPeriodUnit;
+  measureUnit: string;
+  filterValue: string | null;
+  periods: string[];
+  metricIds: string[];
+  parentUnit?: string | null;
+  parentValue?: string | null;
+}) => {
+  if (metricIds.length === 0) return [] as BigQueryHeatmapAggRow[];
+
+  const periodValueExpr = buildPeriodValueExpression(periodUnit, "src");
+  const metricStructs = buildMetricStructs(metricIds);
+
+  if (measureUnit === "all") {
+    return runQuery<BigQueryHeatmapAggRow>(`
+      select
+        ${periodValueExpr} as week,
+        'all' as measure_unit,
+        '${ALL_LABEL}' as filter_value,
+        metric_id,
+        case
+          when ends_with(metric_id, '_rate') then avg(value)
+          else max(value)
+        end as value
+      from ${sourceTable} src,
+      unnest([
+${metricStructs}
+      ])
+      where src.period_type = '${periodUnit}'
+        ${buildPeriodFilterClause(periodUnit, periods, "src")}
+        and coalesce(nullif(trim(src.dimension_type), ''), 'all') = 'all'
+        and value is not null
+      group by week, measure_unit, filter_value, metric_id
+      order by week, filter_value, metric_id
+    `);
+  }
+
+  const queryUnit = resolveQueryUnitForDrilldownStrict(measureUnit, parentUnit);
+  if (!queryUnit) return [] as BigQueryHeatmapAggRow[];
+  const queryUnitConfig = getUnitConfig(queryUnit);
+  if (!queryUnitConfig) return [] as BigQueryHeatmapAggRow[];
+
+  return runQuery<BigQueryHeatmapAggRow>(`
+    select
+      ${periodValueExpr} as week,
+      '${measureUnit}' as measure_unit,
+      ${buildFilterValueExpression(measureUnit)} as filter_value,
+      metric_id,
+      case
+        when ends_with(metric_id, '_rate') then avg(value)
+        else max(value)
+      end as value
+    from ${sourceTable} src,
+    unnest([
+${metricStructs}
+    ])
+    where src.period_type = '${periodUnit}'
+      ${buildPeriodFilterClause(periodUnit, periods, "src")}
+      and src.dimension_type = '${queryUnitConfig.dimensionType}'
+      ${buildNotNullChecksForUnit(queryUnit)}
+      ${filterValue ? buildSourceEntityFilterClause(measureUnit, filterValue) : ""}
+      ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}
+      and value is not null
+    group by week, measure_unit, filter_value, metric_id
+    order by week, filter_value, metric_id
+  `);
+};
+
 export const bigqueryAnalyticsProvider: AnalyticsProvider = {
   getWeeksData: async (options) => {
-    const limit = typeof options?.limit === "number" && options.limit > 0 ? options.limit : 104;
+    const limit = typeof options?.limit === "number" && options.limit > 0 ? options.limit : undefined;
     const order = options?.order ?? "asc";
+    const periodUnit = normalizePeriodUnit(options?.periodUnit);
+    if (periodUnit !== "week") {
+      return getPeriodsDataFromSource(periodUnit, limit, order);
+    }
     const rows = await runQuery<BigQueryWeekRow>(
       `
         select week, week_start_date
         from ${weeksView}
         order by week_start_date desc
-        limit ${limit}
+        ${typeof limit === "number" && limit > 0 ? `limit ${limit}` : ""}
       `
     );
 
@@ -248,12 +447,20 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
 
     return order === "desc" ? entries : entries.slice().reverse();
   },
-  getWeeks: async (limit) => {
-    const entries = await bigqueryAnalyticsProvider.getWeeksData({ limit, order: "asc" });
+  getWeeks: async (limit, periodUnit) => {
+    const entries = await bigqueryAnalyticsProvider.getWeeksData({
+      limit,
+      order: "asc",
+      periodUnit: normalizePeriodUnit(periodUnit)
+    });
     return entries.map((entry) => entry.week);
   },
-  getLatestWeek: async () => {
-    const entries = await bigqueryAnalyticsProvider.getWeeksData({ limit: 1, order: "desc" });
+  getLatestWeek: async (periodUnit) => {
+    const entries = await bigqueryAnalyticsProvider.getWeeksData({
+      limit: 1,
+      order: "desc",
+      periodUnit: normalizePeriodUnit(periodUnit)
+    });
     return entries[0]?.week ?? null;
   },
   getSupportedMetricIds: async (timings) => {
@@ -342,7 +549,8 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     const options = await bigqueryAnalyticsProvider.getMeasurementUnitOptions();
     return options.map((option) => option.value);
   },
-  getAvailableDrilldownUnits: async ({ sourceUnit, sourceValue, candidateUnits, weeks }) => {
+  getAvailableDrilldownUnits: async ({ sourceUnit, sourceValue, candidateUnits, weeks, periodUnit }) => {
+    const effectivePeriodUnit = normalizePeriodUnit(periodUnit);
     const effectiveWeeks = (weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
     const uniqueCandidateUnits = Array.from(new Set(candidateUnits)).filter((unit) => unit !== sourceUnit);
     const available = await Promise.all(
@@ -352,7 +560,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
         const queryUnitConfig = getUnitConfig(queryUnit);
         if (!queryUnitConfig) return null;
 
-        const whereWeeks = buildWeeksFilterClause(effectiveWeeks);
+        const wherePeriods = buildPeriodFilterClause(effectivePeriodUnit, effectiveWeeks);
         const whereParent = buildSourceEntityFilterClause(sourceUnit, sourceValue);
         const notNullChecks = queryUnitConfig.entityColumns
           .map((column) => ` and ${sanitizeIdentifier(column)} is not null`)
@@ -361,9 +569,9 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
         const rows = await runQuery<{ c: number }>(`
           select count(1) as c
           from ${sourceTable}
-          where period_type = 'week'
+          where period_type = '${effectivePeriodUnit}'
             and dimension_type = '${queryUnitConfig.dimensionType}'
-            ${whereWeeks}
+            ${wherePeriods}
             ${whereParent}
             ${notNullChecks}
           limit 1
@@ -380,9 +588,20 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       throw new Error(`Unsupported measure unit: ${measureUnit}`);
     }
 
+    const periodUnit = normalizePeriodUnit(options?.periodUnit);
     const parentUnit = options?.parentUnit;
     const parentValue = options?.parentValue && options.parentValue.trim().length > 0 ? options.parentValue.trim() : null;
     const weeks = (options?.weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
+
+    if (periodUnit !== "week") {
+      return getFilterOptionsFromSource({
+        measureUnit,
+        periodUnit,
+        periods: weeks,
+        parentUnit: parentUnit ?? null,
+        parentValue
+      });
+    }
 
     if (parentUnit && parentValue && LEGACY_MV_UNITS.has(measureUnit) && LEGACY_MV_UNITS.has(parentUnit)) {
       const childColumn = sanitizeIdentifier(COLUMN_BY_UNIT[measureUnit]);
@@ -446,15 +665,33 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       .map((row) => String(row.filter_value ?? "").trim())
       .filter((value) => value.length > 0);
   },
-  getHeatmap: async ({ measureUnit, filterValue, weeks, metrics, parentUnit, parentValue }, timings) => {
+  getHeatmap: async ({ measureUnit, filterValue, weeks, metrics, parentUnit, parentValue, periodUnit }, timings) => {
+    const effectivePeriodUnit = normalizePeriodUnit(periodUnit);
     const supportedMetricIds = await bigqueryAnalyticsProvider.getSupportedMetricIds();
     const allowed = new Set(supportedMetricIds);
     const requested = (metrics ?? []).map((metric) => String(metric).trim()).filter((metric) => metric.length > 0);
     const metricIds = (requested.length > 0 ? requested : supportedMetricIds).filter((metric) => allowed.has(metric));
     if (metricIds.length === 0) return [];
 
-    const metricList = metricIds.map((metric) => sanitizeIdentifier(metric)).join(", ");
     const queryStart = Date.now();
+
+    if (effectivePeriodUnit !== "week") {
+      const rows = await getHeatmapFromSource({
+        periodUnit: effectivePeriodUnit,
+        measureUnit,
+        filterValue,
+        periods: weeks,
+        metricIds,
+        parentUnit,
+        parentValue
+      });
+      if (timings) timings.queryMs = Date.now() - queryStart;
+
+      const processStart = Date.now();
+      const mapped = mapHeatmapRows(rows, measureUnit, metricIds, weeks);
+      if (timings) timings.processMs = Date.now() - processStart;
+      return mapped;
+    }
 
     let rows: BigQueryHeatmapAggRow[] = [];
     if (measureUnit === "all") {

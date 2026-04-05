@@ -1,6 +1,6 @@
 ﻿# PLAB Kevin
 
-플랩풋볼 운영/매칭 데이터를 주간 단위로 분석하는 내부 대시보드의 BigQuery 전환 프로젝트입니다.
+플랩풋볼 운영/매칭 데이터를 연/월/주/일 단위로 분석하는 내부 대시보드의 BigQuery 전환 프로젝트입니다.
 
 ## 핵심 목적
 - 최근 8/12/24주 성과 추이 확인
@@ -80,11 +80,27 @@
 ## API
 - `GET /api/metrics`
 - `GET /api/measurement-units`
-- `GET /api/weeks?n=8|12|24`
+- `GET /api/weeks?n=...&periodUnit=year|month|week|day`
 - `GET /api/filter-options?measureUnit=...`
 - `POST /api/heatmap`
 - `POST /api/ai/summary`
 - `POST /api/ai/chat`
+
+## 2026-04-05 기간 단위 확장
+- 검색 조건에 `기간단위` 선택 추가:
+  - `연`, `월`, `주`, `일`
+- 기간단위별 기본 범위:
+  - `연`: `전체`, `최근 3년`, `최근 5년`
+  - `월`: `전체`, `최근 6개월`, `최근 12개월`, `최근 24개월`
+  - `주`: `전체`, `최근 8주`, `최근 12주`, `최근 24주`
+  - `일`: `전체`, `최근 7일`, `최근 30일`, `최근 90일`
+- 조회 경로:
+  - `week`는 기존과 동일하게 `kevin_serving` serving layer 기준 조회
+  - `year/month/day`는 현재 `data_mart_1_social_match` 원천을 직접 조회
+- 표시 개선:
+  - 일 단위 결과 헤더는 `26.04.01 화` 형식으로 요일 축약 표기
+- 향후 TODO:
+  - `year/month/day`도 `week`와 동일하게 `kevin_serving` 기반 serving layer로 통일 검토
 
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`

@@ -11,8 +11,10 @@ import MultiSelectDropdown from "./MultiSelectDropdown";
 
 type ControlBarProps = {
   periodUnit: PeriodUnit;
+  periodUnitOptions: { label: string; value: PeriodUnit }[];
   periodRangeValue: string;
   periodRangeOptions: { label: string; value: string }[];
+  onPeriodUnitChange: (value: PeriodUnit) => void;
   onPeriodRangeChange: (value: string) => void;
   measurementUnit: MeasurementUnit;
   measurementUnitOptions: MeasurementUnitOption[];
@@ -42,8 +44,10 @@ type ControlBarProps = {
 
 export default function ControlBar({
   periodUnit,
+  periodUnitOptions,
   periodRangeValue,
   periodRangeOptions,
+  onPeriodUnitChange,
   onPeriodRangeChange,
   measurementUnit,
   measurementUnitOptions,
@@ -175,12 +179,15 @@ export default function ControlBar({
                 type="button"
                 className={`template-tab ${template.id === activeTemplateId ? "is-active" : ""}`}
                 onClick={() => onApplyTemplate(template)}
-                onDoubleClick={() => { setEditingId(template.id); setEditingName(template.name); }}
+                onDoubleClick={() => {
+                  setEditingId(template.id);
+                  setEditingName(template.name);
+                }}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   setContextMenuId(template.id);
                 }}
-                title={`${template.name}${template.is_default ? " (기본)" : ""}${template.is_shared ? " (공유)" : ""} — 더블클릭: 이름 수정, 우클릭: 관리`}
+                title={`${template.name}${template.is_default ? " (기본)" : ""}${template.is_shared ? " (공유)" : ""} - 더블클릭: 이름 수정, 우클릭: 관리`}
               >
                 <span className="template-tab-name">{template.name}</span>
                 {template.is_default && <span className="template-tab-badge">기본</span>}
@@ -188,8 +195,16 @@ export default function ControlBar({
                   className="template-tab-delete"
                   role="button"
                   tabIndex={0}
-                  onClick={(event) => { event.stopPropagation(); onDeleteTemplate(template.id); }}
-                  onKeyDown={(event) => { if (event.key === "Enter") { event.stopPropagation(); onDeleteTemplate(template.id); } }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDeleteTemplate(template.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.stopPropagation();
+                      onDeleteTemplate(template.id);
+                    }
+                  }}
                   title="템플릿 삭제"
                 >
                   ×
@@ -201,21 +216,31 @@ export default function ControlBar({
                 {!template.is_default && (
                   <button
                     type="button"
-                    onClick={() => { onSetDefaultTemplate(template.id); setContextMenuId(null); }}
+                    onClick={() => {
+                      onSetDefaultTemplate(template.id);
+                      setContextMenuId(null);
+                    }}
                   >
                     기본 설정
                   </button>
                 )}
                 <button
                   type="button"
-                  onClick={() => { setEditingId(template.id); setEditingName(template.name); setContextMenuId(null); }}
+                  onClick={() => {
+                    setEditingId(template.id);
+                    setEditingName(template.name);
+                    setContextMenuId(null);
+                  }}
                 >
                   이름 수정
                 </button>
                 <button
                   type="button"
                   className="template-tab-context-delete"
-                  onClick={() => { onDeleteTemplate(template.id); setContextMenuId(null); }}
+                  onClick={() => {
+                    onDeleteTemplate(template.id);
+                    setContextMenuId(null);
+                  }}
                 >
                   삭제
                 </button>
@@ -251,78 +276,80 @@ export default function ControlBar({
         {saveToast && <span className="save-toast">저장 완료</span>}
       </div>
       <div className="search-panel card control-bar-body">
-      <div className="search-row search-row-metrics">
-        <button type="button" className="btn-secondary search-metric-picker-btn" onClick={onOpenMetricPicker}>
-          지표 선택
-        </button>
-        <div className="selected-metric-chips">
-          {selectedMetrics.map((metric) => (
-            <button
-              key={metric.id}
-              type="button"
-              className="selected-metric-chip is-active"
-              title={`${metric.description || metric.name} (클릭 시 해제)`}
-              onClick={() => onRemoveSelectedMetric(metric.id)}
-              aria-pressed
-            >
-              {metric.name}
-            </button>
-          ))}
+        <div className="search-row search-row-metrics">
+          <button type="button" className="btn-secondary search-metric-picker-btn" onClick={onOpenMetricPicker}>
+            지표 선택
+          </button>
+          <div className="selected-metric-chips">
+            {selectedMetrics.map((metric) => (
+              <button
+                key={metric.id}
+                type="button"
+                className="selected-metric-chip is-active"
+                title={`${metric.description || metric.name} (클릭 시 해제)`}
+                onClick={() => onRemoveSelectedMetric(metric.id)}
+                aria-pressed
+              >
+                {metric.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="search-row search-row-main">
-        <div className="filter-group-period">
-          <label className="field search-field search-field-period-unit">
-            <span className="field-label">기간단위</span>
-            <select value={periodUnit} disabled>
-              <option value="week">주</option>
-            </select>
-          </label>
-          <label className="field search-field search-field-period-range">
-            <span className="field-label">기간범위</span>
-            <select value={periodRangeValue} onChange={(event) => onPeriodRangeChange(event.target.value)}>
-              {periodRangeOptions.map((option) => (
+        <div className="search-row search-row-main">
+          <div className="filter-group-period">
+            <label className="field search-field search-field-period-unit">
+              <span className="field-label">기간단위</span>
+              <select value={periodUnit} onChange={(event) => onPeriodUnitChange(event.target.value as PeriodUnit)}>
+                {periodUnitOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field search-field search-field-period-range">
+              <span className="field-label">기간범위</span>
+              <select value={periodRangeValue} onChange={(event) => onPeriodRangeChange(event.target.value)}>
+                {periodRangeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="filter-divider" />
+          <label className="field search-field search-field-measurement-select">
+            <span className="field-label">측정단위</span>
+            <select value={measurementUnit} onChange={(event) => onMeasurementUnitChange(event.target.value)}>
+              {measurementUnitOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
           </label>
-        </div>
-        <div className="filter-divider" />
-        <label className="field search-field search-field-measurement-select">
-          <span className="field-label">측정단위</span>
-          <select value={measurementUnit} onChange={(event) => onMeasurementUnitChange(event.target.value)}>
-            {measurementUnitOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="field search-field search-field-filter">
-          <span className="field-label">필터</span>
-          <MultiSelectDropdown
-            options={filterDropdownOptions}
-            selectedValues={filterValues}
-            onChange={onFilterChange}
-            label={filterLabel}
-            searchPlaceholder="필터 검색..."
-          />
-        </div>
-        <button type="button" className="btn-ghost btn-reset" onClick={onResetFilters} title="필터 초기화">
-          초기화
-        </button>
-        <div className="search-action-group">
-          <button type="button" className="btn-primary search-submit-btn" onClick={onSearch} disabled={isSearchDisabled}>
-            조회
+          <div className="field search-field search-field-filter">
+            <span className="field-label">필터</span>
+            <MultiSelectDropdown
+              options={filterDropdownOptions}
+              selectedValues={filterValues}
+              onChange={onFilterChange}
+              label={filterLabel}
+              searchPlaceholder="필터 검색..."
+            />
+          </div>
+          <button type="button" className="btn-ghost btn-reset" onClick={onResetFilters} title="필터 초기화">
+            초기화
           </button>
+          <div className="search-action-group">
+            <button type="button" className="btn-primary search-submit-btn" onClick={onSearch} disabled={isSearchDisabled}>
+              조회
+            </button>
+          </div>
         </div>
       </div>
-
-      </div>
-
     </div>
   );
 }
