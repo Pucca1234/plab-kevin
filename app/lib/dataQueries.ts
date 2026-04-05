@@ -3,16 +3,20 @@ import { getAnalyticsProvider } from "./analytics/provider";
 
 export const ALL_ENTITY_LABEL = getAnalyticsProvider().ALL_ENTITY_LABEL;
 
-export async function getWeeksData(options?: { limit?: number; order?: "asc" | "desc" }) {
+export async function getWeeksData(options?: {
+  limit?: number;
+  order?: "asc" | "desc";
+  periodUnit?: "year" | "month" | "week" | "day";
+}) {
   return getAnalyticsProvider().getWeeksData(options);
 }
 
-export async function getWeeks(limit?: number) {
-  return getAnalyticsProvider().getWeeks(limit);
+export async function getWeeks(limit?: number, periodUnit?: "year" | "month" | "week" | "day") {
+  return getAnalyticsProvider().getWeeks(limit, periodUnit);
 }
 
-export async function getLatestWeek() {
-  return getAnalyticsProvider().getLatestWeek();
+export async function getLatestWeek(periodUnit?: "year" | "month" | "week" | "day") {
+  return getAnalyticsProvider().getLatestWeek(periodUnit);
 }
 
 export async function getSupportedMetricIds(timings?: { queryMs?: number; processMs?: number }) {
@@ -36,13 +40,19 @@ export async function getAvailableDrilldownUnits(params: {
   sourceValue: string;
   candidateUnits: string[];
   weeks?: string[];
+  periodUnit?: "year" | "month" | "week" | "day";
 }) {
   return getAnalyticsProvider().getAvailableDrilldownUnits(params);
 }
 
 export async function getFilterOptions(
   measureUnit: string,
-  options?: { parentUnit?: string | null; parentValue?: string | null; weeks?: string[] }
+  options?: {
+    parentUnit?: string | null;
+    parentValue?: string | null;
+    weeks?: string[];
+    periodUnit?: "year" | "month" | "week" | "day";
+  }
 ) {
   return getAnalyticsProvider().getFilterOptions(measureUnit, options);
 }
@@ -55,6 +65,7 @@ export async function getHeatmap(
     metrics?: string[];
     parentUnit?: string | null;
     parentValue?: string | null;
+    periodUnit?: "year" | "month" | "week" | "day";
   },
   timings?: { queryMs?: number; processMs?: number }
 ) {

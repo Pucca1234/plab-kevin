@@ -9,6 +9,7 @@ const FILTER_OPTIONS_CACHE_TTL = 600;
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const measureUnit = searchParams.get("measureUnit");
+  const periodUnit = searchParams.get("periodUnit");
   const parentUnit = searchParams.get("parentUnit");
   const parentValue = searchParams.get("parentValue");
   const weeks = searchParams
@@ -30,14 +31,15 @@ export async function GET(request: Request) {
     const weeksKey = weeks.join("|") || "all-weeks";
     const cacheSuffix =
       normalizedParentUnit && normalizedParentValue
-        ? `${normalizedParentUnit}:${normalizedParentValue}:${weeksKey}`
-        : `none:${weeksKey}`;
+        ? `${periodUnit ?? "week"}:${normalizedParentUnit}:${normalizedParentValue}:${weeksKey}`
+        : `${periodUnit ?? "week"}:none:${weeksKey}`;
     const getFilterOptionsCached = unstable_cache(
       async () => {
         const options = await getFilterOptions(measureUnit, {
           parentUnit: normalizedParentUnit,
           parentValue: normalizedParentValue,
-          weeks
+          weeks,
+          periodUnit: periodUnit === "year" || periodUnit === "month" || periodUnit === "day" ? periodUnit : "week"
         });
         return { options, cachedAt: Date.now() };
       },

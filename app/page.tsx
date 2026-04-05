@@ -73,16 +73,51 @@ const fallbackMetrics: Metric[] = [
   }
 ];
 
-const periodRangeOptions = [
-  { label: "최근 8주", value: "recent_8" },
-  { label: "최근 12주", value: "recent_12" },
-  { label: "최근 24주", value: "recent_24" }
+const periodUnitOptions: { label: string; value: PeriodUnit }[] = [
+  { label: "연", value: "year" },
+  { label: "월", value: "month" },
+  { label: "주", value: "week" },
+  { label: "일", value: "day" }
 ];
 
-const periodRangeSizeMap: Record<string, number> = {
-  recent_8: 8,
-  recent_12: 12,
-  recent_24: 24
+const periodRangeOptionsByUnit: Record<PeriodUnit, { label: string; value: string }[]> = {
+  year: [
+    { label: "전체", value: "all" },
+    { label: "최근 3년", value: "recent_3" },
+    { label: "최근 5년", value: "recent_5" }
+  ],
+  month: [
+    { label: "전체", value: "all" },
+    { label: "최근 6개월", value: "recent_6" },
+    { label: "최근 12개월", value: "recent_12" },
+    { label: "최근 24개월", value: "recent_24" }
+  ],
+  week: [
+    { label: "전체", value: "all" },
+    { label: "최근 8주", value: "recent_8" },
+    { label: "최근 12주", value: "recent_12" },
+    { label: "최근 24주", value: "recent_24" }
+  ],
+  day: [
+    { label: "전체", value: "all" },
+    { label: "최근 7일", value: "recent_7" },
+    { label: "최근 30일", value: "recent_30" },
+    { label: "최근 90일", value: "recent_90" }
+  ]
+};
+
+const periodRangeSizeMapByUnit: Record<PeriodUnit, Record<string, number | undefined>> = {
+  year: { all: undefined, recent_3: 3, recent_5: 5 },
+  month: { all: undefined, recent_6: 6, recent_12: 12, recent_24: 24 },
+  week: { all: undefined, recent_8: 8, recent_12: 12, recent_24: 24 },
+  day: { all: undefined, recent_7: 7, recent_30: 30, recent_90: 90 }
+};
+
+const defaultPeriodRangeValueByUnit: Record<PeriodUnit, string> = {
+  year: "recent_3",
+  month: "recent_12",
+  week: "recent_8",
+  day: "recent_30"
 };
 
 const buildCommit =
@@ -196,6 +231,29 @@ const pickDefaultMetricIds = (metricIds: string[]) => {
   return metricIds.slice(0, Math.min(metricIds.length, 6));
 };
 
+const buildPeriodsApiUrl = (periodUnit: PeriodUnit, periodRangeValue: string) => {
+  const params = new URLSearchParams({ periodUnit });
+  const size = periodRangeSizeMapByUnit[periodUnit][periodRangeValue];
+  if (typeof size === "number" && size > 0) {
+    params.set("n", String(size));
+  }
+  return `/api/weeks?${params.toString()}`;
+};
+
+const dayOfWeekLabels = ["일", "월", "화", "수", "목", "금", "토"];
+
+const formatPeriodLabel = (period: string, periodUnit: PeriodUnit) => {
+  if (periodUnit !== "day") return period;
+  const match = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(period.trim());
+  if (!match) return period;
+
+  const [, year, month, day] = match;
+  const date = new Date(Number(`20${year}`), Number(month) - 1, Number(day));
+  if (Number.isNaN(date.getTime())) return period;
+
+  return `${period} ${dayOfWeekLabels[date.getDay()]}`;
+};
+
 /** 엔티티 시계열 AI 컨텍스트 전달 제한 없음 — 전체 전달 */
 
 const computeAggregateFromEntities = (
@@ -221,6 +279,7 @@ const buildContext = (
   metrics: Metric[],
   primaryMetricId: string | null,
   seriesByEntity: Record<string, Record<string, number[]>>,
+  periodUnit: PeriodUnit,
   measurementUnit: MeasurementUnit,
   filterValue: string,
   measurementUnitLabelMap: Record<string, string>
@@ -281,6 +340,7 @@ const buildContext = (
     }));
 
   return {
+    periodUnit,
     unit: unitName,
     filter: filterValue,
     weeks,
@@ -293,7 +353,7 @@ const buildContext = (
 };
 
 export default function Home() {
-  const [periodUnit] = useState<PeriodUnit>("week");
+  const [periodUnit, setPeriodUnit] = useState<PeriodUnit>("week");
   const [periodRangeValue, setPeriodRangeValue] = useState<string>("recent_8");
   const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>("all");
   const [measurementUnitOptions, setMeasurementUnitOptions] = useState<MeasurementUnitOption[]>([
@@ -342,10 +402,14 @@ export default function Home() {
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [appliedPeriodUnit, setAppliedPeriodUnit] = useState<PeriodUnit>("week");
+  const [appliedPeriodRangeValue, setAppliedPeriodRangeValue] = useState<string>("recent_8");
 
   useEffect(() => {
     drilldownOptionsCacheRef.current.clear();
   }, [
+    appliedPeriodUnit,
+    appliedPeriodRangeValue,
     appliedMeasurementUnit,
     appliedFilterValue,
     drilldownParent?.unit,
@@ -353,7 +417,12 @@ export default function Home() {
     weeks.join("|")
   ]);
 
-  const effectivePeriodRangeValue = periodRangeValue || "recent_8";
+  const periodRangeOptions = periodRangeOptionsByUnit[periodUnit];
+  const effectivePeriodRangeValue = periodRangeValue || defaultPeriodRangeValueByUnit[periodUnit];
+  const displayedWeeks = useMemo(
+    () => weeks.map((week) => formatPeriodLabel(week, appliedPeriodUnit)),
+    [weeks, appliedPeriodUnit]
+  );
 
   const measurementUnitLabelMap = useMemo(
     () =>
@@ -509,12 +578,16 @@ export default function Home() {
       setIsLoadingFilter(true);
       setErrorMessage(null);
       try {
-        const size = periodRangeSizeMap[effectivePeriodRangeValue] ?? 8;
-        const weeksResponse = await fetchJsonWithTimeout<{ weeks: string[] }>(`/api/weeks?n=${size}`, 6000);
-        const params = new URLSearchParams({ measureUnit: measurementUnit });
-        (weeksResponse.weeks ?? []).forEach((week) => {
-          params.append("week", week);
-        });
+        const weeksResponse = await fetchJsonWithTimeout<{ weeks: string[] }>(
+          buildPeriodsApiUrl(periodUnit, effectivePeriodRangeValue),
+          6000
+        );
+        const params = new URLSearchParams({ measureUnit: measurementUnit, periodUnit });
+        if (effectivePeriodRangeValue !== "all") {
+          (weeksResponse.weeks ?? []).forEach((week) => {
+            params.append("week", week);
+          });
+        }
         if (drilldownParent?.unit && drilldownParent?.value) {
           params.set("parentUnit", drilldownParent.unit);
           params.set("parentValue", drilldownParent.value);
@@ -548,7 +621,7 @@ export default function Home() {
     return () => {
       canceled = true;
     };
-  }, [measurementUnit, drilldownParent?.unit, drilldownParent?.value, effectivePeriodRangeValue]);
+  }, [measurementUnit, drilldownParent?.unit, drilldownParent?.value, effectivePeriodRangeValue, periodUnit]);
 
   const selectedMetrics = useMemo(() => {
     const map = new Map(metrics.map((metric) => [metric.id, metric]));
@@ -597,7 +670,12 @@ export default function Home() {
     filterValue?: string;
     drilldownParent?: DrilldownParent;
     drilldownHistory?: DrilldownHistoryItem[];
+    periodUnit?: PeriodUnit;
   }) => {
+    const targetPeriodUnit =
+      overrides && "periodUnit" in overrides && overrides.periodUnit !== undefined
+        ? overrides.periodUnit
+        : periodUnit;
     const targetMeasurementUnit =
       overrides && "measurementUnit" in overrides && overrides.measurementUnit !== undefined
         ? overrides.measurementUnit
@@ -633,19 +711,21 @@ export default function Home() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const size = periodRangeSizeMap[effectivePeriodRangeValue] ?? 8;
     setIsLoadingHeatmap(true);
     setIsFetching(true);
     setErrorMessage(null);
 
     try {
-      const weeksResponse = await fetchJson<{ weeks: string[] }>(`/api/weeks?n=${size}`, {
+      const weeksResponse = await fetchJson<{ weeks: string[] }>(
+        buildPeriodsApiUrl(targetPeriodUnit, effectivePeriodRangeValue),
+        {
         signal: controller.signal
-      });
+        }
+      );
       const nextWeeks = weeksResponse.weeks ?? [];
       if (!nextWeeks.length) {
-        setErrorMessage("조건에 맞는 주차 데이터가 없습니다.");
-        pushError("조건에 맞는 주차 데이터가 없습니다.");
+        setErrorMessage("조건에 맞는 기간 데이터가 없습니다.");
+        pushError("조건에 맞는 기간 데이터가 없습니다.");
         setIsLoadingHeatmap(false);
         setIsFetching(false);
         return;
@@ -663,6 +743,7 @@ export default function Home() {
         },
         signal: controller.signal,
         body: JSON.stringify({
+          periodUnit: targetPeriodUnit,
           measureUnit: targetMeasurementUnit,
           filterValue: targetFilterValue === ALL_VALUE ? null : targetFilterValue,
           parentUnit: targetDrilldownParent?.unit ?? null,
@@ -681,6 +762,8 @@ export default function Home() {
 
       setEntities(nextEntities);
       setSeriesByEntity(nextSeries);
+      setAppliedPeriodUnit(targetPeriodUnit);
+      setAppliedPeriodRangeValue(effectivePeriodRangeValue);
       setAppliedMeasurementUnit(targetMeasurementUnit);
       setAppliedFilterValue(targetFilterValue);
       setAppliedDrilldownHistory(targetDrilldownHistory);
@@ -692,6 +775,7 @@ export default function Home() {
         selectedMetrics,
         selectedMetrics[0]?.id ?? null,
         nextSeries,
+        targetPeriodUnit,
         targetMeasurementUnit,
         targetFilterValue === ALL_VALUE ? ALL_LABEL : targetFilterValue,
         measurementUnitLabelMap
@@ -713,6 +797,10 @@ export default function Home() {
 
   // Handle AI filter apply
   const handleAiApplyFilters = useCallback((filters: FilterAction["filters"]) => {
+    if (filters.periodUnit) {
+      setPeriodUnit(filters.periodUnit);
+      setPeriodRangeValue(defaultPeriodRangeValueByUnit[filters.periodUnit]);
+    }
     if (filters.periodRangeValue) setPeriodRangeValue(filters.periodRangeValue);
     if (filters.measurementUnit) setMeasurementUnit(filters.measurementUnit as MeasurementUnit);
     if (filters.filterValue) {
@@ -735,16 +823,18 @@ export default function Home() {
 
   // Build available options for AI chat
   const aiAvailableOptions: AiChatAvailableOptions = useMemo(() => ({
+    periodUnits: periodUnitOptions,
     periodRanges: periodRangeOptions,
     measurementUnits: measurementUnitOptions.map((opt) => ({ label: opt.label, value: opt.value })),
     filterOptions: filterOptions
       .filter((f) => f.value !== ALL_VALUE)
       .map((f) => f.label),
     metricOptions: metrics.map((m) => ({ id: m.id, name: m.name })),
-  }), [filterOptions, metrics]);
+  }), [filterOptions, metrics, measurementUnitOptions, periodRangeOptions]);
 
   const handleSearch = async () => {
     await runSearch({
+      periodUnit,
       measurementUnit,
       filterValue,
       drilldownParent: null,
@@ -775,6 +865,13 @@ export default function Home() {
     setPeriodRangeValue(value);
   };
 
+  const handlePeriodUnitChange = (value: PeriodUnit) => {
+    setPeriodUnit(value);
+    setPeriodRangeValue(defaultPeriodRangeValueByUnit[value]);
+    setDrilldownParent(null);
+    setPendingDrilldown(null);
+  };
+
   const handleEntityClick = (entityName: string) => {
     if (pendingDrilldown?.entityName === entityName) {
       setPendingDrilldown(null);
@@ -783,6 +880,8 @@ export default function Home() {
     const nextUnitOptions = getDrilldownOptionsForSource(appliedMeasurementUnit, measurementUnitOptions);
     if (nextUnitOptions.length === 0) return;
     const cacheKey = [
+      appliedPeriodUnit,
+      appliedPeriodRangeValue,
       appliedMeasurementUnit,
       appliedFilterValue,
       drilldownParent?.unit ?? "root",
@@ -813,10 +912,13 @@ export default function Home() {
     void (async () => {
       const params = new URLSearchParams({
         sourceUnit: appliedMeasurementUnit,
-        sourceValue: entityName
+        sourceValue: entityName,
+        periodUnit: appliedPeriodUnit
       });
       nextUnitOptions.forEach((option) => params.append("candidate", option.value));
-      weeks.forEach((week) => params.append("week", week));
+      if (appliedPeriodRangeValue !== "all") {
+        weeks.forEach((week) => params.append("week", week));
+      }
 
       let availableOptions: MeasurementUnitOption[] = [];
       try {
@@ -846,6 +948,7 @@ export default function Home() {
   const handleEntityFilterSelect = (nextValue: string) => {
     setFilterValue(nextValue);
     void runSearch({
+      periodUnit: appliedPeriodUnit,
       measurementUnit,
       filterValue: nextValue,
       drilldownParent: null,
@@ -881,6 +984,7 @@ export default function Home() {
     setFilterValue(ALL_VALUE);
     setDrilldownParent(parent);
     void runSearch({
+      periodUnit: appliedPeriodUnit,
       measurementUnit: targetUnit,
       filterValue: ALL_VALUE,
       drilldownParent: parent,
@@ -897,6 +1001,7 @@ export default function Home() {
     setDrilldownParent(target.parent);
     setPendingDrilldown(null);
     void runSearch({
+      periodUnit: appliedPeriodUnit,
       measurementUnit: target.measurementUnit,
       filterValue: target.filterValue,
       drilldownParent: target.parent,
@@ -1037,7 +1142,9 @@ export default function Home() {
 
   const applyTemplateConfig = (template: FilterTemplate) => {
     const config = template.config as FilterTemplateConfig;
-    setPeriodRangeValue(config.periodRangeValue ?? "recent_8");
+    const nextPeriodUnit = config.periodUnit ?? "week";
+    setPeriodUnit(nextPeriodUnit);
+    setPeriodRangeValue(config.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
     setMeasurementUnit(config.measurementUnit ?? "all");
     const resolvedFilter = config.filterValue ?? ALL_VALUE;
     setFilterValue(resolvedFilter);
@@ -1057,6 +1164,7 @@ export default function Home() {
   const handleSaveTemplate = async (name: string, isShared: boolean, isDefault: boolean) => {
     const config: FilterTemplateConfig = {
       periodRangeValue: effectivePeriodRangeValue,
+      periodUnit,
       measurementUnit,
       filterValue,
       selectedMetricIds
@@ -1077,6 +1185,7 @@ export default function Home() {
   const handleCreateEmptyTab = async (name: string) => {
     const config: FilterTemplateConfig = {
       periodRangeValue: "recent_8",
+      periodUnit: "week",
       measurementUnit: "all",
       filterValue: ALL_VALUE,
       selectedMetricIds: []
@@ -1097,6 +1206,7 @@ export default function Home() {
   const handleSaveDefaultConfig = () => {
     setDefaultTabConfig({
       periodRangeValue: effectivePeriodRangeValue,
+      periodUnit,
       measurementUnit,
       filterValue,
       selectedMetricIds
@@ -1106,6 +1216,7 @@ export default function Home() {
   const handleUpdateTemplateConfig = async (id: string) => {
     const config: FilterTemplateConfig = {
       periodRangeValue: effectivePeriodRangeValue,
+      periodUnit,
       measurementUnit,
       filterValue,
       selectedMetricIds
@@ -1173,11 +1284,12 @@ export default function Home() {
       selectedMetrics,
       selectedMetrics[0]?.id ?? null,
       seriesByEntity,
+      appliedPeriodUnit,
       appliedMeasurementUnit,
       appliedFilterValue === ALL_VALUE ? ALL_LABEL : appliedFilterValue,
       measurementUnitLabelMap
     ) as ChatContext;
-  }, [showResults, weeks, selectedMetrics, seriesByEntity, appliedMeasurementUnit, appliedFilterValue, measurementUnitLabelMap]);
+  }, [showResults, weeks, selectedMetrics, seriesByEntity, appliedPeriodUnit, appliedMeasurementUnit, appliedFilterValue, measurementUnitLabelMap]);
 
   return (
     <main className={`app-shell${isChatOpen ? " chat-open" : ""}`}>
@@ -1220,8 +1332,10 @@ export default function Home() {
       <section className="top-controls-wrap">
         <ControlBar
           periodUnit={periodUnit}
+          periodUnitOptions={periodUnitOptions}
           periodRangeValue={periodRangeValue}
           periodRangeOptions={periodRangeOptions}
+          onPeriodUnitChange={handlePeriodUnitChange}
           onPeriodRangeChange={handlePeriodRangeChange}
           measurementUnit={measurementUnit}
           measurementUnitOptions={measurementUnitOptions}
@@ -1245,7 +1359,8 @@ export default function Home() {
           onRenameTemplate={handleRenameTemplate}
           onSetDefaultTemplate={handleSetDefaultTemplate}
           onResetFilters={() => {
-            setPeriodRangeValue("recent_8");
+            setPeriodUnit("week");
+            setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
             setMeasurementUnit("all");
             setFilterValue(ALL_VALUE);
             setFilterSelectedValues([]);
@@ -1258,7 +1373,9 @@ export default function Home() {
           onSaveDefaultConfig={handleSaveDefaultConfig}
           onApplyDefault={() => {
             if (defaultTabConfig) {
-              setPeriodRangeValue(defaultTabConfig.periodRangeValue ?? "recent_8");
+              const nextPeriodUnit = defaultTabConfig.periodUnit ?? "week";
+              setPeriodUnit(nextPeriodUnit);
+              setPeriodRangeValue(defaultTabConfig.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
               setMeasurementUnit(defaultTabConfig.measurementUnit ?? "all");
               const resolvedFilter = defaultTabConfig.filterValue ?? ALL_VALUE;
               setFilterValue(resolvedFilter);
@@ -1267,7 +1384,8 @@ export default function Home() {
                 setSelectedMetricIds(defaultTabConfig.selectedMetricIds);
               }
             } else {
-              setPeriodRangeValue("recent_8");
+              setPeriodUnit("week");
+              setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
               setMeasurementUnit("all");
               setFilterValue(ALL_VALUE);
               setFilterSelectedValues([]);
@@ -1322,7 +1440,7 @@ export default function Home() {
             {appliedMeasurementUnit === "all" ? (
               <MetricTable
                 title="전체 지표 추이"
-                weeks={weeks}
+                weeks={displayedWeeks}
                 metrics={selectedMetrics}
                 series={seriesByEntity[ALL_LABEL] ?? {}}
                 showDelta={showDeltaValues}
@@ -1330,7 +1448,7 @@ export default function Home() {
               />
             ) : (
               <EntityMetricTable
-                weeks={weeks}
+                weeks={displayedWeeks}
                 entities={displayedEntities}
                 metrics={selectedMetrics}
                 seriesByEntity={seriesByEntity}

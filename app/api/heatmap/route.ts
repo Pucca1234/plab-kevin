@@ -5,11 +5,12 @@ import { getHeatmap, getMeasurementUnitIds, getSupportedMetricIds } from "../../
 
 export const dynamic = "force-dynamic";
 
-const MAX_WEEKS = 104;
+const MAX_WEEKS = 5000;
 const HEATMAP_CACHE_TTL = 180;
 const SUPPORTED_METRIC_IDS_CACHE_TTL = 3600;
 
 type HeatmapRequestBody = {
+  periodUnit?: "year" | "month" | "week" | "day";
   measureUnit: string;
   weeks: string[];
   metrics: string[];
@@ -20,6 +21,7 @@ type HeatmapRequestBody = {
 };
 
 const buildHeatmapCacheKey = (params: {
+  periodUnit: string;
   measureUnit: string;
   filterValue: string | null;
   weeks: string[];
@@ -34,7 +36,7 @@ const buildHeatmapCacheKey = (params: {
     params.parentUnit && params.parentValue
       ? `${params.parentUnit}:${params.parentValue.trim()}`
       : "none";
-  return `heatmap:${params.measureUnit}:${filterKey}:${weeksKey}:${metricsKey}:${parentKey}`;
+  return `heatmap:${params.periodUnit}:${params.measureUnit}:${filterKey}:${weeksKey}:${metricsKey}:${parentKey}`;
 };
 
 const getSupportedMetricIdsCached = unstable_cache(
@@ -54,13 +56,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { measureUnit, filterValue, weeks, metrics, primaryMetricId, parentUnit, parentValue } = payload;
+  const { periodUnit, measureUnit, filterValue, weeks, metrics, primaryMetricId, parentUnit, parentValue } = payload;
+  const normalizedPeriodUnit =
+    periodUnit === "year" || periodUnit === "month" || periodUnit === "day" ? periodUnit : "week";
 
   if (Array.isArray(weeks) && weeks.length > 0) {
     const firstWeek = weeks[0];
     const lastWeek = weeks[weeks.length - 1];
     console.log("[heatmap] request", {
       requestId,
+      periodUnit: normalizedPeriodUnit,
       measureUnit,
       filterValue,
       weeksLength: weeks.length,
@@ -74,6 +79,7 @@ export async function POST(request: Request) {
   } else {
     console.log("[heatmap] request", {
       requestId,
+      periodUnit: normalizedPeriodUnit,
       measureUnit,
       filterValue,
       weeksLength: Array.isArray(weeks) ? weeks.length : null,
@@ -86,6 +92,7 @@ export async function POST(request: Request) {
 
   const expected = {
     measureUnit: "string",
+    periodUnit: "year|month|week|day (optional)",
     weeks: "string[]",
     metrics: "string[]",
     filterValue: "string|null (optional)",
@@ -152,6 +159,7 @@ export async function POST(request: Request) {
       parentValue && parentValue.trim() !== "" ? parentValue.trim() : null;
     const cacheKey = buildHeatmapCacheKey({
       measureUnit,
+      periodUnit: normalizedPeriodUnit,
       filterValue: normalizedFilter,
       weeks,
       metrics: metricIds,
@@ -169,7 +177,8 @@ export async function POST(request: Request) {
             weeks,
             metrics: metricIds ? [...metricIds] : undefined,
             parentUnit: normalizedParentUnit,
-            parentValue: normalizedParentValue
+            parentValue: normalizedParentValue,
+            periodUnit: normalizedPeriodUnit
           },
           timings
         );
@@ -195,6 +204,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[heatmap] error", {
       requestId,
+      periodUnit: normalizedPeriodUnit,
       measureUnit,
       filterValue,
       weeksLength: Array.isArray(weeks) ? weeks.length : null,

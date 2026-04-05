@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const periodUnit = searchParams.get("periodUnit");
   const sourceUnit = searchParams.get("sourceUnit");
   const sourceValue = searchParams.get("sourceValue");
   const candidates = searchParams
@@ -34,7 +35,8 @@ export async function GET(request: Request) {
         sourceUnit,
         sourceValue: sourceValue.trim(),
         candidateUnits: normalizedCandidates,
-        weeks
+        weeks,
+        periodUnit: periodUnit === "year" || periodUnit === "month" || periodUnit === "day" ? periodUnit : "week"
       }),
       getMeasurementUnitOptions()
     ]);

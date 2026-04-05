@@ -1,4 +1,4 @@
-export type PeriodUnit = "week";
+export type PeriodUnit = "year" | "month" | "week" | "day";
 
 export type MeasurementUnit = string;
 
@@ -37,6 +37,7 @@ export type FilterOption = {
 };
 
 export type FilterTemplateConfig = {
+  periodUnit?: PeriodUnit;
   periodRangeValue: string;
   measurementUnit: MeasurementUnit;
   filterValue: string;
@@ -75,6 +76,7 @@ export type EntitySeriesItem = {
 };
 
 export type ChatContext = {
+  periodUnit?: PeriodUnit;
   unit: string;
   filter: string;
   weeks: string[];
@@ -99,6 +101,7 @@ export type SummaryPayload = {
 export type FilterAction = {
   type: "apply_filters";
   filters: {
+    periodUnit?: PeriodUnit;
     periodRangeValue?: string;
     measurementUnit?: string;
     filterValue?: string;
@@ -107,6 +110,7 @@ export type FilterAction = {
 };
 
 export type AiChatAvailableOptions = {
+  periodUnits?: { label: string; value: PeriodUnit }[];
   periodRanges: { label: string; value: string }[];
   measurementUnits: { label: string; value: string }[];
   filterOptions: string[];

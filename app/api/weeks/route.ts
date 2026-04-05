@@ -5,10 +5,14 @@ export const dynamic = "force-dynamic";
 
 const MAX_WEEKS = 520;
 const DEFAULT_WEEKS = 104;
+const normalizePeriodUnit = (value: string | null) =>
+  value === "year" || value === "month" || value === "day" ? value : "week";
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const range = searchParams.get("range");
   const nParam = searchParams.get("n");
+  const periodUnit = normalizePeriodUnit(searchParams.get("periodUnit"));
   const includeStartDate =
     searchParams.get("includeStartDate") === "1" || searchParams.get("includeStartDate") === "true";
 
@@ -26,19 +30,19 @@ export async function GET(request: Request) {
   try {
     if (includeStartDate) {
       const order = range === "latest" ? "desc" : "asc";
-      const weeks = await getWeeksData({ limit, order });
-      console.log("[weeks] n=%s count=%s", limit ?? "all", weeks.length);
+      const weeks = await getWeeksData({ limit, order, periodUnit });
+      console.log("[weeks] unit=%s n=%s count=%s", periodUnit, limit ?? "all", weeks.length);
       return NextResponse.json({ weeks });
     }
 
     if (range === "latest") {
-      const weeks = await getWeeksData({ limit, order: "desc" });
-      console.log("[weeks] n=%s count=%s", limit ?? "all", weeks.length);
+      const weeks = await getWeeksData({ limit, order: "desc", periodUnit });
+      console.log("[weeks] unit=%s n=%s count=%s", periodUnit, limit ?? "all", weeks.length);
       return NextResponse.json({ weeks: weeks.map((entry) => entry.week) });
     }
 
-    const weeks = await getWeeksData({ limit, order: "asc" });
-    console.log("[weeks] n=%s count=%s", limit ?? "all", weeks.length);
+    const weeks = await getWeeksData({ limit, order: "asc", periodUnit });
+    console.log("[weeks] unit=%s n=%s count=%s", periodUnit, limit ?? "all", weeks.length);
     return NextResponse.json({ weeks: weeks.map((entry) => entry.week) });
   } catch (error) {
     return NextResponse.json(

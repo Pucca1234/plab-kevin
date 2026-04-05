@@ -9,6 +9,7 @@ type MetricSummary = {
 };
 
 type SummaryContext = {
+  periodUnit?: "year" | "month" | "week" | "day";
   unit: string;
   filter: string;
   weeks: string[];
@@ -37,6 +38,13 @@ const formatDelta = (value: number | null, format: "number" | "percent") => {
   return `${sign}${value.toLocaleString("ko-KR")}`;
 };
 
+const getPeriodCountLabel = (periodUnit?: "year" | "month" | "week" | "day") => {
+  if (periodUnit === "year") return "년";
+  if (periodUnit === "month") return "개월";
+  if (periodUnit === "day") return "일";
+  return "주";
+};
+
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
@@ -49,8 +57,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing context." }, { status: 400 });
     }
 
-    const { weeks, metricSummaries, primaryMetricId, unit, filter } = parsed.context;
+    const { weeks, metricSummaries, primaryMetricId, unit, filter, periodUnit } = parsed.context;
     const rangeLabel = weeks.length ? `${weeks[0]} ~ ${weeks[weeks.length - 1]}` : "선택 기간";
+    const periodCountLabel = getPeriodCountLabel(periodUnit);
     const primary = metricSummaries.find((metric) => metric.metricId === primaryMetricId) ?? metricSummaries[0];
 
     const sortedByDelta = [...metricSummaries]
@@ -83,7 +92,7 @@ export async function POST(request: Request) {
       );
     }
 
-    bullets.push(`분석 범위는 ${rangeLabel} (${weeks.length}주)이며 단위는 ${unit} · ${filter} 입니다.`);
+    bullets.push(`분석 범위는 ${rangeLabel} (${weeks.length}${periodCountLabel})이며 단위는 ${unit} · ${filter} 입니다.`);
 
     const summary: SummaryPayload = {
       title: `데이터 요약 · ${rangeLabel}`,
