@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "../../lib/supabase/server";
+import { getRequestUser } from "../../lib/supabase/requestUser";
+import { supabaseServer } from "../../lib/supabaseServer";
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+export async function GET(request: Request) {
+  const user = await getRequestUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServer
     .from("filter_templates")
     .select("*")
     .or(`user_id.eq.${user.id},is_shared.eq.true`)
@@ -27,13 +23,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+  const user = await getRequestUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -54,16 +45,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "config is required." }, { status: 400 });
   }
 
-  // is_default를 true로 설정하면 기존 default를 해제
   if (is_default) {
-    await supabase
+    await supabaseServer
       .from("filter_templates")
       .update({ is_default: false })
       .eq("user_id", user.id)
       .eq("is_default", true);
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServer
     .from("filter_templates")
     .insert({
       user_id: user.id,

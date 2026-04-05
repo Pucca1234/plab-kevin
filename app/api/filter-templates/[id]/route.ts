@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
-import { createClient } from "../../../lib/supabase/server";
+import { getRequestUser } from "../../../lib/supabase/requestUser";
+import { supabaseServer } from "../../../lib/supabaseServer";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+  const user = await getRequestUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -22,9 +18,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  // is_default를 true로 설정하면 기존 default를 해제
   if (body.is_default) {
-    await supabase
+    await supabaseServer
       .from("filter_templates")
       .update({ is_default: false })
       .eq("user_id", user.id)
@@ -41,7 +36,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "No fields to update." }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServer
     .from("filter_templates")
     .update(updates)
     .eq("id", id)
@@ -60,19 +55,14 @@ export async function PATCH(request: Request, context: RouteContext) {
   return NextResponse.json({ template: data });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   const { id } = await context.params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+  const user = await getRequestUser(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from("filter_templates")
     .delete()
     .eq("id", id)
