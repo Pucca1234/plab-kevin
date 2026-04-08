@@ -169,28 +169,27 @@ export async function POST(request: Request) {
       parentValue: normalizedParentValue
     });
 
-    const getHeatmapCached = unstable_cache(
-      async () => {
-        const timings: { queryMs?: number; processMs?: number } = {};
-        const rows = await getHeatmap(
-          {
-            measureUnit,
-            filterValue: normalizedFilter,
-            weeks,
-            metrics: metricIds ? [...metricIds] : undefined,
-            parentUnit: normalizedParentUnit,
-            parentValue: normalizedParentValue,
-            periodUnit: normalizedPeriodUnit
-          },
-          timings
-        );
-        return { rows, timings, cachedAt: Date.now() };
-      },
-      ["api-heatmap-v2", cacheKey],
-      { revalidate: HEATMAP_CACHE_TTL }
-    );
+    const loadHeatmap = async () => {
+      const timings: { queryMs?: number; processMs?: number } = {};
+      const rows = await getHeatmap(
+        {
+          measureUnit,
+          filterValue: normalizedFilter,
+          weeks,
+          metrics: metricIds ? [...metricIds] : undefined,
+          parentUnit: normalizedParentUnit,
+          parentValue: normalizedParentValue,
+          periodUnit: normalizedPeriodUnit
+        },
+        timings
+      );
+      return { rows, timings, cachedAt: Date.now() };
+    };
 
-    const { rows, timings, cachedAt } = await getHeatmapCached();
+    const hasDrilldownParent = Boolean(normalizedParentUnit && normalizedParentValue);
+    const { rows, timings, cachedAt } = hasDrilldownParent
+      ? await loadHeatmap()
+      : await unstable_cache(loadHeatmap, ["api-heatmap-v3", cacheKey], { revalidate: HEATMAP_CACHE_TTL })();
     const totalMs = Date.now() - totalStart;
     const cacheAgeMs = Date.now() - cachedAt;
     const cacheHit = cacheAgeMs > 5;

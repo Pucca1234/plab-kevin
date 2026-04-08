@@ -39,6 +39,8 @@ export async function getAvailableDrilldownUnits(params: {
   sourceUnit: string;
   sourceValue: string;
   candidateUnits: string[];
+  parentUnit?: string | null;
+  parentValue?: string | null;
   weeks?: string[];
   periodUnit?: "year" | "quarter" | "month" | "week" | "day";
 }) {

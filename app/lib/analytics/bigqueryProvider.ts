@@ -563,37 +563,41 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     const options = await bigqueryAnalyticsProvider.getMeasurementUnitOptions();
     return options.map((option) => option.value);
   },
-  getAvailableDrilldownUnits: async ({ sourceUnit, sourceValue, candidateUnits, weeks, periodUnit }) => {
+  getAvailableDrilldownUnits: async ({ sourceUnit, sourceValue, candidateUnits, parentUnit, parentValue, weeks, periodUnit }) => {
     const effectivePeriodUnit = normalizePeriodUnit(periodUnit);
     const effectiveWeeks = (weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
     const uniqueCandidateUnits = Array.from(new Set(candidateUnits)).filter((unit) => unit !== sourceUnit);
-    const available = await Promise.all(
-      uniqueCandidateUnits.map(async (candidateUnit) => {
-        const queryUnit = resolveQueryUnitForDrilldownStrict(candidateUnit, sourceUnit);
-        if (!queryUnit) return null;
-        const queryUnitConfig = getUnitConfig(queryUnit);
-        if (!queryUnitConfig) return null;
+    const candidateConfigs = uniqueCandidateUnits
+      .map((unit) => ({ unit, config: getUnitConfig(unit) }))
+      .filter((entry): entry is { unit: string; config: NonNullable<ReturnType<typeof getUnitConfig>> } => Boolean(entry.config));
+    if (candidateConfigs.length === 0) return [];
 
-        const wherePeriods = buildPeriodFilterClause(effectivePeriodUnit, effectiveWeeks);
-        const whereParent = buildSourceEntityFilterClause(sourceUnit, sourceValue);
-        const notNullChecks = queryUnitConfig.entityColumns
-          .map((column) => ` and ${sanitizeIdentifier(column)} is not null`)
-          .join("");
+    const wherePeriods = buildPeriodFilterClause(effectivePeriodUnit, effectiveWeeks);
+    const whereSourceValue = buildSourceEntityFilterClause(sourceUnit, sourceValue);
+    const whereParentValue = buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null);
+    const allowedDimensionTypes = candidateConfigs
+      .map(({ config }) => `'${escapeBigQueryLiteral(config.dimensionType)}'`)
+      .join(", ");
 
-        const rows = await runQuery<{ c: number }>(`
-          select count(1) as c
-          from ${sourceTable}
-          where period_type = '${effectivePeriodUnit}'
-            and dimension_type = '${queryUnitConfig.dimensionType}'
-            ${wherePeriods}
-            ${whereParent}
-            ${notNullChecks}
-          limit 1
-        `);
-        return Number(rows[0]?.c ?? 0) > 0 ? candidateUnit : null;
-      })
+    const rows = await runQuery<{ dimension_type: string | null }>(`
+      select distinct dimension_type
+      from ${sourceTable}
+      where period_type = '${effectivePeriodUnit}'
+        and dimension_type in (${allowedDimensionTypes})
+        ${wherePeriods}
+        ${whereSourceValue}
+        ${whereParentValue}
+    `);
+
+    const availableDimensionTypes = new Set(
+      rows
+        .map((row) => String(row.dimension_type ?? "").trim())
+        .filter((value) => value.length > 0)
     );
-    return available.filter((value): value is string => Boolean(value));
+
+    return candidateConfigs
+      .filter(({ config }) => availableDimensionTypes.has(config.dimensionType))
+      .map(({ unit }) => unit);
   },
   getFilterOptions: async (measureUnit, options) => {
     if (measureUnit === "all") return [ALL_LABEL];
@@ -644,12 +648,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
         .filter((value) => value.length > 0);
     }
 
-    const queryUnit = resolveQueryUnitForDrilldownStrict(measureUnit, parentUnit);
-    if (!queryUnit) return [];
-    const queryUnitConfig = getUnitConfig(queryUnit);
-    if (!queryUnitConfig) return [];
-
-    if (LEGACY_MV_UNITS.has(measureUnit) && LEGACY_MV_UNITS.has(queryUnit)) {
+    if (LEGACY_MV_UNITS.has(measureUnit) && parentUnit && LEGACY_MV_UNITS.has(parentUnit)) {
       const filterUnitColumn = sanitizeIdentifier(COLUMN_BY_UNIT[measureUnit]);
       const parentFilter = buildServingHierarchyFilterClause(parentUnit ?? "", parentValue);
       const rows = await runQuery<{ filter_value: string | null }>(`
@@ -726,12 +725,6 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       const unitConfig = getUnitConfig(measureUnit);
       if (!unitConfig) {
         throw new Error(`Unsupported measure unit: ${measureUnit}`);
-      }
-      const queryUnit = resolveQueryUnitForDrilldownStrict(measureUnit, parentUnit);
-      if (!queryUnit) return [];
-      const queryUnitConfig = getUnitConfig(queryUnit);
-      if (!queryUnitConfig) {
-        throw new Error(`Unsupported drilldown query unit: ${queryUnit}`);
       }
 
       const metricFilter = ` and metric_id in (${metricIds
