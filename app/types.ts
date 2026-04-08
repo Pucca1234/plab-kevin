@@ -1,4 +1,4 @@
-export type PeriodUnit = "year" | "month" | "week" | "day";
+export type PeriodUnit = "year" | "quarter" | "month" | "week" | "day";
 
 export type MeasurementUnit = string;
 

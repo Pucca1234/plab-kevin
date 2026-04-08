@@ -43,7 +43,7 @@ type TimedCache<T> = {
   expiresAt: number;
 };
 
-type SupportedPeriodUnit = "year" | "month" | "week" | "day";
+type SupportedPeriodUnit = "year" | "quarter" | "month" | "week" | "day";
 
 const projectId = process.env.BIGQUERY_PROJECT_ID?.trim() || "plabfootball-51bf5";
 const dataMartDataset = process.env.BIGQUERY_DATASET_SOURCE_DATA_MART?.trim() || "data_mart";
@@ -58,6 +58,7 @@ const weeklyExpandedAggView = `\`${projectId}.${servingDataset}.weekly_expanded_
 const METADATA_CACHE_TTL_MS = 10 * 60 * 1000;
 const PERIOD_COLUMN_BY_UNIT: Record<SupportedPeriodUnit, string> = {
   year: "year",
+  quarter: "quarter",
   month: "month",
   week: "week",
   day: "day"
@@ -103,7 +104,7 @@ const sanitizeIdentifier = (identifier: string) => {
 };
 
 const normalizePeriodUnit = (value?: string | null): SupportedPeriodUnit =>
-  value === "year" || value === "month" || value === "day" ? value : "week";
+  value === "year" || value === "quarter" || value === "month" || value === "day" ? value : "week";
 
 const buildPeriodValueExpression = (periodUnit: SupportedPeriodUnit, qualifier = "") => {
   const prefix = qualifier ? `${qualifier}.` : "";
@@ -115,6 +116,19 @@ const buildPeriodStartDateExpression = (periodUnit: SupportedPeriodUnit, qualifi
   const prefix = qualifier ? `${qualifier}.` : "";
   if (periodUnit === "year") {
     return `parse_date('%Y.%m.%d', concat('20', cast(${prefix}year as string), '.01.01'))`;
+  }
+  if (periodUnit === "quarter") {
+    return `
+      date(
+        concat(
+          '20',
+          split(cast(${prefix}quarter as string), '.')[safe_offset(0)],
+          '-',
+          lpad(cast(1 + 3 * (cast(split(cast(${prefix}quarter as string), '.')[safe_offset(1)] as int64) - 1) as string), 2, '0'),
+          '-01'
+        )
+      )
+    `;
   }
   if (periodUnit === "month") {
     return `parse_date('%Y.%m.%d', concat('20', cast(${prefix}month as string), '.01'))`;

@@ -36,7 +36,10 @@ export async function GET(request: Request) {
         sourceValue: sourceValue.trim(),
         candidateUnits: normalizedCandidates,
         weeks,
-        periodUnit: periodUnit === "year" || periodUnit === "month" || periodUnit === "day" ? periodUnit : "week"
+        periodUnit:
+          periodUnit === "year" || periodUnit === "quarter" || periodUnit === "month" || periodUnit === "day"
+            ? periodUnit
+            : "week"
       }),
       getMeasurementUnitOptions()
     ]);
