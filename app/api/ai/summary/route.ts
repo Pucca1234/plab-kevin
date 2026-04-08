@@ -9,7 +9,7 @@ type MetricSummary = {
 };
 
 type SummaryContext = {
-  periodUnit?: "year" | "month" | "week" | "day";
+  periodUnit?: "year" | "quarter" | "month" | "week" | "day";
   unit: string;
   filter: string;
   weeks: string[];
@@ -38,8 +38,9 @@ const formatDelta = (value: number | null, format: "number" | "percent") => {
   return `${sign}${value.toLocaleString("ko-KR")}`;
 };
 
-const getPeriodCountLabel = (periodUnit?: "year" | "month" | "week" | "day") => {
+const getPeriodCountLabel = (periodUnit?: "year" | "quarter" | "month" | "week" | "day") => {
   if (periodUnit === "year") return "년";
+  if (periodUnit === "quarter") return "분기";
   if (periodUnit === "month") return "개월";
   if (periodUnit === "day") return "일";
   return "주";

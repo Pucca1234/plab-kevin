@@ -27,10 +27,10 @@ export type AnalyticsProvider = {
   getWeeksData(options?: {
     limit?: number;
     order?: "asc" | "desc";
-    periodUnit?: "year" | "month" | "week" | "day";
+    periodUnit?: "year" | "quarter" | "month" | "week" | "day";
   }): Promise<WeekEntry[]>;
-  getWeeks(limit?: number, periodUnit?: "year" | "month" | "week" | "day"): Promise<string[]>;
-  getLatestWeek(periodUnit?: "year" | "month" | "week" | "day"): Promise<string | null>;
+  getWeeks(limit?: number, periodUnit?: "year" | "quarter" | "month" | "week" | "day"): Promise<string[]>;
+  getLatestWeek(periodUnit?: "year" | "quarter" | "month" | "week" | "day"): Promise<string | null>;
   getSupportedMetricIds(timings?: { queryMs?: number; processMs?: number }): Promise<string[]>;
   getMetricDictionary(
     timings?: { queryMs?: number; processMs?: number }
@@ -42,7 +42,7 @@ export type AnalyticsProvider = {
     sourceValue: string;
     candidateUnits: string[];
     weeks?: string[];
-    periodUnit?: "year" | "month" | "week" | "day";
+    periodUnit?: "year" | "quarter" | "month" | "week" | "day";
   }): Promise<string[]>;
   getFilterOptions(
     measureUnit: string,
@@ -50,7 +50,7 @@ export type AnalyticsProvider = {
       parentUnit?: string | null;
       parentValue?: string | null;
       weeks?: string[];
-      periodUnit?: "year" | "month" | "week" | "day";
+      periodUnit?: "year" | "quarter" | "month" | "week" | "day";
     }
   ): Promise<string[]>;
   getHeatmap(
@@ -61,7 +61,7 @@ export type AnalyticsProvider = {
       metrics?: string[];
       parentUnit?: string | null;
       parentValue?: string | null;
-      periodUnit?: "year" | "month" | "week" | "day";
+      periodUnit?: "year" | "quarter" | "month" | "week" | "day";
     },
     timings?: { queryMs?: number; processMs?: number }
   ): Promise<HeatmapRow[]>;

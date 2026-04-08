@@ -363,24 +363,26 @@
 
 ### 7.15 2026-04-05 기간 단위 확장
 - 목표:
-  - 기존 주 단위 중심 조회를 `연/월/주/일` 단위까지 확장
+  - 기존 주 단위 중심 조회를 `연/분기/월/주/일` 단위까지 확장
   - 검색 UI는 셀렉트 박스를 늘리지 않고, 먼저 `기간단위`를 고른 뒤 그 단위에 맞는 기본 기간 범위를 제시
 - UI 정책:
-  - `기간단위`: `연`, `월`, `주`, `일`
+  - `기간단위`: `연`, `분기`, `월`, `주`, `일`
   - 단위별 기간 범위:
     - `연`: `전체`, `최근 3년`, `최근 5년`
+    - `분기`: `전체`, `최근 4분기`, `최근 8분기`, `최근 12분기`
     - `월`: `전체`, `최근 6개월`, `최근 12개월`, `최근 24개월`
     - `주`: `전체`, `최근 8주`, `최근 12주`, `최근 24주`
     - `일`: `전체`, `최근 7일`, `최근 30일`, `최근 90일`
 - API/데이터 경로:
-  - `/api/weeks`, `/api/filter-options`, `/api/drilldown-options`, `/api/heatmap`는 `periodUnit`을 지원
+  - `/api/weeks`, `/api/filter-options`, `/api/drilldown-options`, `/api/heatmap`는 `periodUnit(year|quarter|month|week|day)`를 지원
   - `week`는 기존 `kevin_serving` 기반 serving layer를 유지
-  - `year/month/day`는 현재 `data_mart_1_social_match` 원천 직접 조회로 우선 반영
+  - `year/quarter/month/day`는 현재 `data_mart_1_social_match` 원천 직접 조회로 우선 반영
 - 표시 정책:
   - 일 단위 컬럼 헤더는 `YY.MM.DD 요일약어` 형식으로 표기
+  - 분기 단위 컬럼 헤더는 `YY년 N분기` 형식으로 표기
   - 연/월은 현재 날짜 이후 future bucket은 제외
 - 후속 TODO:
-  - `year/month/day`도 `week`와 동일한 수준의 `kevin_serving` serving layer를 설계해 조회 경로를 통일
+  - `year/quarter/month/day`도 `week`와 동일한 수준의 `kevin_serving` serving layer를 설계해 조회 경로를 통일
   - 특히 `day`는 장기적으로 스캔량/비용 영향이 가장 커질 가능성이 높아 우선 serving화 검토
 
 ### 7.16 2026-04-05 템플릿 저장 / Kevin AI 복구

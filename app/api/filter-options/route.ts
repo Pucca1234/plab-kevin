@@ -39,7 +39,10 @@ export async function GET(request: Request) {
           parentUnit: normalizedParentUnit,
           parentValue: normalizedParentValue,
           weeks,
-          periodUnit: periodUnit === "year" || periodUnit === "month" || periodUnit === "day" ? periodUnit : "week"
+          periodUnit:
+            periodUnit === "year" || periodUnit === "quarter" || periodUnit === "month" || periodUnit === "day"
+              ? periodUnit
+              : "week"
         });
         return { options, cachedAt: Date.now() };
       },

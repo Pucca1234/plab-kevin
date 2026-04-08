@@ -75,6 +75,7 @@ const fallbackMetrics: Metric[] = [
 
 const periodUnitOptions: { label: string; value: PeriodUnit }[] = [
   { label: "연", value: "year" },
+  { label: "분기", value: "quarter" },
   { label: "월", value: "month" },
   { label: "주", value: "week" },
   { label: "일", value: "day" }
@@ -85,6 +86,12 @@ const periodRangeOptionsByUnit: Record<PeriodUnit, { label: string; value: strin
     { label: "전체", value: "all" },
     { label: "최근 3년", value: "recent_3" },
     { label: "최근 5년", value: "recent_5" }
+  ],
+  quarter: [
+    { label: "전체", value: "all" },
+    { label: "최근 4분기", value: "recent_4" },
+    { label: "최근 8분기", value: "recent_8" },
+    { label: "최근 12분기", value: "recent_12" }
   ],
   month: [
     { label: "전체", value: "all" },
@@ -108,6 +115,7 @@ const periodRangeOptionsByUnit: Record<PeriodUnit, { label: string; value: strin
 
 const periodRangeSizeMapByUnit: Record<PeriodUnit, Record<string, number | undefined>> = {
   year: { all: undefined, recent_3: 3, recent_5: 5 },
+  quarter: { all: undefined, recent_4: 4, recent_8: 8, recent_12: 12 },
   month: { all: undefined, recent_6: 6, recent_12: 12, recent_24: 24 },
   week: { all: undefined, recent_8: 8, recent_12: 12, recent_24: 24 },
   day: { all: undefined, recent_7: 7, recent_30: 30, recent_90: 90 }
@@ -115,6 +123,7 @@ const periodRangeSizeMapByUnit: Record<PeriodUnit, Record<string, number | undef
 
 const defaultPeriodRangeValueByUnit: Record<PeriodUnit, string> = {
   year: "recent_3",
+  quarter: "recent_4",
   month: "recent_12",
   week: "recent_8",
   day: "recent_30"
@@ -257,6 +266,12 @@ const buildPeriodsApiUrl = (periodUnit: PeriodUnit, periodRangeValue: string) =>
 const dayOfWeekLabels = ["일", "월", "화", "수", "목", "금", "토"];
 
 const formatPeriodLabel = (period: string, periodUnit: PeriodUnit) => {
+  if (periodUnit === "quarter") {
+    const match = /^(\d{2})\.(\d{1})$/.exec(period.trim());
+    if (!match) return period;
+    const [, year, quarter] = match;
+    return `${year}년 ${quarter}분기`;
+  }
   if (periodUnit !== "day") return period;
   const match = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(period.trim());
   if (!match) return period;

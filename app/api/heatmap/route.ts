@@ -10,7 +10,7 @@ const HEATMAP_CACHE_TTL = 180;
 const SUPPORTED_METRIC_IDS_CACHE_TTL = 3600;
 
 type HeatmapRequestBody = {
-  periodUnit?: "year" | "month" | "week" | "day";
+  periodUnit?: "year" | "quarter" | "month" | "week" | "day";
   measureUnit: string;
   weeks: string[];
   metrics: string[];
@@ -58,7 +58,9 @@ export async function POST(request: Request) {
 
   const { periodUnit, measureUnit, filterValue, weeks, metrics, primaryMetricId, parentUnit, parentValue } = payload;
   const normalizedPeriodUnit =
-    periodUnit === "year" || periodUnit === "month" || periodUnit === "day" ? periodUnit : "week";
+    periodUnit === "year" || periodUnit === "quarter" || periodUnit === "month" || periodUnit === "day"
+      ? periodUnit
+      : "week";
 
   if (Array.isArray(weeks) && weeks.length > 0) {
     const firstWeek = weeks[0];
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
 
   const expected = {
     measureUnit: "string",
-    periodUnit: "year|month|week|day (optional)",
+    periodUnit: "year|quarter|month|week|day (optional)",
     weeks: "string[]",
     metrics: "string[]",
     filterValue: "string|null (optional)",

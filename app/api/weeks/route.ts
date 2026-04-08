@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const MAX_WEEKS = 520;
 const DEFAULT_WEEKS = 104;
 const normalizePeriodUnit = (value: string | null) =>
-  value === "year" || value === "month" || value === "day" ? value : "week";
+  value === "year" || value === "quarter" || value === "month" || value === "day" ? value : "week";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
