@@ -963,72 +963,56 @@ export async function getAvailableDrilldownUnits({
   sourceUnit,
   sourceValue,
   candidateUnits,
+  parentUnit,
+  parentValue,
   weeks
 }: {
   sourceUnit: QueryDrilldownUnit;
   sourceValue: string;
   candidateUnits: QueryDrilldownUnit[];
+  parentUnit?: QueryDrilldownUnit | null;
+  parentValue?: string | null;
   weeks?: string[];
 }) {
   const effectiveWeeks = (weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
   const uniqueCandidateUnits = Array.from(new Set(candidateUnits)).filter((unit) => unit !== sourceUnit);
+  const candidateConfigs = uniqueCandidateUnits
+    .map((unit) => ({ unit, config: getUnitConfig(unit) }))
+    .filter((entry): entry is { unit: QueryDrilldownUnit; config: UnitConfig } => Boolean(entry.config));
+  if (candidateConfigs.length === 0) {
+    return [];
+  }
 
-  const checks = await Promise.all(
-    uniqueCandidateUnits.map(async (candidateUnit) => {
-      const queryUnit = resolveQueryUnitForDrilldownStrict(candidateUnit, sourceUnit);
-      if (!queryUnit) return null;
-      const queryUnitConfig = getUnitConfig(queryUnit);
-      if (!queryUnitConfig) return null;
-      const useExpandedMv = canUseExpandedMvUnit(queryUnit);
-
-      const selectColumns = useExpandedMv
-        ? getExpandedMvSelectColumns(queryUnitConfig.entityColumns, getEntityColumnsForUnit(sourceUnit))
-        : Array.from(
-            new Set([...queryUnitConfig.entityColumns, ...getEntityColumnsForUnit(sourceUnit)])
-          ).join(",");
-
-      const hasRowsForWeek = async (week?: string) => {
-        let query = useExpandedMv
-          ? schemaClient
-              .from(tableName(EXPANDED_WEEKLY_AGG_VIEW))
-              .select(selectColumns)
-              .eq("measure_unit", queryUnit)
-              .eq("metric_id", "total_match_cnt")
-              .limit(1)
-          : applyWeeklyBaseScope(
-              schemaClient
-                .from(tableName(BASE_TABLE))
-                .select(selectColumns)
-                .eq("dimension_type", queryUnitConfig.dimensionType)
-                .limit(1)
-            );
-
-        if (week) {
-          query = query.eq("week", week);
-        }
-        for (const column of queryUnitConfig.entityColumns) {
-          query = query.not(column, "is", null);
-        }
-        query = applyEntityFilterToQuery(query, sourceUnit, sourceValue);
-        const { data, error } = await query;
-        if (error) return false;
-        return (data ?? []).length > 0;
-      };
-
-      if (effectiveWeeks.length > 0) {
-        for (const week of effectiveWeeks) {
-          if (await hasRowsForWeek(week)) {
-            return candidateUnit;
-          }
-        }
-        return null;
-      }
-
-      return (await hasRowsForWeek()) ? candidateUnit : null;
-    })
+  let query = applyWeeklyBaseScope(
+    schemaClient
+      .from(tableName(BASE_TABLE))
+      .select("dimension_type")
+      .in(
+        "dimension_type",
+        candidateConfigs.map(({ config }) => config.dimensionType)
+      )
   );
 
-  return checks.filter((value): value is QueryDrilldownUnit => Boolean(value));
+  if (effectiveWeeks.length > 0) {
+    query = query.in("week", effectiveWeeks);
+  }
+  query = applyEntityFilterToQuery(query, sourceUnit, sourceValue);
+  query = applyEntityFilterToQuery(query, parentUnit ?? "", parentValue ?? null);
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const availableDimensionTypes = new Set(
+    ((data ?? []) as { dimension_type?: string | null }[])
+      .map((row) => String(row.dimension_type ?? "").trim())
+      .filter((value) => value.length > 0)
+  );
+
+  return candidateConfigs
+    .filter(({ config }) => availableDimensionTypes.has(config.dimensionType))
+    .map(({ unit }) => unit);
 }
 
 export async function getFilterOptions(

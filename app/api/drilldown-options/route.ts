@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   const periodUnit = searchParams.get("periodUnit");
   const sourceUnit = searchParams.get("sourceUnit");
   const sourceValue = searchParams.get("sourceValue");
+  const parentUnit = searchParams.get("parentUnit");
+  const parentValue = searchParams.get("parentValue");
   const candidates = searchParams
     .getAll("candidate")
     .map((value) => value.trim())
@@ -24,6 +26,9 @@ export async function GET(request: Request) {
   if (!sourceValue || sourceValue.trim().length === 0) {
     return NextResponse.json({ error: "Invalid sourceValue." }, { status: 400 });
   }
+  const normalizedParentUnit =
+    parentUnit && parentUnit !== "all" && allowedUnits.has(parentUnit) ? parentUnit : null;
+  const normalizedParentValue = parentValue && parentValue.trim().length > 0 ? parentValue.trim() : null;
   const normalizedCandidates = candidates.filter((candidate) => candidate !== "all" && allowedUnits.has(candidate));
   if (normalizedCandidates.length === 0) {
     return NextResponse.json({ options: [] });
@@ -35,6 +40,8 @@ export async function GET(request: Request) {
         sourceUnit,
         sourceValue: sourceValue.trim(),
         candidateUnits: normalizedCandidates,
+        parentUnit: normalizedParentUnit,
+        parentValue: normalizedParentValue,
         weeks,
         periodUnit:
           periodUnit === "year" || periodUnit === "quarter" || periodUnit === "month" || periodUnit === "day"

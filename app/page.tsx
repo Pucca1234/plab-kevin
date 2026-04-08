@@ -944,6 +944,10 @@ export default function Home() {
         sourceValue: entityName,
         periodUnit: appliedPeriodUnit
       });
+      if (drilldownParent?.unit && drilldownParent?.value) {
+        params.set("parentUnit", drilldownParent.unit);
+        params.set("parentValue", drilldownParent.value);
+      }
       nextUnitOptions.forEach((option) => params.append("candidate", option.value));
       if (appliedPeriodRangeValue !== "all") {
         weeks.forEach((week) => params.append("week", week));

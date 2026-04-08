@@ -119,6 +119,23 @@
     - `ANTHROPIC_API_KEY`
     - `NEXT_PUBLIC_APP_URL`
 
+## 2026-04-09 드릴다운 옵션/결과 정합성 보강
+- 드릴다운 옵션 노출 기준 변경:
+  - 엔티티 클릭 시, 후보 단위를 단순 계층 관계로 노출하지 않고 `data_mart_1_social_match`에서 클릭한 엔티티 값을 가진 row들의 실제 `dimension_type` 기준으로만 노출
+  - 예: `area_group=경기` 클릭 시 최근 선택 기간 안에서 `area_group='경기'`를 가진 row의 `dimension_type`이 실제로 존재하는 단위만 옵션으로 표시
+- 상위 드릴다운 context 반영:
+  - 드릴다운 옵션 판정 시 현재 클릭한 엔티티뿐 아니라 상위 `parentUnit/parentValue`까지 함께 반영
+  - 이로 인해 상위 context 밖에서만 데이터가 있는 옵션이 잘못 노출되던 문제를 방지
+- 성능 개선:
+  - `GET /api/drilldown-options`는 후보 단위별 반복 조회 대신 source에서 `distinct dimension_type`를 한 번에 조회하도록 변경
+  - 드릴다운 옵션 응답 시간을 단축
+- 드릴다운 heatmap 정합성 수정:
+  - `stadium_group -> stadium_and_time` 같은 확장 단위 drilldown에서 BigQuery provider가 불필요한 `queryUnit` 판정으로 조기 종료하며 빈 결과를 반환하던 문제 수정
+  - drilldown(`parentUnit/parentValue` 포함) heatmap 요청은 TTL 캐시를 우회하고 항상 최신 계산 결과를 사용하도록 조정
+  - 확인 케이스:
+    - `지역그룹(전체) > 구장(경기) > 면 타임(고양 데일리 그라운드 풋살장 마두점)` 경로에서 `데일리_마두 | A 평일 비프라임(-17)` 등 실제 row가 정상 노출
+    - 같은 경로에서 `stadium_and_time` 필터 옵션도 정상 노출
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`
