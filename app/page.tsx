@@ -235,11 +235,14 @@ const getSupabaseAuthHeaders = async () => {
   if (!isSupabaseBrowserEnvConfigured()) return {} as Record<string, string>;
   try {
     const supabase = createClient();
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-    const accessToken = session?.access_token;
-    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session) {
+      // 세션 만료 시 refreshSession으로 갱신 시도
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const token = refreshed.session?.access_token;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    }
+    return { Authorization: `Bearer ${session.access_token}` };
   } catch {
     return {};
   }
@@ -1153,8 +1156,11 @@ export default function Home() {
       });
       setTemplates(response.templates ?? []);
       return response.templates ?? [];
-    } catch {
-      // 미인증 상태에서는 조용히 실패
+    } catch (error) {
+      const msg = (error as Error).message;
+      if (msg !== "Unauthorized") {
+        pushError("탭 목록 불러오기 실패", msg);
+      }
       return [];
     }
   };
