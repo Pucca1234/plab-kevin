@@ -167,6 +167,7 @@ export default function EntityMetricTable({
   return (
     <div className="card table-card">
       <div className="table-head-row">
+        <div />
         {onShowDeltaChange && (
           <label className="table-toggle">
             <input
