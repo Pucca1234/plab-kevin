@@ -1483,7 +1483,7 @@ export default function Home() {
           <div className="result-stack">
             {appliedMeasurementUnit === "all" ? (
               <MetricTable
-                title="전체 지표 추이"
+                title=""
                 weeks={displayedWeeks}
                 metrics={selectedMetrics}
                 series={seriesByEntity[ALL_LABEL] ?? {}}
