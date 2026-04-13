@@ -664,7 +664,22 @@ main {
 
 .search-row-main {
   padding-bottom: 2px;
-  border-bottom: 1px solid var(--border);
+}
+
+.search-actions-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: auto;
+  align-self: stretch;
+  justify-content: flex-end;
+}
+
+.search-actions-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .search-field {
@@ -849,6 +864,25 @@ main {
   height: 16px;
   accent-color: var(--primary);
   cursor: pointer;
+}
+
+.heatmap-toggle-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  margin-left: 6px;
+  cursor: pointer;
+  vertical-align: middle;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+.heatmap-toggle-dot:hover {
+  opacity: 1;
 }
 
 .breadcrumb {
@@ -1314,6 +1348,10 @@ main {
   align-items: flex-end;
 }
 
+.data-value.is-partial {
+  opacity: 0.45;
+}
+
 .name-title {
   font-weight: 600;
   font-size: 11px;
@@ -1360,7 +1398,7 @@ main {
 }
 
 .value-delta.is-negative {
-  color: var(--muted);
+  color: #D94444;
   background: transparent;
 }
 

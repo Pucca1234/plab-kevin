@@ -23,6 +23,7 @@ type EntityMetricTableProps = {
   isDrilldownOptionsLoading?: boolean;
   onDrilldownSelect?: (value: string) => void;
   onDrilldownClose?: () => void;
+  partialIndices?: Set<number>;
 };
 
 const formatDelta = (metric: Metric, delta: number | null) => {
@@ -35,14 +36,27 @@ const formatDelta = (metric: Metric, delta: number | null) => {
   return `${sign}${delta.toLocaleString("ko-KR")}`;
 };
 
-const getHeatColor = (values: number[], value: number) => {
-  if (!values.length) return "rgba(108, 171, 221, 0)";
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (min === max) return "rgba(108, 171, 221, 0.475)";
+const METRIC_HEAT_COLORS: [number, number, number][] = [
+  [108, 171, 221], // blue
+  [130, 194, 135], // green
+  [221, 160, 108], // orange
+  [176, 131, 205], // purple
+  [219, 132, 132], // red
+  [108, 200, 200], // teal
+  [200, 180, 108], // gold
+];
+
+const getMetricHeatColor = (
+  metricIndex: number,
+  min: number,
+  max: number,
+  value: number
+) => {
+  const [r, g, b] = METRIC_HEAT_COLORS[metricIndex % METRIC_HEAT_COLORS.length];
+  if (min === max) return `rgba(${r}, ${g}, ${b}, 0.55)`;
   const ratio = (value - min) / (max - min);
-  const intensity = ratio * 0.95;
-  return `rgba(108, 171, 221, ${intensity})`;
+  const intensity = 0.1 + ratio * 0.9;
+  return `rgba(${r}, ${g}, ${b}, ${intensity})`;
 };
 
 export default function EntityMetricTable({
@@ -62,11 +76,43 @@ export default function EntityMetricTable({
   drilldownUnitOptions = [],
   isDrilldownOptionsLoading = false,
   onDrilldownSelect,
-  onDrilldownClose
+  onDrilldownClose,
+  partialIndices = new Set()
 }: EntityMetricTableProps) {
   const weekColumnCount = weeks.length;
   const colCount = 3 + weekColumnCount;
   const [columnWidths, setColumnWidths] = useState<number[]>([140, 100, 90, ...Array(weekColumnCount).fill(100)]);
+  const [heatmapOff, setHeatmapOff] = useState<Set<string>>(new Set());
+
+  const globalMinMax = useMemo(() => {
+    const result: Record<string, { min: number; max: number }> = {};
+    for (const metric of metrics) {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const entity of entities) {
+        const values = (seriesByEntity[entity.id] ?? {})[metric.id];
+        if (!values) continue;
+        for (let i = 0; i < values.length; i++) {
+          if (partialIndices.has(i)) continue;
+          const v = values[i];
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+      }
+      if (min === Infinity) { min = 0; max = 0; }
+      result[metric.id] = { min, max };
+    }
+    return result;
+  }, [metrics, entities, seriesByEntity, partialIndices]);
+
+  const toggleHeatmap = (metricId: string) => {
+    setHeatmapOff((prev) => {
+      const next = new Set(prev);
+      if (next.has(metricId)) next.delete(metricId);
+      else next.add(metricId);
+      return next;
+    });
+  };
   const resizeIndexRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
@@ -167,7 +213,32 @@ export default function EntityMetricTable({
   return (
     <div className="card table-card">
       <div className="table-head-row">
-        <div />
+        {drilldownPathItems.length > 0 ? (
+          <div className="drilldown-path" aria-label="드릴다운 경로">
+            {drilldownPathItems.map((item, index) => (
+              <span key={`${item.label}-${index}`} className="drilldown-path-item">
+                {item.isCurrent || !onDrilldownNavigate ? (
+                  <span className={`drilldown-node ${item.isCurrent ? "is-current" : ""}`}>{item.label}</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="drilldown-node is-link"
+                    onClick={() => onDrilldownNavigate(item.targetIndex)}
+                  >
+                    {item.label}
+                  </button>
+                )}
+                {index < drilldownPathItems.length - 1 && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="drilldown-sep-icon">
+                    <polyline points="9 6 15 12 9 18" />
+                  </svg>
+                )}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div />
+        )}
         {onShowDeltaChange && (
           <label className="table-toggle">
             <input
@@ -179,30 +250,6 @@ export default function EntityMetricTable({
           </label>
         )}
       </div>
-      {drilldownPathItems.length > 0 && (
-        <div className="drilldown-path" aria-label="드릴다운 경로">
-          {drilldownPathItems.map((item, index) => (
-            <span key={`${item.label}-${index}`} className="drilldown-path-item">
-              {item.isCurrent || !onDrilldownNavigate ? (
-                <span className={`drilldown-node ${item.isCurrent ? "is-current" : ""}`}>{item.label}</span>
-              ) : (
-                <button
-                  type="button"
-                  className="drilldown-node is-link"
-                  onClick={() => onDrilldownNavigate(item.targetIndex)}
-                >
-                  {item.label}
-                </button>
-              )}
-              {index < drilldownPathItems.length - 1 && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="drilldown-sep-icon">
-                  <polyline points="9 6 15 12 9 18" />
-                </svg>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
       <div className="table-scroll">
         <div className="data-grid entity-grid" ref={gridRef}>
           <div className="data-row data-header" style={{ gridTemplateColumns } as CSSProperties}>
@@ -339,18 +386,34 @@ export default function EntityMetricTable({
                   </div>
                   <div className="data-cell data-metric">
                     <span className="name-title">{metric.name}</span>
+                    <button
+                      type="button"
+                      className="heatmap-toggle-dot"
+                      title={`${metric.name} 히트맵 ${heatmapOff.has(metric.id) ? "켜기" : "끄기"}`}
+                      onClick={() => toggleHeatmap(metric.id)}
+                      style={{
+                        backgroundColor: heatmapOff.has(metric.id)
+                          ? "var(--border)"
+                          : `rgb(${METRIC_HEAT_COLORS[index % METRIC_HEAT_COLORS.length].join(",")})`,
+                      }}
+                    />
                   </div>
                   <div className="data-cell data-spark">
-                    <Sparkline values={values} labels={weeks} formatValue={(value) => formatValue(value, metric)} />
+                    <Sparkline values={values.map((v, i) => partialIndices.has(i) ? null : v)} labels={weeks} formatValue={(value) => formatValue(value, metric)} />
                   </div>
                   {values.map((value, indexValue) => {
+                    const isPartial = partialIndices.has(indexValue);
                     const delta = indexValue > 0 ? value - values[indexValue - 1] : null;
                     const deltaLabel = formatDelta(metric, delta);
+                    const { min, max } = globalMinMax[metric.id] ?? { min: 0, max: 0 };
+                    const bgColor = heatmapOff.has(metric.id) || isPartial
+                      ? undefined
+                      : getMetricHeatColor(index, min, max, value);
                     return (
                       <div
                         key={`${entity.id}-${metric.id}-${indexValue}`}
-                        className="data-cell data-value"
-                        style={{ backgroundColor: getHeatColor(values, value) }}
+                        className={`data-cell data-value${isPartial ? " is-partial" : ""}`}
+                        style={{ backgroundColor: bgColor }}
                       >
                         <span className="value-main">{formatValue(value, metric)}</span>
                         {showDelta && (

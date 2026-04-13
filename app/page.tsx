@@ -286,6 +286,62 @@ const formatPeriodLabel = (period: string, periodUnit: PeriodUnit) => {
   return `${period} ${dayOfWeekLabels[date.getDay()]}`;
 };
 
+const getPartialIndices = (rawWeeks: string[], periodUnit: PeriodUnit): Set<number> => {
+  const partial = new Set<number>();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  rawWeeks.forEach((week, index) => {
+    let endDate: Date | null = null;
+
+    if (periodUnit === "week") {
+      // format: "YY.MM.DD - MM.DD"
+      const match = /^(\d{2})\.(\d{2})\.(\d{2})\s*-\s*(\d{2})\.(\d{2})$/.exec(week.trim());
+      if (match) {
+        const [, startYY, , , endMM, endDD] = match;
+        let endYear = Number(`20${startYY}`);
+        const endMonth = Number(endMM);
+        const endDay = Number(endDD);
+        // handle year boundary (e.g. start Dec, end Jan)
+        const startMonth = Number(match[2]);
+        if (endMonth < startMonth) endYear += 1;
+        endDate = new Date(endYear, endMonth - 1, endDay);
+      }
+    } else if (periodUnit === "day") {
+      // format: "YY.MM.DD"
+      const match = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(week.trim());
+      if (match) {
+        endDate = new Date(Number(`20${match[1]}`), Number(match[2]) - 1, Number(match[3]));
+      }
+    } else if (periodUnit === "month") {
+      // format: "YY.MM"
+      const match = /^(\d{2})\.(\d{2})$/.exec(week.trim());
+      if (match) {
+        endDate = new Date(Number(`20${match[1]}`), Number(match[2]), 0); // last day of month
+      }
+    } else if (periodUnit === "quarter") {
+      // format: "YY.Q"
+      const match = /^(\d{2})\.(\d)$/.exec(week.trim());
+      if (match) {
+        const quarterEnd = Number(match[2]) * 3;
+        endDate = new Date(Number(`20${match[1]}`), quarterEnd, 0);
+      }
+    } else if (periodUnit === "year") {
+      // format: "YY"
+      const match = /^(\d{2})$/.exec(week.trim());
+      if (match) {
+        endDate = new Date(Number(`20${match[1]}`), 11, 31);
+      }
+    }
+
+    if (endDate && endDate > today) {
+      partial.add(index);
+    }
+  });
+
+  return partial;
+};
+
 /** 엔티티 시계열 AI 컨텍스트 전달 제한 없음 — 전체 전달 */
 
 const computeAggregateFromEntities = (
@@ -453,6 +509,11 @@ export default function Home() {
   const effectivePeriodRangeValue = periodRangeValue || defaultPeriodRangeValueByUnit[periodUnit];
   const displayedWeeks = useMemo(
     () => weeks.map((week) => formatPeriodLabel(week, appliedPeriodUnit)),
+    [weeks, appliedPeriodUnit]
+  );
+
+  const partialIndices = useMemo(
+    () => getPartialIndices(weeks, appliedPeriodUnit),
     [weeks, appliedPeriodUnit]
   );
 
@@ -1495,6 +1556,7 @@ export default function Home() {
                 series={seriesByEntity[ALL_LABEL] ?? {}}
                 showDelta={showDeltaValues}
                 onShowDeltaChange={setShowDeltaValues}
+                partialIndices={partialIndices}
               />
             ) : (
               <EntityMetricTable
@@ -1504,6 +1566,7 @@ export default function Home() {
                 seriesByEntity={seriesByEntity}
                 showDelta={showDeltaValues}
                 onShowDeltaChange={setShowDeltaValues}
+                partialIndices={partialIndices}
                 onEntitySelect={handleEntityClick}
                 entityFilterOptions={filterOptions}
                 entityFilterValue={filterValue}

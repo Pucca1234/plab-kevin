@@ -257,23 +257,6 @@ export default function ControlBar({
           +
         </button>
         <div className="template-tabs-spacer" />
-        <button
-          type="button"
-          className="template-save-btn"
-          onClick={() => {
-            if (activeTemplateId) {
-              onUpdateTemplateConfig(activeTemplateId);
-            } else {
-              onSaveDefaultConfig();
-            }
-            setSaveToast(true);
-            setTimeout(() => setSaveToast(false), 1500);
-          }}
-          title={activeTemplateId ? "현재 탭에 필터 상태 저장" : "새 탭에 현재 상태 저장"}
-        >
-          저장
-        </button>
-        {saveToast && <span className="save-toast">저장 완료</span>}
       </div>
       <div className="search-panel card control-bar-body">
         <div className="search-row search-row-metrics">
@@ -340,10 +323,29 @@ export default function ControlBar({
               searchPlaceholder="필터 검색..."
             />
           </div>
-          <button type="button" className="btn-ghost btn-reset" onClick={onResetFilters} title="필터 초기화">
-            초기화
-          </button>
-          <div className="search-action-group">
+          <div className="search-actions-stack">
+            <div className="search-actions-top">
+              <button type="button" className="btn-ghost btn-reset" onClick={onResetFilters} title="필터 초기화">
+                초기화
+              </button>
+              <button
+                type="button"
+                className="template-save-btn"
+                onClick={() => {
+                  if (activeTemplateId) {
+                    onUpdateTemplateConfig(activeTemplateId);
+                  } else {
+                    onSaveDefaultConfig();
+                  }
+                  setSaveToast(true);
+                  setTimeout(() => setSaveToast(false), 1500);
+                }}
+                title={activeTemplateId ? "현재 탭에 필터 상태 저장" : "새 탭에 현재 상태 저장"}
+              >
+                저장
+              </button>
+              {saveToast && <span className="save-toast">저장 완료</span>}
+            </div>
             <button type="button" className="btn-primary search-submit-btn" onClick={onSearch} disabled={isSearchDisabled}>
               조회
             </button>

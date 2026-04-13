@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type SparklineProps = {
-  values: number[];
+  values: (number | null)[];
   width?: number;
   height?: number;
   stroke?: string;
@@ -23,51 +23,68 @@ export default function Sparkline({
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  const completeValues = useMemo(
+    () => values.filter((v): v is number => v !== null),
+    [values]
+  );
+
   const points = useMemo(() => {
-    if (!values.length) return [] as { x: number; y: number }[];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    if (!values.length) return [] as ({ x: number; y: number } | null)[];
+    const min = completeValues.length ? Math.min(...completeValues) : 0;
+    const max = completeValues.length ? Math.max(...completeValues) : 0;
     const range = max - min || 1;
     return values.map((value, index) => {
+      if (value === null) return null;
       const x = values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
       const y = height - ((value - min) / range) * height;
       return { x, y };
     });
-  }, [values, width, height]);
+  }, [values, completeValues, width, height]);
 
   const path = useMemo(() => {
-    if (!points.length) return "";
-    return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+    const validPoints = points.filter((p): p is { x: number; y: number } => p !== null);
+    if (!validPoints.length) return "";
+    return validPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
   }, [points]);
 
-  const trendPath = useMemo(() => {
-    if (points.length < 2 || values.length < 2) return "";
-    const n = values.length;
+  const trend = useMemo(() => {
+    if (completeValues.length < 2) return { path: "", slope: 0 };
+    const indexed = values
+      .map((v, i) => ({ v, i }))
+      .filter((e): e is { v: number; i: number } => e.v !== null);
+    const n = indexed.length;
     let sumX = 0;
     let sumY = 0;
     let sumXY = 0;
     let sumXX = 0;
-    for (let i = 0; i < n; i += 1) {
-      const x = i;
-      const y = values[i];
-      sumX += x;
-      sumY += y;
-      sumXY += x * y;
-      sumXX += x * x;
+    for (const { v, i } of indexed) {
+      sumX += i;
+      sumY += v;
+      sumXY += i * v;
+      sumXX += i * i;
     }
     const denominator = n * sumXX - sumX * sumX;
     const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
     const intercept = (sumY - slope * sumX) / n;
-    const y0 = intercept;
-    const yN = slope * (n - 1) + intercept;
 
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    const firstIdx = indexed[0].i;
+    const lastIdx = indexed[indexed.length - 1].i;
+    const y0 = slope * firstIdx + intercept;
+    const yN = slope * lastIdx + intercept;
+
+    const min = Math.min(...completeValues);
+    const max = Math.max(...completeValues);
     const range = max - min || 1;
     const mapY = (v: number) => height - ((v - min) / range) * height;
 
-    return `M 0 ${mapY(y0)} L ${width} ${mapY(yN)}`;
-  }, [points.length, values, width, height]);
+    const x0 = values.length === 1 ? width / 2 : (firstIdx / (values.length - 1)) * width;
+    const xN = values.length === 1 ? width / 2 : (lastIdx / (values.length - 1)) * width;
+
+    return { path: `M ${x0} ${mapY(y0)} L ${xN} ${mapY(yN)}`, slope };
+  }, [completeValues, values, width, height]);
+
+  const trendPath = trend.path;
+  const trendColor = trend.slope < 0 ? "#D94444" : "#000000";
 
   useEffect(() => {
     setHoverIndex(null);
@@ -84,11 +101,12 @@ export default function Sparkline({
 
   const handleLeave = () => setHoverIndex(null);
 
+  const hoveredValue = hoverIndex !== null ? values[hoverIndex] : undefined;
   const tooltipContent =
-    hoverIndex !== null && values[hoverIndex] !== undefined
+    hoverIndex !== null && hoveredValue !== undefined && hoveredValue !== null
       ? {
           label: labels[hoverIndex] ?? "",
-          value: formatValue ? formatValue(values[hoverIndex]) : values[hoverIndex].toString()
+          value: formatValue ? formatValue(hoveredValue) : hoveredValue.toString()
         }
       : null;
 
@@ -102,10 +120,10 @@ export default function Sparkline({
       <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="sparkline">
         {path && <path d={path} fill="none" strokeWidth="2" strokeLinecap="round" stroke={stroke} />}
         {trendPath && (
-          <path d={trendPath} fill="none" strokeWidth="1.4" strokeLinecap="round" stroke="#000000" strokeDasharray="3 3" />
+          <path d={trendPath} fill="none" strokeWidth="1.4" strokeLinecap="round" stroke={trendColor} strokeDasharray="3 3" />
         )}
-        {hoverIndex !== null && points[hoverIndex] && (
-          <circle cx={points[hoverIndex].x} cy={points[hoverIndex].y} r="3.5" fill={stroke} />
+        {hoverIndex !== null && points[hoverIndex] != null && (
+          <circle cx={points[hoverIndex]!.x} cy={points[hoverIndex]!.y} r="3.5" fill={stroke} />
         )}
       </svg>
       {tooltipContent && (
