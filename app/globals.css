@@ -322,7 +322,7 @@ main {
 
 .field {
   display: grid;
-  gap: 2px;
+  gap: 0;
 }
 
 .field-label {
@@ -344,6 +344,9 @@ main {
   font-family: var(--font-body);
   background: var(--card);
   transition: border var(--transition-normal), box-shadow var(--transition-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field select:focus,
@@ -728,19 +731,21 @@ main {
 }
 
 .search-field {
-  min-width: 130px;
+  width: 190px;
+  min-width: 190px;
 }
 
 .search-field-period-unit {
-  width: 90px;
+  width: 190px;
 }
 
 .search-field-period-range {
-  width: 130px;
+  width: 190px;
 }
 
 .search-field-filter {
-  min-width: 180px;
+  width: 190px;
+  min-width: 190px;
 }
 
 .search-field-metric-picker {
@@ -748,7 +753,8 @@ main {
 }
 
 .search-field-measurement-select {
-  min-width: 220px;
+  width: 190px;
+  min-width: 190px;
 }
 
 .search-action-group {
@@ -1465,12 +1471,14 @@ main {
 
 .search-field .ms-trigger {
   width: 100%;
+  min-width: 0;
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 6px);
   background: var(--card);
   font-size: 13px;
   justify-content: space-between;
+  overflow: hidden;
 }
 
 .search-field .ms-trigger:hover {
@@ -1478,7 +1486,7 @@ main {
 }
 
 .search-field .ms-menu {
-  min-width: 160px;
+  min-width: 190px;
 }
 
 .entity-filter-menu {

@@ -53,47 +53,14 @@ type ControlBarProps = {
   isExporting?: boolean;
 };
 
-const getFilterSummaryLabel = (group: FilterGroup) => {
-  if (group.options.length === 0) return "없음";
-  if (group.selectedValues.length === 0) return "선택";
-  if (group.selectedValues.length === group.options.length) return "전체";
+const getMultiSelectDisplayLabel = (group: FilterGroup) => {
+  const total = group.options.length;
+  const selected = group.selectedValues.length;
 
-  const selectedLabels = group.options
-    .filter((option) => group.selectedValues.includes(option.value))
-    .map((option) => option.label);
-
-  if (selectedLabels.length === 0) return "선택";
-  if (selectedLabels.length === 1) return selectedLabels[0];
-  return `${selectedLabels[0]} 외 ${selectedLabels.length - 1}`;
-};
-
-const getDisplayFilterSummaryLabel = (group: FilterGroup, groups: FilterGroup[]) => {
-  const selectedLabels = group.options
-    .filter((option) => group.selectedValues.includes(option.value))
-    .map((option) => option.label);
-
-  const hasOtherActiveFilter = groups.some((candidate) => {
-    if (candidate.unit === group.unit) return false;
-    if (candidate.options.length === 0) return false;
-    return candidate.selectedValues.length !== candidate.options.length;
-  });
-
-  if (selectedLabels.length >= 3) {
-    return `${selectedLabels[0]} 외 ${selectedLabels.length - 1} (${selectedLabels.length}/${group.options.length})`;
-  }
-
-  if (group.selectedValues.length === group.options.length && hasOtherActiveFilter) {
-    if (selectedLabels.length <= 2) {
-      return selectedLabels.join(", ");
-    }
-    return `${selectedLabels[0]} 외 ${selectedLabels.length - 1}`;
-  }
-
-  if (selectedLabels.length === 1 && group.selectedValues.length === group.options.length) {
-    return selectedLabels[0];
-  }
-
-  return getFilterSummaryLabel(group);
+  if (total === 0) return group.label;
+  if (selected === 0) return group.label;
+  if (selected === total) return group.label;
+  return `${group.label} (${selected})`;
 };
 
 export default function ControlBar({
@@ -156,8 +123,6 @@ export default function ControlBar({
     setEditingId(null);
     setEditingName("");
   };
-
-  const allFilterGroups = [...periodFilterGroups, ...filterGroups];
 
   return (
     <div className="control-bar-wrap">
@@ -316,37 +281,33 @@ export default function ControlBar({
         </div>
 
         <div className="search-row search-row-main">
-          <div className="filter-group-period">
-            <label className="field search-field search-field-period-unit">
-              <span className="field-label">기간단위</span>
-              <select value={periodUnit} onChange={(event) => onPeriodUnitChange(event.target.value as PeriodUnit)}>
-                {periodUnitOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field search-field search-field-period-range">
-              <span className="field-label">기간범위</span>
-              <select value={periodRangeValue} onChange={(event) => onPeriodRangeChange(event.target.value)}>
-                {periodRangeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <label className="field search-field">
+            <select value={periodUnit} onChange={(event) => onPeriodUnitChange(event.target.value as PeriodUnit)}>
+              {periodUnitOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {`기간단위 : ${option.label}`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field search-field">
+            <select value={periodRangeValue} onChange={(event) => onPeriodRangeChange(event.target.value)}>
+              {periodRangeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {`기간범위 : ${option.label}`}
+                </option>
+              ))}
+            </select>
+          </label>
 
           {periodFilterGroups.map((group) => (
-            <div key={group.unit} className="field search-field search-field-filter">
-              <span className="field-label">{group.label}</span>
+            <div key={group.unit} className="field search-field">
               <MultiSelectDropdown
                 options={group.options}
                 selectedValues={group.selectedValues}
                 onChange={(values) => onFilterChange(group.unit, values)}
-                label={getDisplayFilterSummaryLabel(group, allFilterGroups)}
+                label={getMultiSelectDisplayLabel(group)}
                 searchPlaceholder={`${group.label} 검색`}
               />
             </div>
@@ -354,59 +315,57 @@ export default function ControlBar({
         </div>
 
         <div className="search-row search-row-main search-row-secondary">
-          <label className="field search-field search-field-measurement-select">
-            <span className="field-label">측정단위</span>
+          <label className="field search-field">
             <select value={measurementUnit} onChange={(event) => onMeasurementUnitChange(event.target.value)}>
               {measurementUnitOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {`측정단위 : ${option.label}`}
                 </option>
               ))}
             </select>
           </label>
 
           {filterGroups.map((group) => (
-            <div key={group.unit} className="field search-field search-field-filter">
-              <span className="field-label">{group.label}</span>
+            <div key={group.unit} className="field search-field">
               <MultiSelectDropdown
                 options={group.options}
                 selectedValues={group.selectedValues}
                 onChange={(values) => onFilterChange(group.unit, values)}
-                label={getDisplayFilterSummaryLabel(group, allFilterGroups)}
+                label={getMultiSelectDisplayLabel(group)}
                 searchPlaceholder={`${group.label} 검색`}
               />
             </div>
           ))}
 
           <div className="search-actions-stack">
-              <button type="button" className="template-save-btn btn-icon" onClick={onResetFilters} title="필터 초기화">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <button type="button" className="template-save-btn btn-icon" onClick={onResetFilters} title="필터 초기화">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+            <button
+              type="button"
+              className="template-save-btn btn-icon"
+              onClick={() => {
+                if (activeTemplateId) {
+                  onUpdateTemplateConfig(activeTemplateId);
+                } else {
+                  onSaveDefaultConfig();
+                }
+                setSaveToast(true);
+                setTimeout(() => setSaveToast(false), 1500);
+              }}
+              title={activeTemplateId ? "현재 템플릿에 필터 상태 저장" : "기본 템플릿에 현재 상태 저장"}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            </button>
+            {saveToast && <span className="save-toast">저장 완료</span>}
+            {onExport && (
+              <button type="button" className="template-save-btn btn-icon" onClick={onExport} disabled={isExporting} title="내보내기">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </button>
-              <button
-                type="button"
-                className="template-save-btn btn-icon"
-                onClick={() => {
-                  if (activeTemplateId) {
-                    onUpdateTemplateConfig(activeTemplateId);
-                  } else {
-                    onSaveDefaultConfig();
-                  }
-                  setSaveToast(true);
-                  setTimeout(() => setSaveToast(false), 1500);
-                }}
-                title={activeTemplateId ? "현재 템플릿에 필터 상태 저장" : "기본 템플릿에 현재 상태 저장"}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              </button>
-              {saveToast && <span className="save-toast">저장 완료</span>}
-              {onExport && (
-                <button type="button" className="template-save-btn btn-icon" onClick={onExport} disabled={isExporting} title="내보내기">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                </button>
-              )}
-              <button type="button" className="btn-primary search-submit-btn btn-icon" onClick={onSearch} disabled={isSearchDisabled}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              </button>
+            )}
+            <button type="button" className="btn-primary search-submit-btn btn-icon" onClick={onSearch} disabled={isSearchDisabled} title="조회">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </button>
           </div>
         </div>
       </div>

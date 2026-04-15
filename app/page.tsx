@@ -81,6 +81,8 @@ const periodUnitOptions: { label: string; value: PeriodUnit }[] = [
   { label: "일", value: "day" }
 ];
 
+const PERIOD_FILTER_UNIT_VALUES: PeriodUnit[] = ["year", "quarter", "month", "week", "day"];
+
 const periodRangeOptionsByUnit: Record<PeriodUnit, { label: string; value: string }[]> = {
   year: [
     { label: "전체", value: "all" },
@@ -1192,6 +1194,16 @@ export default function Home() {
   const handlePeriodUnitChange = (value: PeriodUnit) => {
     setPeriodUnit(value);
     setPeriodRangeValue(defaultPeriodRangeValueByUnit[value]);
+    setFilterOptionsByUnit((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
+      )
+    );
+    setFilterSelectionsByUnit((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
+      )
+    );
     setDrilldownParent(null);
     setPendingDrilldown(null);
   };
