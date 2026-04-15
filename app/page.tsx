@@ -155,6 +155,7 @@ type DrilldownHistoryItem = {
   filterValue: string;
   parent: DrilldownParent;
 };
+type FilterSelectionMap = Record<string, string[]>;
 type PendingDrilldown = {
   entityName: string;
   sourceUnit: MeasurementUnit;
@@ -205,6 +206,65 @@ const getDrilldownOptionsForSource = (
 ) => {
   const candidateIds = new Set(drilldownCandidateMap[sourceUnit] ?? []);
   return options.filter((option) => candidateIds.has(option.value));
+};
+
+const normalizeSelections = (
+  selections: FilterSelectionMap,
+  optionsByUnit: Record<string, FilterOption[]>
+): FilterSelectionMap => {
+  const next: FilterSelectionMap = {};
+  for (const [unit, options] of Object.entries(optionsByUnit)) {
+    const allowedValues = new Set(options.map((option) => option.value));
+    if (Object.prototype.hasOwnProperty.call(selections, unit)) {
+      next[unit] = (selections[unit] ?? []).filter((value) => allowedValues.has(value));
+    } else {
+      next[unit] = options.map((option) => option.value);
+    }
+  }
+  return next;
+};
+
+const buildActiveFilters = (
+  selections: FilterSelectionMap,
+  optionsByUnit: Record<string, FilterOption[]>
+): { unit: string; values: string[] }[] =>
+  Object.entries(optionsByUnit)
+    .map(([unit, options]) => {
+      const selected = selections[unit] ?? [];
+      if (selected.length === 0 && options.length > 0) {
+        return { unit, values: [] };
+      }
+      return {
+        unit,
+        values: selected.length === options.length ? [] : selected
+      };
+    })
+    .filter((filter, index) => filter.values.length > 0 || (Object.values(optionsByUnit)[index]?.length ?? 0) > 0);
+
+const buildFilterSummary = (
+  measurementUnit: MeasurementUnit,
+  selections: FilterSelectionMap,
+  optionsByUnit: Record<string, FilterOption[]>,
+  measurementUnitLabelMap: Record<string, string>
+) => {
+  const activeFilters = buildActiveFilters(selections, optionsByUnit);
+  if (measurementUnit === "all" || activeFilters.length === 0) {
+    return ALL_LABEL;
+  }
+
+  return activeFilters
+    .map((filter) => {
+      const unitLabel = measurementUnitLabelMap[filter.unit] ?? filter.unit;
+      if (filter.values.length === 0) {
+        return `${unitLabel}:없음`;
+      }
+      const labels =
+        filter.values.length === 1
+          ? filter.values[0]
+          : `${filter.values[0]} 외 ${filter.values.length - 1}건`;
+      return `${unitLabel}:${labels}`;
+    })
+    .join(" / ");
 };
 
 
@@ -447,10 +507,11 @@ export default function Home() {
   const [measurementUnitOptions, setMeasurementUnitOptions] = useState<MeasurementUnitOption[]>([
     { value: "all", label: ALL_LABEL }
   ]);
-  const [filterValue, setFilterValue] = useState(ALL_VALUE);
-  const [filterSelectedValues, setFilterSelectedValues] = useState<string[]>([]);
+  const [filterUnitOptions, setFilterUnitOptions] = useState<MeasurementUnitOption[]>([]);
+  const [filterOptionsByUnit, setFilterOptionsByUnit] = useState<Record<string, FilterOption[]>>({});
+  const [filterSelectionsByUnit, setFilterSelectionsByUnit] = useState<FilterSelectionMap>({});
   const [appliedMeasurementUnit, setAppliedMeasurementUnit] = useState<MeasurementUnit>("all");
-  const [appliedFilterValue, setAppliedFilterValue] = useState(ALL_VALUE);
+  const [appliedFilterSelectionsByUnit, setAppliedFilterSelectionsByUnit] = useState<FilterSelectionMap>({});
 
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
@@ -458,6 +519,8 @@ export default function Home() {
   const [isMetricPickerOpen, setIsMetricPickerOpen] = useState(false);
   const [copiedMetricId, setCopiedMetricId] = useState<string | null>(null);
   const [metricSearchTerm, setMetricSearchTerm] = useState("");
+  const [metricCategoryFilter, setMetricCategoryFilter] = useState("");
+  const [metricOwnerFilter, setMetricOwnerFilter] = useState("");
   const [showDeltaValues, setShowDeltaValues] = useState(true);
   const [drilldownParent, setDrilldownParent] = useState<DrilldownParent>(null);
   const [appliedDrilldownHistory, setAppliedDrilldownHistory] = useState<DrilldownHistoryItem[]>([]);
@@ -470,7 +533,7 @@ export default function Home() {
   const [seriesByEntity, setSeriesByEntity] = useState<Record<string, Record<string, number[]>>>({});
   const [availableMetricIds, setAvailableMetricIds] = useState<string[]>([]);
 
-  const [filterOptions, setFilterOptions] = useState<FilterOption[]>([{ label: ALL_LABEL, value: ALL_VALUE }]);
+  const [entityFilterValue, setEntityFilterValue] = useState(ALL_VALUE);
 
   const [showResults, setShowResults] = useState(false);
   const [isLoadingBase, setIsLoadingBase] = useState(true);
@@ -485,8 +548,22 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null);
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
-  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(null);
+  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = localStorage.getItem("kevin_default_tab_config");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [userName, setUserName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultTabConfig) {
+      localStorage.setItem("kevin_default_tab_config", JSON.stringify(defaultTabConfig));
+    }
+  }, [defaultTabConfig]);
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(true);
@@ -499,7 +576,7 @@ export default function Home() {
     appliedPeriodUnit,
     appliedPeriodRangeValue,
     appliedMeasurementUnit,
-    appliedFilterValue,
+    JSON.stringify(appliedFilterSelectionsByUnit),
     drilldownParent?.unit,
     drilldownParent?.value,
     weeks.join("|")
@@ -523,6 +600,22 @@ export default function Home() {
         measurementUnitOptions.map((option) => [option.value, option.label])
       ) as Record<string, string>,
     [measurementUnitOptions]
+  );
+
+  const filterGroups = useMemo(
+    () =>
+      filterUnitOptions.map((option) => ({
+        unit: option.value,
+        label: option.label,
+        options: filterOptionsByUnit[option.value] ?? [],
+        selectedValues: filterSelectionsByUnit[option.value] ?? []
+      })),
+    [filterOptionsByUnit, filterSelectionsByUnit, filterUnitOptions]
+  );
+
+  const activeSearchFilters = useMemo(
+    () => buildActiveFilters(filterSelectionsByUnit, filterOptionsByUnit),
+    [filterOptionsByUnit, filterSelectionsByUnit]
   );
 
   const pushError = (message: string, detail?: string) => {
@@ -587,7 +680,10 @@ export default function Home() {
         setMeasurementUnitOptions(options);
         if (!options.some((option) => option.value === measurementUnit)) {
           setMeasurementUnit("all");
-          setFilterValue(ALL_VALUE);
+          setFilterUnitOptions([]);
+          setFilterOptionsByUnit({});
+          setFilterSelectionsByUnit({});
+          setEntityFilterValue(ALL_VALUE);
           setDrilldownParent(null);
           setAppliedDrilldownHistory([]);
           setPendingDrilldown(null);
@@ -660,11 +756,12 @@ export default function Home() {
   useEffect(() => {
     let canceled = false;
 
-    const loadFilters = async () => {
+    const loadFilterUnits = async () => {
       if (measurementUnit === "all") {
-        setFilterOptions([{ label: ALL_LABEL, value: ALL_VALUE }]);
-        setFilterValue(ALL_VALUE);
-        setFilterSelectedValues([]);
+        setFilterUnitOptions([]);
+        setFilterOptionsByUnit({});
+        setFilterSelectionsByUnit({});
+        setEntityFilterValue(ALL_VALUE);
         return;
       }
 
@@ -685,23 +782,97 @@ export default function Home() {
           params.set("parentUnit", drilldownParent.unit);
           params.set("parentValue", drilldownParent.value);
         }
-        const response = await fetchJsonWithTimeout<{ options: string[] }>(
-          `/api/filter-options?${params.toString()}`,
+        const unitsResponse = await fetchJsonWithTimeout<{ options: MeasurementUnitOption[] }>(
+          `/api/filter-units?${params.toString()}`,
           15000
         );
         if (canceled) return;
 
-        const options = response.options ?? [];
-        setFilterOptions([
-          { label: ALL_LABEL, value: ALL_VALUE },
-          ...options.map((value) => ({ label: value, value }))
-        ]);
-        setFilterSelectedValues(options);
+        setFilterUnitOptions(unitsResponse.options ?? []);
       } catch (error) {
         if (!canceled) {
           const message = (error as Error).message;
-          setFilterOptions([{ label: ALL_LABEL, value: ALL_VALUE }]);
-          setFilterValue(ALL_VALUE);
+          setFilterUnitOptions([]);
+          setFilterOptionsByUnit({});
+          setFilterSelectionsByUnit({});
+          pushError("필터 기준 로딩 실패", message);
+        }
+      } finally {
+        if (!canceled) setIsLoadingFilter(false);
+      }
+    };
+
+    loadFilterUnits();
+
+    return () => {
+      canceled = true;
+    };
+  }, [measurementUnit, drilldownParent?.unit, drilldownParent?.value, effectivePeriodRangeValue, periodUnit]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadFilters = async () => {
+      if (measurementUnit === "all" || filterUnitOptions.length === 0) {
+        setFilterOptionsByUnit({});
+        setFilterSelectionsByUnit({});
+        setEntityFilterValue(ALL_VALUE);
+        return;
+      }
+
+      setIsLoadingFilter(true);
+      setErrorMessage(null);
+      try {
+        const weeksResponse = await fetchJsonWithTimeout<{ weeks: string[] }>(
+          buildPeriodsApiUrl(periodUnit, effectivePeriodRangeValue),
+          6000
+        );
+        const effectiveWeeks = effectivePeriodRangeValue !== "all" ? (weeksResponse.weeks ?? []) : [];
+        const nextOptionsEntries = await Promise.all(
+          filterUnitOptions.map(async (filterUnitOption) => {
+            const params = new URLSearchParams({
+              measureUnit: measurementUnit,
+              filterUnit: filterUnitOption.value,
+              periodUnit
+            });
+            effectiveWeeks.forEach((week) => params.append("week", week));
+            if (drilldownParent?.unit && drilldownParent?.value) {
+              params.set("parentUnit", drilldownParent.unit);
+              params.set("parentValue", drilldownParent.value);
+            }
+
+            const currentSelections = normalizeSelections(filterSelectionsByUnit, filterOptionsByUnit);
+            for (const [unit, values] of Object.entries(currentSelections)) {
+              if (unit === filterUnitOption.value) continue;
+              const optionCount = filterOptionsByUnit[unit]?.length ?? 0;
+              if (optionCount > 0 && values.length === optionCount) continue;
+              values.forEach((value) => {
+                params.append("activeFilterUnit", unit);
+                params.append("activeFilterValue", value);
+              });
+            }
+
+            const response = await fetchJsonWithTimeout<{ options: string[] }>(
+              `/api/filter-options?${params.toString()}`,
+              15000
+            );
+            return [
+              filterUnitOption.value,
+              (response.options ?? []).map((value) => ({ label: value, value }))
+            ] as const;
+          })
+        );
+        if (canceled) return;
+
+        const nextOptionsByUnit = Object.fromEntries(nextOptionsEntries);
+        setFilterOptionsByUnit(nextOptionsByUnit);
+        setFilterSelectionsByUnit((current) => normalizeSelections(current, nextOptionsByUnit));
+        setEntityFilterValue(ALL_VALUE);
+      } catch (error) {
+        if (!canceled) {
+          const message = (error as Error).message;
+          setFilterOptionsByUnit({});
+          setFilterSelectionsByUnit({});
           pushError("필터 옵션 로딩 실패, 전체 옵션만 유지합니다.", message);
         }
       } finally {
@@ -714,7 +885,15 @@ export default function Home() {
     return () => {
       canceled = true;
     };
-  }, [measurementUnit, drilldownParent?.unit, drilldownParent?.value, effectivePeriodRangeValue, periodUnit]);
+  }, [
+    measurementUnit,
+    filterUnitOptions,
+    JSON.stringify(filterSelectionsByUnit),
+    drilldownParent?.unit,
+    drilldownParent?.value,
+    effectivePeriodRangeValue,
+    periodUnit
+  ]);
 
   const selectedMetrics = useMemo(() => {
     const map = new Map(metrics.map((metric) => [metric.id, metric]));
@@ -760,7 +939,7 @@ export default function Home() {
 
   const runSearch = async (overrides?: {
     measurementUnit?: MeasurementUnit;
-    filterValue?: string;
+    filterSelections?: FilterSelectionMap;
     drilldownParent?: DrilldownParent;
     drilldownHistory?: DrilldownHistoryItem[];
     periodUnit?: PeriodUnit;
@@ -773,10 +952,10 @@ export default function Home() {
       overrides && "measurementUnit" in overrides && overrides.measurementUnit !== undefined
         ? overrides.measurementUnit
         : measurementUnit;
-    const targetFilterValue =
-      overrides && "filterValue" in overrides && overrides.filterValue !== undefined
-        ? overrides.filterValue
-        : filterValue;
+    const targetFilterSelections =
+      overrides && "filterSelections" in overrides && overrides.filterSelections !== undefined
+        ? overrides.filterSelections
+        : filterSelectionsByUnit;
     const targetDrilldownParent =
       overrides && "drilldownParent" in overrides
         ? (overrides.drilldownParent ?? null)
@@ -787,7 +966,12 @@ export default function Home() {
         : [
             {
               measurementUnit: targetMeasurementUnit,
-              filterValue: targetFilterValue,
+              filterValue: buildFilterSummary(
+                targetMeasurementUnit,
+                targetFilterSelections,
+                filterOptionsByUnit,
+                measurementUnitLabelMap
+              ),
               parent: targetDrilldownParent
             }
           ];
@@ -838,7 +1022,7 @@ export default function Home() {
         body: JSON.stringify({
           periodUnit: targetPeriodUnit,
           measureUnit: targetMeasurementUnit,
-          filterValue: targetFilterValue === ALL_VALUE ? null : targetFilterValue,
+          filters: buildActiveFilters(targetFilterSelections, filterOptionsByUnit),
           parentUnit: targetDrilldownParent?.unit ?? null,
           parentValue: targetDrilldownParent?.value ?? null,
           weeks: nextWeeks,
@@ -858,21 +1042,11 @@ export default function Home() {
       setAppliedPeriodUnit(targetPeriodUnit);
       setAppliedPeriodRangeValue(effectivePeriodRangeValue);
       setAppliedMeasurementUnit(targetMeasurementUnit);
-      setAppliedFilterValue(targetFilterValue);
+      setAppliedFilterSelectionsByUnit(targetFilterSelections);
       setAppliedDrilldownHistory(targetDrilldownHistory);
       setShowResults(true);
       setPendingDrilldown(null);
-
-      const context = buildContext(
-        nextWeeks,
-        selectedMetrics,
-        selectedMetrics[0]?.id ?? null,
-        nextSeries,
-        targetPeriodUnit,
-        targetMeasurementUnit,
-        targetFilterValue === ALL_VALUE ? ALL_LABEL : targetFilterValue,
-        measurementUnitLabelMap
-      );
+      setEntityFilterValue(ALL_VALUE);
 
     } catch (error) {
       if ((error as Error).name === "AbortError") {
@@ -896,16 +1070,30 @@ export default function Home() {
     }
     if (filters.periodRangeValue) setPeriodRangeValue(filters.periodRangeValue);
     if (filters.measurementUnit) setMeasurementUnit(filters.measurementUnit as MeasurementUnit);
-    if (filters.filterValue) {
-      const resolved = filters.filterValue === "__ALL__" ? ALL_VALUE : filters.filterValue;
-      setFilterValue(resolved);
-      setFilterSelectedValues(resolved === ALL_VALUE ? [] : [resolved]);
+    if (filters.filterSelections) {
+      setFilterSelectionsByUnit(filters.filterSelections);
+      setEntityFilterValue(ALL_VALUE);
+    } else if (filters.filterValue) {
+      const measureKey = filters.measurementUnit ?? measurementUnit;
+      if (filters.filterValue === "__ALL__") {
+        setFilterSelectionsByUnit((current) => ({
+          ...current,
+          [measureKey]: filterOptionsByUnit[measureKey]?.map((option) => option.value) ?? current[measureKey] ?? []
+        }));
+      } else {
+        const nextFilterValue = filters.filterValue;
+        setFilterSelectionsByUnit((current) => ({
+          ...current,
+          [measureKey]: nextFilterValue ? [nextFilterValue] : current[measureKey] ?? []
+        }));
+      }
+      setEntityFilterValue(ALL_VALUE);
     }
     if (filters.metricIds?.length) setSelectedMetricIds(filters.metricIds);
 
     // Trigger auto search on next render cycle
     setAutoSearchPending(true);
-  }, []);
+  }, [filterOptionsByUnit, measurementUnit]);
 
   // Auto search when AI applies filters
   useEffect(() => {
@@ -919,22 +1107,20 @@ export default function Home() {
     periodUnits: periodUnitOptions,
     periodRanges: periodRangeOptions,
     measurementUnits: measurementUnitOptions.map((opt) => ({ label: opt.label, value: opt.value })),
-    filterOptions: filterOptions
-      .filter((f) => f.value !== ALL_VALUE)
-      .map((f) => f.label),
+    filterOptions: Object.values(filterOptionsByUnit).flat().map((f) => f.label),
     metricOptions: metrics.map((m) => ({ id: m.id, name: m.name })),
-  }), [filterOptions, metrics, measurementUnitOptions, periodRangeOptions]);
+  }), [filterOptionsByUnit, metrics, measurementUnitOptions, periodRangeOptions]);
 
   const handleSearch = async () => {
     await runSearch({
       periodUnit,
       measurementUnit,
-      filterValue,
+      filterSelections: filterSelectionsByUnit,
       drilldownParent: null,
       drilldownHistory: [
         {
           measurementUnit,
-          filterValue,
+          filterValue: buildFilterSummary(measurementUnit, filterSelectionsByUnit, filterOptionsByUnit, measurementUnitLabelMap),
           parent: null
         }
       ]
@@ -943,13 +1129,21 @@ export default function Home() {
 
   const handleMeasurementChange = (value: MeasurementUnit) => {
     setMeasurementUnit(value);
-    setFilterValue(ALL_VALUE);
+    setFilterUnitOptions([]);
+    setFilterOptionsByUnit({});
+    setFilterSelectionsByUnit({});
+    setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
     setPendingDrilldown(null);
   };
 
-  const handleFilterChange = (values: string[]) => {
-    setFilterSelectedValues(values);
+  const handleFilterChange = (unit: MeasurementUnit, values: string[]) => {
+    const fallbackValues = filterOptionsByUnit[unit]?.map((option) => option.value) ?? [];
+    setFilterSelectionsByUnit((current) => ({
+      ...current,
+      [unit]: values.length > 0 ? values : fallbackValues
+    }));
+    setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
     setPendingDrilldown(null);
   };
@@ -976,7 +1170,7 @@ export default function Home() {
       appliedPeriodUnit,
       appliedPeriodRangeValue,
       appliedMeasurementUnit,
-      appliedFilterValue,
+      JSON.stringify(appliedFilterSelectionsByUnit),
       drilldownParent?.unit ?? "root",
       drilldownParent?.value ?? "root",
       entityName,
@@ -1043,11 +1237,17 @@ export default function Home() {
   };
 
   const handleEntityFilterSelect = (nextValue: string) => {
-    setFilterValue(nextValue);
+    setEntityFilterValue(nextValue);
     void runSearch({
       periodUnit: appliedPeriodUnit,
       measurementUnit,
-      filterValue: nextValue,
+      filterSelections:
+        nextValue === ALL_VALUE
+          ? filterSelectionsByUnit
+          : {
+              ...filterSelectionsByUnit,
+              [measurementUnit]: [nextValue]
+            },
       drilldownParent: null,
       drilldownHistory: [
         {
@@ -1068,7 +1268,18 @@ export default function Home() {
     const baseHistory =
       appliedDrilldownHistory.length > 0
         ? appliedDrilldownHistory
-        : [{ measurementUnit: appliedMeasurementUnit, filterValue: appliedFilterValue, parent: null }];
+        : [
+            {
+              measurementUnit: appliedMeasurementUnit,
+              filterValue: buildFilterSummary(
+                appliedMeasurementUnit,
+                appliedFilterSelectionsByUnit,
+                filterOptionsByUnit,
+                measurementUnitLabelMap
+              ),
+              parent: null
+            }
+          ];
     const nextHistory = [
       ...baseHistory,
       {
@@ -1078,12 +1289,11 @@ export default function Home() {
       }
     ];
     setMeasurementUnit(targetUnit);
-    setFilterValue(ALL_VALUE);
     setDrilldownParent(parent);
     void runSearch({
       periodUnit: appliedPeriodUnit,
       measurementUnit: targetUnit,
-      filterValue: ALL_VALUE,
+      filterSelections: filterSelectionsByUnit,
       drilldownParent: parent,
       drilldownHistory: nextHistory
     });
@@ -1094,13 +1304,12 @@ export default function Home() {
     if (!target) return;
     const nextHistory = appliedDrilldownHistory.slice(0, targetIndex + 1);
     setMeasurementUnit(target.measurementUnit);
-    setFilterValue(target.filterValue);
     setDrilldownParent(target.parent);
     setPendingDrilldown(null);
     void runSearch({
       periodUnit: appliedPeriodUnit,
       measurementUnit: target.measurementUnit,
-      filterValue: target.filterValue,
+      filterSelections: filterSelectionsByUnit,
       drilldownParent: target.parent,
       drilldownHistory: nextHistory
     });
@@ -1168,10 +1377,24 @@ export default function Home() {
     }
   };
 
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of metrics) if (m.category2) set.add(m.category2.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [metrics]);
+
+  const ownerOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of metrics) if (m.category3) set.add(m.category3.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [metrics]);
+
   const filteredMetrics = useMemo(() => {
     const keyword = metricSearchTerm.trim().toLowerCase();
-    if (!keyword) return metrics;
     return metrics.filter((metric) => {
+      if (metricCategoryFilter && (metric.category2 ?? "").trim() !== metricCategoryFilter) return false;
+      if (metricOwnerFilter && (metric.category3 ?? "").trim() !== metricOwnerFilter) return false;
+      if (!keyword) return true;
       const haystack = [
         metric.id,
         metric.name,
@@ -1183,7 +1406,7 @@ export default function Home() {
         .toLowerCase();
       return haystack.includes(keyword);
     });
-  }, [metrics, metricSearchTerm]);
+  }, [metrics, metricSearchTerm, metricCategoryFilter, metricOwnerFilter]);
 
   const groupedMetrics = useMemo(() => {
     const outer = new Map<string, Map<string, Metric[]>>();
@@ -1220,7 +1443,7 @@ export default function Home() {
     } catch (error) {
       const msg = (error as Error).message;
       if (msg !== "Unauthorized") {
-        pushError("탭 목록 불러오기 실패", msg);
+        pushError("템플릿 목록 불러오기 실패", msg);
       }
       return [];
     }
@@ -1235,6 +1458,24 @@ export default function Home() {
       const defaultTemplate = loaded.find((t) => t.is_default);
       if (defaultTemplate) {
         applyTemplateConfig(defaultTemplate);
+      } else if (defaultTabConfig) {
+        const cfg = defaultTabConfig;
+        const nextPeriodUnit = cfg.periodUnit ?? "week";
+        const nextMeasurementUnit = cfg.measurementUnit ?? "all";
+        const legacySelections =
+          cfg.filterValue && cfg.filterValue !== ALL_VALUE && nextMeasurementUnit !== "all"
+            ? { [nextMeasurementUnit]: [cfg.filterValue] }
+            : {};
+        setPeriodUnit(nextPeriodUnit);
+        setPeriodRangeValue(cfg.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
+        setMeasurementUnit(nextMeasurementUnit);
+        setFilterSelectionsByUnit(
+          Object.keys(cfg.filterSelections ?? {}).length > 0 ? (cfg.filterSelections ?? {}) : legacySelections
+        );
+        setEntityFilterValue(ALL_VALUE);
+        if (cfg.selectedMetricIds?.length) {
+          setSelectedMetricIds(cfg.selectedMetricIds);
+        }
       }
     };
 
@@ -1245,12 +1486,18 @@ export default function Home() {
   const applyTemplateConfig = (template: FilterTemplate) => {
     const config = template.config as FilterTemplateConfig;
     const nextPeriodUnit = config.periodUnit ?? "week";
+    const nextMeasurementUnit = config.measurementUnit ?? "all";
+    const legacySelections =
+      config.filterValue && config.filterValue !== ALL_VALUE && nextMeasurementUnit !== "all"
+        ? { [nextMeasurementUnit]: [config.filterValue] }
+        : {};
     setPeriodUnit(nextPeriodUnit);
     setPeriodRangeValue(config.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
-    setMeasurementUnit(config.measurementUnit ?? "all");
-    const resolvedFilter = config.filterValue ?? ALL_VALUE;
-    setFilterValue(resolvedFilter);
-    setFilterSelectedValues(resolvedFilter === ALL_VALUE ? [] : [resolvedFilter]);
+    setMeasurementUnit(nextMeasurementUnit);
+    setFilterSelectionsByUnit(
+      Object.keys(config.filterSelections ?? {}).length > 0 ? (config.filterSelections ?? {}) : legacySelections
+    );
+    setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
     setAppliedDrilldownHistory([]);
     setPendingDrilldown(null);
@@ -1268,7 +1515,8 @@ export default function Home() {
       periodRangeValue: effectivePeriodRangeValue,
       periodUnit,
       measurementUnit,
-      filterValue,
+      filterValue: ALL_VALUE,
+      filterSelections: filterSelectionsByUnit,
       selectedMetricIds
     };
     try {
@@ -1291,6 +1539,7 @@ export default function Home() {
       periodUnit: "week",
       measurementUnit: "all",
       filterValue: ALL_VALUE,
+      filterSelections: {},
       selectedMetricIds: []
     };
     try {
@@ -1303,7 +1552,7 @@ export default function Home() {
       setActiveTemplateId(response.template.id);
       await loadTemplates();
     } catch (error) {
-      pushError("탭 생성 실패", (error as Error).message);
+      pushError("템플릿 생성 실패", (error as Error).message);
     }
   };
 
@@ -1312,7 +1561,8 @@ export default function Home() {
       periodRangeValue: effectivePeriodRangeValue,
       periodUnit,
       measurementUnit,
-      filterValue,
+      filterValue: ALL_VALUE,
+      filterSelections: filterSelectionsByUnit,
       selectedMetricIds
     });
   };
@@ -1322,7 +1572,8 @@ export default function Home() {
       periodRangeValue: effectivePeriodRangeValue,
       periodUnit,
       measurementUnit,
-      filterValue,
+      filterValue: ALL_VALUE,
+      filterSelections: filterSelectionsByUnit,
       selectedMetricIds
     };
     try {
@@ -1380,11 +1631,7 @@ export default function Home() {
     }
   };
 
-  const displayedEntities = useMemo(() => {
-    if (filterSelectedValues.length === 0) return entities;
-    const allowed = new Set(filterSelectedValues);
-    return entities.filter((e) => allowed.has(e.name) || allowed.has(e.id));
-  }, [entities, filterSelectedValues]);
+  const displayedEntities = useMemo(() => entities, [entities]);
 
   const isSearchDisabled = isLoadingBase || isLoadingHeatmap;
 
@@ -1397,10 +1644,25 @@ export default function Home() {
       seriesByEntity,
       appliedPeriodUnit,
       appliedMeasurementUnit,
-      appliedFilterValue === ALL_VALUE ? ALL_LABEL : appliedFilterValue,
+      buildFilterSummary(
+        appliedMeasurementUnit,
+        appliedFilterSelectionsByUnit,
+        filterOptionsByUnit,
+        measurementUnitLabelMap
+      ),
       measurementUnitLabelMap
     ) as ChatContext;
-  }, [showResults, weeks, selectedMetrics, seriesByEntity, appliedPeriodUnit, appliedMeasurementUnit, appliedFilterValue, measurementUnitLabelMap]);
+  }, [
+    showResults,
+    weeks,
+    selectedMetrics,
+    seriesByEntity,
+    appliedPeriodUnit,
+    appliedMeasurementUnit,
+    appliedFilterSelectionsByUnit,
+    filterOptionsByUnit,
+    measurementUnitLabelMap
+  ]);
 
   return (
     <main className={`app-shell${isChatOpen ? " chat-open" : ""}`}>
@@ -1451,8 +1713,7 @@ export default function Home() {
           measurementUnit={measurementUnit}
           measurementUnitOptions={measurementUnitOptions}
           onMeasurementUnitChange={handleMeasurementChange}
-          filterOptions={filterOptions}
-          filterValues={filterSelectedValues}
+          filterGroups={filterGroups}
           onFilterChange={handleFilterChange}
           selectedMetrics={selectedMetrics}
           onRemoveSelectedMetric={handleRemoveSelectedMetric}
@@ -1473,8 +1734,10 @@ export default function Home() {
             setPeriodUnit("week");
             setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
             setMeasurementUnit("all");
-            setFilterValue(ALL_VALUE);
-            setFilterSelectedValues([]);
+            setFilterUnitOptions([]);
+            setFilterOptionsByUnit({});
+            setFilterSelectionsByUnit({});
+            setEntityFilterValue(ALL_VALUE);
             setDrilldownParent(null);
             setAppliedDrilldownHistory([]);
             setPendingDrilldown(null);
@@ -1485,12 +1748,22 @@ export default function Home() {
           onApplyDefault={() => {
             if (defaultTabConfig) {
               const nextPeriodUnit = defaultTabConfig.periodUnit ?? "week";
+              const nextMeasurementUnit = defaultTabConfig.measurementUnit ?? "all";
+              const legacySelections =
+                defaultTabConfig.filterValue &&
+                defaultTabConfig.filterValue !== ALL_VALUE &&
+                nextMeasurementUnit !== "all"
+                  ? { [nextMeasurementUnit]: [defaultTabConfig.filterValue] }
+                  : {};
               setPeriodUnit(nextPeriodUnit);
               setPeriodRangeValue(defaultTabConfig.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
-              setMeasurementUnit(defaultTabConfig.measurementUnit ?? "all");
-              const resolvedFilter = defaultTabConfig.filterValue ?? ALL_VALUE;
-              setFilterValue(resolvedFilter);
-              setFilterSelectedValues(resolvedFilter === ALL_VALUE ? [] : [resolvedFilter]);
+              setMeasurementUnit(nextMeasurementUnit);
+              setFilterSelectionsByUnit(
+                Object.keys(defaultTabConfig.filterSelections ?? {}).length > 0
+                  ? (defaultTabConfig.filterSelections ?? {})
+                  : legacySelections
+              );
+              setEntityFilterValue(ALL_VALUE);
               if (defaultTabConfig.selectedMetricIds?.length) {
                 setSelectedMetricIds(defaultTabConfig.selectedMetricIds);
               }
@@ -1498,8 +1771,10 @@ export default function Home() {
               setPeriodUnit("week");
               setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
               setMeasurementUnit("all");
-              setFilterValue(ALL_VALUE);
-              setFilterSelectedValues([]);
+              setFilterUnitOptions([]);
+              setFilterOptionsByUnit({});
+              setFilterSelectionsByUnit({});
+              setEntityFilterValue(ALL_VALUE);
               setSelectedMetricIds([]);
             }
             setDrilldownParent(null);
@@ -1566,10 +1841,16 @@ export default function Home() {
                 seriesByEntity={seriesByEntity}
                 showDelta={showDeltaValues}
                 onShowDeltaChange={setShowDeltaValues}
-                partialIndices={partialIndices}
-                onEntitySelect={handleEntityClick}
-                entityFilterOptions={filterOptions}
-                entityFilterValue={filterValue}
+              partialIndices={partialIndices}
+              onEntitySelect={handleEntityClick}
+                entityFilterOptions={
+                  measurementUnit === "all"
+                    ? []
+                    : filterOptionsByUnit[measurementUnit]?.length
+                      ? [{ label: ALL_LABEL, value: ALL_VALUE }, ...(filterOptionsByUnit[measurementUnit] ?? [])]
+                      : []
+                }
+                entityFilterValue={entityFilterValue}
                 onEntityFilterSelect={handleEntityFilterSelect}
                 drilldownPathItems={drilldownPathItems}
                 onDrilldownNavigate={handleDrilldownNavigate}
@@ -1604,6 +1885,26 @@ export default function Home() {
               >
                 닫기
               </button>
+            </div>
+            <div className="metric-picker-filters">
+              <select
+                value={metricCategoryFilter}
+                onChange={(e) => setMetricCategoryFilter(e.target.value)}
+              >
+                <option value="">분류 전체</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                value={metricOwnerFilter}
+                onChange={(e) => setMetricOwnerFilter(e.target.value)}
+              >
+                <option value="">담당 전체</option>
+                {ownerOptions.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
             </div>
             <div className="metric-picker-search">
               <input

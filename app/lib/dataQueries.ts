@@ -35,6 +35,16 @@ export async function getMeasurementUnitIds() {
   return getAnalyticsProvider().getMeasurementUnitIds();
 }
 
+export async function getAvailableFilterUnits(params: {
+  measureUnit: string;
+  parentUnit?: string | null;
+  parentValue?: string | null;
+  weeks?: string[];
+  periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+}) {
+  return getAnalyticsProvider().getAvailableFilterUnits(params);
+}
+
 export async function getAvailableDrilldownUnits(params: {
   sourceUnit: string;
   sourceValue: string;
@@ -50,6 +60,8 @@ export async function getAvailableDrilldownUnits(params: {
 export async function getFilterOptions(
   measureUnit: string,
   options?: {
+    filterUnit?: string | null;
+    activeFilters?: { unit: string; values: string[] }[];
     parentUnit?: string | null;
     parentValue?: string | null;
     weeks?: string[];
@@ -62,7 +74,7 @@ export async function getFilterOptions(
 export async function getHeatmap(
   params: {
     measureUnit: string;
-    filterValue: string | null;
+    filters?: { unit: string; values: string[] }[];
     weeks: string[];
     metrics?: string[];
     parentUnit?: string | null;

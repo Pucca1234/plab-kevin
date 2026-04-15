@@ -14,7 +14,7 @@ type HeatmapRequestBody = {
   measureUnit: string;
   weeks: string[];
   metrics: string[];
-  filterValue?: string | null;
+  filters?: { unit: string; values: string[] }[];
   primaryMetricId?: string;
   parentUnit?: string | null;
   parentValue?: string | null;
@@ -23,13 +23,19 @@ type HeatmapRequestBody = {
 const buildHeatmapCacheKey = (params: {
   periodUnit: string;
   measureUnit: string;
-  filterValue: string | null;
+  filters: { unit: string; values: string[] }[];
   weeks: string[];
   metrics: string[];
   parentUnit?: string | null;
   parentValue?: string | null;
 }) => {
-  const filterKey = params.filterValue && params.filterValue.trim() !== "" ? params.filterValue.trim() : "all";
+  const filterKey =
+    params.filters.length > 0
+      ? params.filters
+          .map((filter) => `${filter.unit}:${filter.values.slice().sort().join(",")}`)
+          .sort()
+          .join("|")
+      : "all";
   const weeksKey = params.weeks.join("|");
   const metricsKey = params.metrics.join("|");
   const parentKey =
@@ -56,7 +62,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const { periodUnit, measureUnit, filterValue, weeks, metrics, primaryMetricId, parentUnit, parentValue } = payload;
+  const { periodUnit, measureUnit, filters, weeks, metrics, primaryMetricId, parentUnit, parentValue } = payload;
   const normalizedPeriodUnit =
     periodUnit === "year" || periodUnit === "quarter" || periodUnit === "month" || periodUnit === "day"
       ? periodUnit
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
       requestId,
       periodUnit: normalizedPeriodUnit,
       measureUnit,
-      filterValue,
+      filtersLength: Array.isArray(filters) ? filters.length : null,
       weeksLength: weeks.length,
       firstWeek,
       lastWeek,
@@ -83,7 +89,7 @@ export async function POST(request: Request) {
       requestId,
       periodUnit: normalizedPeriodUnit,
       measureUnit,
-      filterValue,
+      filtersLength: Array.isArray(filters) ? filters.length : null,
       weeksLength: Array.isArray(weeks) ? weeks.length : null,
       metricsLength: Array.isArray(metrics) ? metrics.length : null,
       primaryMetricId,
@@ -97,7 +103,7 @@ export async function POST(request: Request) {
     periodUnit: "year|quarter|month|week|day (optional)",
     weeks: "string[]",
     metrics: "string[]",
-    filterValue: "string|null (optional)",
+    filters: "{ unit: string, values: string[] }[] (optional)",
     primaryMetricId: "string (optional)",
     parentUnit: "string|null (optional)",
     parentValue: "string|null (optional)"
@@ -129,8 +135,20 @@ export async function POST(request: Request) {
     return badRequest(`weeks is required as a non-empty array (max ${MAX_WEEKS})`);
   }
 
-  if (filterValue !== null && filterValue !== undefined && typeof filterValue !== "string") {
-    return badRequest("filterValue must be a string or null");
+  if (filters !== null && filters !== undefined) {
+    if (
+      !Array.isArray(filters) ||
+      filters.some(
+        (filter) =>
+          !filter ||
+          typeof filter.unit !== "string" ||
+          !allowedUnits.has(filter.unit) ||
+          !Array.isArray(filter.values) ||
+          filter.values.some((value) => typeof value !== "string")
+      )
+    ) {
+      return badRequest("filters must be an array of { unit, values }");
+    }
   }
   if (parentUnit !== null && parentUnit !== undefined) {
     if (typeof parentUnit !== "string" || !allowedUnits.has(parentUnit)) {
@@ -155,14 +173,19 @@ export async function POST(request: Request) {
   const primaryMetricFinal = primaryMetricId ?? metricIds[0];
 
   try {
-    const normalizedFilter = filterValue && filterValue.trim() !== "" ? filterValue : null;
+    const normalizedFilters = (filters ?? [])
+      .map((filter) => ({
+        unit: filter.unit,
+        values: filter.values.map((value) => value.trim()).filter((value) => value.length > 0)
+      }))
+      .filter((filter) => filter.unit !== "all");
     const normalizedParentUnit = parentUnit && parentUnit !== "all" ? parentUnit : null;
     const normalizedParentValue =
       parentValue && parentValue.trim() !== "" ? parentValue.trim() : null;
     const cacheKey = buildHeatmapCacheKey({
       measureUnit,
       periodUnit: normalizedPeriodUnit,
-      filterValue: normalizedFilter,
+      filters: normalizedFilters,
       weeks,
       metrics: metricIds,
       parentUnit: normalizedParentUnit,
@@ -174,7 +197,7 @@ export async function POST(request: Request) {
       const rows = await getHeatmap(
         {
           measureUnit,
-          filterValue: normalizedFilter,
+          filters: normalizedFilters,
           weeks,
           metrics: metricIds ? [...metricIds] : undefined,
           parentUnit: normalizedParentUnit,
@@ -207,7 +230,7 @@ export async function POST(request: Request) {
       requestId,
       periodUnit: normalizedPeriodUnit,
       measureUnit,
-      filterValue,
+      filtersLength: Array.isArray(filters) ? filters.length : null,
       weeksLength: Array.isArray(weeks) ? weeks.length : null,
       metricsLength: Array.isArray(metrics) ? metrics.length : null,
       message: (error as Error).message || "Failed to load heatmap."

@@ -9,6 +9,9 @@ const FILTER_OPTIONS_CACHE_TTL = 600;
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const measureUnit = searchParams.get("measureUnit");
+  const filterUnit = searchParams.get("filterUnit");
+  const activeFilterUnits = searchParams.getAll("activeFilterUnit");
+  const activeFilterValues = searchParams.getAll("activeFilterValue");
   const periodUnit = searchParams.get("periodUnit");
   const parentUnit = searchParams.get("parentUnit");
   const parentValue = searchParams.get("parentValue");
@@ -31,11 +34,23 @@ export async function GET(request: Request) {
     const weeksKey = weeks.join("|") || "all-weeks";
     const cacheSuffix =
       normalizedParentUnit && normalizedParentValue
-        ? `${periodUnit ?? "week"}:${normalizedParentUnit}:${normalizedParentValue}:${weeksKey}`
-        : `${periodUnit ?? "week"}:none:${weeksKey}`;
+        ? `${periodUnit ?? "week"}:${filterUnit ?? measureUnit}:${normalizedParentUnit}:${normalizedParentValue}:${weeksKey}`
+        : `${periodUnit ?? "week"}:${filterUnit ?? measureUnit}:none:${weeksKey}`;
     const getFilterOptionsCached = unstable_cache(
       async () => {
         const options = await getFilterOptions(measureUnit, {
+          filterUnit: filterUnit && filterUnit !== "all" ? filterUnit : null,
+          activeFilters: activeFilterUnits.reduce<{ unit: string; values: string[] }[]>((acc, unit, index) => {
+            const value = activeFilterValues[index];
+            if (!unit || !value || unit === filterUnit) return acc;
+            const existing = acc.find((item) => item.unit === unit);
+            if (existing) {
+              existing.values.push(value);
+            } else {
+              acc.push({ unit, values: [value] });
+            }
+            return acc;
+          }, []),
           parentUnit: normalizedParentUnit,
           parentValue: normalizedParentValue,
           weeks,

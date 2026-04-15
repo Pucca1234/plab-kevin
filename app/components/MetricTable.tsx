@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Metric } from "../types";
 import { formatValue } from "../lib/format";
 import Sparkline from "./Sparkline";
@@ -72,15 +73,36 @@ export default function MetricTable({
   const weekColumnCount = weeks.length;
   const colCount = 2 + weekColumnCount;
   const [columnWidths, setColumnWidths] = useState<number[]>([180, 100, ...Array(weekColumnCount).fill(100)]);
-  const [heatmapOff, setHeatmapOff] = useState<Set<string>>(new Set());
+  const [heatmapColorMap, setHeatmapColorMap] = useState<Record<string, number | null>>({});
+  const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
 
-  const toggleHeatmap = (metricId: string) => {
-    setHeatmapOff((prev) => {
-      const next = new Set(prev);
-      if (next.has(metricId)) next.delete(metricId);
-      else next.add(metricId);
-      return next;
-    });
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setColorPickerOpen(null);
+      }
+    };
+    if (colorPickerOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [colorPickerOpen]);
+
+  const openColorPicker = (key: string, e: React.MouseEvent) => {
+    if (colorPickerOpen === key) { setColorPickerOpen(null); return; }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPickerPos({ top: rect.bottom + 4, left: rect.left + rect.width / 2 });
+    setColorPickerOpen(key);
+  };
+
+  const getActiveColorIndex = (metricId: string, defaultIndex: number) => {
+    if (metricId in heatmapColorMap) return heatmapColorMap[metricId];
+    return defaultIndex;
+  };
+
+  const selectHeatmapColor = (metricId: string, colorIndex: number | null) => {
+    setHeatmapColorMap((prev) => ({ ...prev, [metricId]: colorIndex }));
+    setColorPickerOpen(null);
   };
   const resizeIndexRef = useRef<number | null>(null);
   const startXRef = useRef(0);
@@ -198,17 +220,42 @@ export default function MetricTable({
           >
             <div className="data-cell data-name">
               <span className="name-title">{metric.name}</span>
-              <button
-                type="button"
-                className="heatmap-toggle-dot"
-                title={`${metric.name} 히트맵 ${heatmapOff.has(metric.id) ? "켜기" : "끄기"}`}
-                onClick={() => toggleHeatmap(metric.id)}
-                style={{
-                  backgroundColor: heatmapOff.has(metric.id)
-                    ? "var(--border)"
-                    : `rgb(${METRIC_HEAT_COLORS[metricIndex % METRIC_HEAT_COLORS.length].join(",")})`,
-                }}
-              />
+              <div className="heatmap-color-picker-wrap">
+                <button
+                  type="button"
+                  className="heatmap-toggle-dot"
+                  title="히트맵 색상 선택"
+                  onClick={(e) => openColorPicker(metric.id, e)}
+                  style={{
+                    backgroundColor: getActiveColorIndex(metric.id, metricIndex) === null
+                      ? "var(--border)"
+                      : `rgb(${METRIC_HEAT_COLORS[(getActiveColorIndex(metric.id, metricIndex) ?? metricIndex) % METRIC_HEAT_COLORS.length].join(",")})`,
+                  }}
+                />
+                {colorPickerOpen === metric.id && pickerPos && createPortal(
+                  <div className="heatmap-color-dropdown" ref={colorPickerRef} style={{ top: pickerPos.top, left: pickerPos.left }}>
+                    {METRIC_HEAT_COLORS.map((color, ci) => (
+                      <button
+                        key={ci}
+                        type="button"
+                        className={`heatmap-color-option${getActiveColorIndex(metric.id, metricIndex) === ci ? " is-active" : ""}`}
+                        onClick={() => selectHeatmapColor(metric.id, ci)}
+                        style={{ backgroundColor: `rgb(${color.join(",")})` }}
+                        title={["파랑", "초록", "주황", "보라", "빨강", "청록", "골드"][ci]}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      className={`heatmap-color-option heatmap-color-off${getActiveColorIndex(metric.id, metricIndex) === null ? " is-active" : ""}`}
+                      onClick={() => selectHeatmapColor(metric.id, null)}
+                      title="색상 끄기"
+                    >
+                      ✕
+                    </button>
+                  </div>,
+                  document.body
+                )}
+              </div>
             </div>
             <div className="data-cell data-spark">
               <Sparkline values={sparkValues} labels={weeks} formatValue={(value) => formatValue(value, metric)} />
@@ -217,9 +264,10 @@ export default function MetricTable({
               const isPartial = partialIndices.has(index);
               const delta = index > 0 ? value - values[index - 1] : null;
               const deltaLabel = formatDelta(metric, delta);
-              const bgColor = heatmapOff.has(metric.id) || isPartial
+              const activeColor = getActiveColorIndex(metric.id, metricIndex);
+              const bgColor = activeColor === null || isPartial
                 ? undefined
-                : getMetricHeatColor(metricIndex, min, max, value);
+                : getMetricHeatColor(activeColor, min, max, value);
               return (
                 <div
                   key={`${metric.id}-${index}`}

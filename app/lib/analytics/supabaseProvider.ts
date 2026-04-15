@@ -959,6 +959,24 @@ export async function getMeasurementUnitIds() {
   return options.map((option) => option.value);
 }
 
+export async function getAvailableFilterUnits({
+  measureUnit
+}: {
+  measureUnit: QueryMeasureUnit;
+  parentUnit?: QueryDrilldownUnit | null;
+  parentValue?: string | null;
+  weeks?: string[];
+  periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+}) {
+  if (measureUnit === "all") return [];
+  const measureColumns = new Set(getEntityColumnsForUnit(measureUnit));
+  return Object.keys(unitConfigByUnit).filter((unit) => {
+    if (RETIRED_MEASUREMENT_UNITS.has(unit)) return false;
+    const columns = getEntityColumnsForUnit(unit);
+    return columns.length > 0 && columns.every((column) => measureColumns.has(column));
+  });
+}
+
 export async function getAvailableDrilldownUnits({
   sourceUnit,
   sourceValue,
@@ -1017,9 +1035,20 @@ export async function getAvailableDrilldownUnits({
 
 export async function getFilterOptions(
   measureUnit: QueryMeasureUnit,
-  options?: { parentUnit?: QueryDrilldownUnit | null; parentValue?: string | null; weeks?: string[] }
+  options?: {
+    filterUnit?: QueryDrilldownUnit | null;
+    activeFilters?: { unit: string; values: string[] }[];
+    parentUnit?: QueryDrilldownUnit | null;
+    parentValue?: string | null;
+    weeks?: string[];
+    periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+  }
 ) {
   if (measureUnit === "all") return [ALL_LABEL];
+  const filterUnit = options?.filterUnit && options.filterUnit !== "all" ? options.filterUnit : measureUnit;
+  if (filterUnit !== measureUnit) {
+    return [];
+  }
   const unitConfig = getUnitConfig(measureUnit);
   if (!unitConfig) {
     throw new Error(`Unsupported measure unit: ${measureUnit}`);
@@ -1028,6 +1057,7 @@ export async function getFilterOptions(
   const parentUnit = options?.parentUnit;
   const parentValue = options?.parentValue && options.parentValue.trim().length > 0 ? options.parentValue.trim() : null;
   const weeks = (options?.weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
+  const directFilter = (options?.activeFilters ?? []).find((filter) => filter.unit === measureUnit);
 
   if (parentUnit && parentValue) {
     if (LEGACY_MV_UNITS.has(measureUnit) && LEGACY_MV_UNITS.has(parentUnit)) {
@@ -1037,16 +1067,22 @@ export async function getFilterOptions(
   }
 
   if (!parentUnit && LEGACY_MV_UNITS.has(measureUnit)) {
-    const data = await fetchPagedRows<{ filter_value: string | null }>((from, to) =>
-      schemaClient
+    const data = await fetchPagedRows<{ filter_value: string | null }>((from, to) => {
+      let query = schemaClient
         .from(tableName(WEEKLY_AGG_VIEW))
         .select("filter_value")
         .eq("measure_unit", measureUnit)
         .eq("metric_id", "total_match_cnt")
         .not("filter_value", "is", null)
         .order("filter_value", { ascending: true, nullsFirst: false })
-        .range(from, to)
-    );
+        .range(from, to);
+
+      if (directFilter?.values?.length) {
+        query = query.in("filter_value", directFilter.values);
+      }
+
+      return query;
+    });
 
     const values = (data ?? [])
       .map((row) => row.filter_value)
@@ -1059,7 +1095,7 @@ export async function getFilterOptions(
 
 type HeatmapParams = {
   measureUnit: QueryMeasureUnit;
-  filterValue: string | null;
+  filters?: { unit: string; values: string[] }[];
   weeks: string[];
   metrics?: string[];
   parentUnit?: QueryDrilldownUnit | null;
@@ -1067,9 +1103,14 @@ type HeatmapParams = {
 };
 
 export async function getHeatmap(
-  { measureUnit, filterValue, weeks, metrics, parentUnit, parentValue }: HeatmapParams,
+  { measureUnit, filters, weeks, metrics, parentUnit, parentValue }: HeatmapParams,
   timings?: { queryMs?: number; processMs?: number }
 ) {
+  if ((filters ?? []).some((filter) => filter.values.length === 0)) {
+    return [];
+  }
+  const sameUnitFilter = (filters ?? []).find((filter) => filter.unit === measureUnit);
+  const filterValue = sameUnitFilter?.values.find((value) => value.trim().length > 0) ?? null;
   const supportedMetricIds = await getSupportedMetricIds();
   const allowed = new Set(supportedMetricIds);
   const requested = metrics?.filter((metric) => !isBlank(metric)).map((metric) => String(metric).trim()) ?? [];
@@ -1251,6 +1292,7 @@ export const supabaseAnalyticsProvider: AnalyticsProvider = {
   getMetricDictionary,
   getMeasurementUnitOptions,
   getMeasurementUnitIds,
+  getAvailableFilterUnits,
   getAvailableDrilldownUnits,
   getFilterOptions,
   getHeatmap,

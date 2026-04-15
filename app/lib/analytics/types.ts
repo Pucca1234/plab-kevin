@@ -37,6 +37,13 @@ export type AnalyticsProvider = {
   ): Promise<MetricDictionaryItem[]>;
   getMeasurementUnitOptions(): Promise<MeasurementUnitOption[]>;
   getMeasurementUnitIds(): Promise<string[]>;
+  getAvailableFilterUnits(params: {
+    measureUnit: string;
+    parentUnit?: string | null;
+    parentValue?: string | null;
+    weeks?: string[];
+    periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+  }): Promise<string[]>;
   getAvailableDrilldownUnits(params: {
     sourceUnit: string;
     sourceValue: string;
@@ -49,6 +56,8 @@ export type AnalyticsProvider = {
   getFilterOptions(
     measureUnit: string,
     options?: {
+      filterUnit?: string | null;
+      activeFilters?: { unit: string; values: string[] }[];
       parentUnit?: string | null;
       parentValue?: string | null;
       weeks?: string[];
@@ -58,7 +67,7 @@ export type AnalyticsProvider = {
   getHeatmap(
     params: {
       measureUnit: string;
-      filterValue: string | null;
+      filters?: { unit: string; values: string[] }[];
       weeks: string[];
       metrics?: string[];
       parentUnit?: string | null;
