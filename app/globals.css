@@ -1473,11 +1473,12 @@ main {
 .search-field .ms-trigger {
   width: 100%;
   min-width: 0;
-  padding: 7px 10px;
+  padding: 5px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 6px);
   background: var(--card);
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 400;
   justify-content: space-between;
   overflow: hidden;
 }
@@ -1509,7 +1510,7 @@ main {
   color: var(--ink);
   font: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   overflow: hidden;
 }
@@ -1558,7 +1559,7 @@ main {
   color: var(--ink);
   font: inherit;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
   text-align: left;
 }
