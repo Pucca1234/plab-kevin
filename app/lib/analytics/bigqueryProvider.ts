@@ -10,6 +10,7 @@ import {
   UNIT_CONFIG_BY_UNIT,
   buildEntityLabel,
   getEntityColumnsForUnit,
+  getSupportedFilterUnitIds,
   getUnitConfig,
   parseEntityLabel,
   resolveQueryUnitForDrilldownStrict,
@@ -44,6 +45,7 @@ type TimedCache<T> = {
 };
 
 type SupportedPeriodUnit = "year" | "quarter" | "month" | "week" | "day";
+type FilterSelection = { unit: string; values: string[] };
 
 const projectId = process.env.BIGQUERY_PROJECT_ID?.trim() || "plabfootball-51bf5";
 const dataMartDataset = process.env.BIGQUERY_DATASET_SOURCE_DATA_MART?.trim() || "data_mart";
@@ -168,6 +170,27 @@ const buildSourceEntityFilterClause = (unit: string, entityLabel: string | null)
     .join("");
 };
 
+const buildSourceEntityFilterValuesClause = (unit: string, entityLabels?: string[] | null) => {
+  const normalized = (entityLabels ?? []).map((value) => value.trim()).filter((value) => value.length > 0);
+  if (normalized.length === 0 || unit === "all") return "";
+  const parsedLabels = normalized
+    .map((value) => parseEntityLabel(unit, value))
+    .filter((parsed) => Object.keys(parsed).length > 0);
+  if (parsedLabels.length === 0) return "";
+
+  return ` and (${parsedLabels
+    .map(
+      (parsed) =>
+        `(${Object.entries(parsed)
+          .map(([column, value]) => `${sanitizeIdentifier(column)} = '${escapeBigQueryLiteral(value)}'`)
+          .join(" and ")})`
+    )
+    .join(" or ")})`;
+};
+
+const buildSourceFilterSelectionsClause = (filters?: FilterSelection[]) =>
+  (filters ?? []).map((filter) => buildSourceEntityFilterValuesClause(filter.unit, filter.values)).join("");
+
 const buildServingHierarchyFilterClause = (unit: string, entityLabel: string | null) => {
   if (!entityLabel || entityLabel.trim().length === 0 || unit === "all") return "";
   return Object.entries(parseEntityLabel(unit, entityLabel))
@@ -175,12 +198,56 @@ const buildServingHierarchyFilterClause = (unit: string, entityLabel: string | n
     .join("");
 };
 
+const buildServingHierarchyFilterValuesClause = (unit: string | null | undefined, entityLabels?: string[] | null) => {
+  if (!unit || unit === "all") return "";
+  const normalized = (entityLabels ?? []).map((value) => value.trim()).filter((value) => value.length > 0);
+  if (normalized.length === 0) return "";
+  const parsedLabels = normalized
+    .map((value) => parseEntityLabel(unit, value))
+    .filter((parsed) => Object.keys(parsed).length > 0);
+  if (parsedLabels.length === 0) return "";
+
+  return ` and (${parsedLabels
+    .map(
+      (parsed) =>
+        `(${Object.entries(parsed)
+          .map(([column, value]) => `eh.${sanitizeIdentifier(column)} = '${escapeBigQueryLiteral(value)}'`)
+          .join(" and ")})`
+    )
+    .join(" or ")})`;
+};
+
+const buildServingHierarchyFilterSelectionsClause = (filters?: FilterSelection[]) =>
+  (filters ?? []).map((filter) => buildServingHierarchyFilterValuesClause(filter.unit, filter.values)).join("");
+
 const buildExpandedParentFilterClause = (unit: string | null | undefined, entityLabel: string | null) => {
   if (!unit || !entityLabel || entityLabel.trim().length === 0 || unit === "all") return "";
   return Object.entries(parseEntityLabel(unit, entityLabel))
     .map(([column, value]) => ` and ${sanitizeIdentifier(column)} = '${escapeBigQueryLiteral(value)}'`)
     .join("");
 };
+
+const buildExpandedFilterValuesClause = (unit: string | null | undefined, entityLabels?: string[] | null) => {
+  if (!unit || unit === "all") return "";
+  const normalized = (entityLabels ?? []).map((value) => value.trim()).filter((value) => value.length > 0);
+  if (normalized.length === 0) return "";
+  const parsedLabels = normalized
+    .map((value) => parseEntityLabel(unit, value))
+    .filter((parsed) => Object.keys(parsed).length > 0);
+  if (parsedLabels.length === 0) return "";
+
+  return ` and (${parsedLabels
+    .map(
+      (parsed) =>
+        `(${Object.entries(parsed)
+          .map(([column, value]) => `${sanitizeIdentifier(column)} = '${escapeBigQueryLiteral(value)}'`)
+          .join(" and ")})`
+    )
+    .join(" or ")})`;
+};
+
+const buildExpandedFilterSelectionsClause = (filters?: FilterSelection[]) =>
+  (filters ?? []).map((filter) => buildExpandedFilterValuesClause(filter.unit, filter.values)).join("");
 
 const getSourceMetricColumns = async () => {
   const rows = await runBigQueryQuery<{ column_name: string }>(`
@@ -269,12 +336,13 @@ const mapHeatmapRows = (rows: BigQueryHeatmapAggRow[], measureUnit: string, metr
   });
 };
 
-const buildFilterValueExpression = (measureUnit: string) => {
+const buildFilterValueExpression = (measureUnit: string, qualifier = "") => {
+  const prefix = qualifier ? `${qualifier}.` : "";
   const columns = getEntityColumnsForUnit(measureUnit);
   if (measureUnit === "all") return `'${ALL_LABEL}'`;
-  if (columns.length === 1) return sanitizeIdentifier(columns[0]);
+  if (columns.length === 1) return `${prefix}${sanitizeIdentifier(columns[0])}`;
   if (columns.length === 2) {
-    return `concat(${sanitizeIdentifier(columns[0])}, ' | ', ${sanitizeIdentifier(columns[1])})`;
+    return `concat(${prefix}${sanitizeIdentifier(columns[0])}, ' | ', ${prefix}${sanitizeIdentifier(columns[1])})`;
   }
   throw new Error(`Unsupported entity label expression for unit: ${measureUnit}`);
 };
@@ -326,12 +394,16 @@ const getPeriodsDataFromSource = async (
 
 const getFilterOptionsFromSource = async ({
   measureUnit,
+  filterUnit,
+  activeFilters,
   periodUnit,
   periods,
   parentUnit,
   parentValue
 }: {
   measureUnit: string;
+  filterUnit: string;
+  activeFilters?: FilterSelection[];
   periodUnit: SupportedPeriodUnit;
   periods?: string[];
   parentUnit?: string | null;
@@ -341,14 +413,17 @@ const getFilterOptionsFromSource = async ({
   if (!queryUnit) return [];
   const queryUnitConfig = getUnitConfig(queryUnit);
   if (!queryUnitConfig) return [];
+  if (!getUnitConfig(filterUnit)) return [];
 
   const rows = await runQuery<{ filter_value: string | null }>(`
-    select distinct ${buildFilterValueExpression(measureUnit)} as filter_value
+    select distinct ${buildFilterValueExpression(filterUnit)} as filter_value
     from ${sourceTable}
     where period_type = '${periodUnit}'
       ${buildPeriodFilterClause(periodUnit, periods)}
       and dimension_type = '${queryUnitConfig.dimensionType}'
       ${buildNotNullChecksForUnit(queryUnit)}
+      ${buildNotNullChecksForUnit(filterUnit)}
+      ${buildSourceFilterSelectionsClause(activeFilters)}
       ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}
     order by filter_value
   `);
@@ -361,7 +436,7 @@ const getFilterOptionsFromSource = async ({
 const getHeatmapFromSource = async ({
   periodUnit,
   measureUnit,
-  filterValue,
+  filters,
   periods,
   metricIds,
   parentUnit,
@@ -369,7 +444,7 @@ const getHeatmapFromSource = async ({
 }: {
   periodUnit: SupportedPeriodUnit;
   measureUnit: string;
-  filterValue: string | null;
+  filters?: FilterSelection[];
   periods: string[];
   metricIds: string[];
   parentUnit?: string | null;
@@ -395,11 +470,11 @@ const getHeatmapFromSource = async ({
       unnest([
 ${metricStructs}
       ])
-      where src.period_type = '${periodUnit}'
-        ${buildPeriodFilterClause(periodUnit, periods, "src")}
-        and coalesce(nullif(trim(src.dimension_type), ''), 'all') = 'all'
-        and value is not null
-      group by week, measure_unit, filter_value, metric_id
+    where src.period_type = '${periodUnit}'
+      ${buildPeriodFilterClause(periodUnit, periods, "src")}
+      and coalesce(nullif(trim(src.dimension_type), ''), 'all') = 'all'
+      and value is not null
+    group by week, measure_unit, filter_value, metric_id
       order by week, filter_value, metric_id
     `);
   }
@@ -427,7 +502,7 @@ ${metricStructs}
       ${buildPeriodFilterClause(periodUnit, periods, "src")}
       and src.dimension_type = '${queryUnitConfig.dimensionType}'
       ${buildNotNullChecksForUnit(queryUnit)}
-      ${filterValue ? buildSourceEntityFilterClause(measureUnit, filterValue) : ""}
+      ${buildSourceFilterSelectionsClause(filters)}
       ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}
       and value is not null
     group by week, measure_unit, filter_value, metric_id
@@ -563,6 +638,52 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     const options = await bigqueryAnalyticsProvider.getMeasurementUnitOptions();
     return options.map((option) => option.value);
   },
+  getAvailableFilterUnits: async ({ measureUnit, parentUnit, parentValue, weeks, periodUnit }) => {
+    if (measureUnit === "all") return [];
+
+    const queryUnit = resolveQueryUnitForDrilldownStrict(measureUnit, parentUnit);
+    if (!queryUnit) return [];
+    const queryUnitConfig = getUnitConfig(queryUnit);
+    if (!queryUnitConfig) return [];
+
+    const effectivePeriodUnit = normalizePeriodUnit(periodUnit);
+    const effectiveWeeks = (weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
+    const trackedColumns = [
+      "area_group",
+      "area",
+      "stadium_group",
+      "stadium",
+      "time",
+      "hour",
+      "yoil",
+      "yoil_group"
+    ];
+    const rows = await runQuery<Record<string, number | string | null>>(`
+      select
+        ${trackedColumns
+          .map(
+            (column) =>
+              `max(case when ${sanitizeIdentifier(column)} is not null and cast(${sanitizeIdentifier(column)} as string) != '' then 1 else 0 end) as ${sanitizeIdentifier(column)}`
+          )
+          .join(",\n        ")}
+      from ${sourceTable}
+      where period_type = '${effectivePeriodUnit}'
+        ${buildPeriodFilterClause(effectivePeriodUnit, effectiveWeeks)}
+        and dimension_type = '${queryUnitConfig.dimensionType}'
+        ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}
+    `);
+
+    const presenceRow = rows[0] ?? {};
+    const availableColumns = new Set(
+      trackedColumns.filter((column) => Number(presenceRow[column] ?? 0) > 0)
+    );
+
+    return getSupportedFilterUnitIds().filter((unit) => {
+      if (unit === "all") return false;
+      const entityColumns = getEntityColumnsForUnit(unit);
+      return entityColumns.length > 0 && entityColumns.every((column) => availableColumns.has(column));
+    });
+  },
   getAvailableDrilldownUnits: async ({ sourceUnit, sourceValue, candidateUnits, parentUnit, parentValue, weeks, periodUnit }) => {
     const effectivePeriodUnit = normalizePeriodUnit(periodUnit);
     const effectiveWeeks = (weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
@@ -601,8 +722,14 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
   },
   getFilterOptions: async (measureUnit, options) => {
     if (measureUnit === "all") return [ALL_LABEL];
-    const unitConfig = getUnitConfig(measureUnit);
-    if (!unitConfig) {
+    const filterUnit = options?.filterUnit && options.filterUnit !== "all" ? options.filterUnit : measureUnit;
+    const activeFilters = (options?.activeFilters ?? [])
+      .map((filter) => ({
+        unit: filter.unit,
+        values: filter.values.map((value) => value.trim()).filter((value) => value.length > 0)
+      }))
+      .filter((filter) => filter.values.length > 0 && filter.unit !== filterUnit);
+    if (!getUnitConfig(measureUnit) || !getUnitConfig(filterUnit)) {
       throw new Error(`Unsupported measure unit: ${measureUnit}`);
     }
 
@@ -614,6 +741,8 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     if (periodUnit !== "week") {
       return getFilterOptionsFromSource({
         measureUnit,
+        filterUnit,
+        activeFilters,
         periodUnit,
         periods: weeks,
         parentUnit: parentUnit ?? null,
@@ -621,22 +750,23 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       });
     }
 
-    if (parentUnit && parentValue && LEGACY_MV_UNITS.has(measureUnit) && LEGACY_MV_UNITS.has(parentUnit)) {
-      const childColumn = sanitizeIdentifier(COLUMN_BY_UNIT[measureUnit]);
+    if (parentUnit && parentValue && LEGACY_MV_UNITS.has(measureUnit) && LEGACY_MV_UNITS.has(parentUnit) && LEGACY_MV_UNITS.has(filterUnit)) {
+      const filterColumn = sanitizeIdentifier(COLUMN_BY_UNIT[filterUnit]);
       const parentColumn = sanitizeIdentifier(COLUMN_BY_UNIT[parentUnit]);
       const rows = await runQuery<Record<string, string | null>>(`
-        select distinct ${childColumn}
+        select distinct ${filterColumn}
         from ${entityHierarchyView}
         where ${parentColumn} = '${escapeBigQueryLiteral(parentValue)}'
-          and ${childColumn} is not null
-        order by ${childColumn}
+          and ${filterColumn} is not null
+          ${buildServingHierarchyFilterSelectionsClause(activeFilters)}
+        order by ${filterColumn}
       `);
       return rows
-        .map((row) => String(row[childColumn] ?? "").trim())
+        .map((row) => String(row[filterColumn] ?? "").trim())
         .filter((value) => value.length > 0);
     }
 
-    if (!parentUnit && LEGACY_MV_UNITS.has(measureUnit)) {
+    if (!parentUnit && LEGACY_MV_UNITS.has(measureUnit) && filterUnit === measureUnit) {
       const rows = await runQuery<{ filter_value: string | null }>(`
         select distinct filter_value
         from ${weeklyAggView}
@@ -648,29 +778,35 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
         .filter((value) => value.length > 0);
     }
 
-    if (LEGACY_MV_UNITS.has(measureUnit) && parentUnit && LEGACY_MV_UNITS.has(parentUnit)) {
-      const filterUnitColumn = sanitizeIdentifier(COLUMN_BY_UNIT[measureUnit]);
+    if (LEGACY_MV_UNITS.has(measureUnit) && LEGACY_MV_UNITS.has(filterUnit)) {
+      const measureUnitColumn = sanitizeIdentifier(COLUMN_BY_UNIT[measureUnit]);
+      const filterUnitColumn = sanitizeIdentifier(COLUMN_BY_UNIT[filterUnit]);
       const parentFilter = buildServingHierarchyFilterClause(parentUnit ?? "", parentValue);
       const rows = await runQuery<{ filter_value: string | null }>(`
-        select distinct wa.filter_value
+        select distinct eh.${filterUnitColumn} as filter_value
         from ${weeklyAggView} wa
         join ${entityHierarchyView} eh
-          on eh.${filterUnitColumn} = wa.filter_value
+          on eh.${measureUnitColumn} = wa.filter_value
         where wa.measure_unit = '${measureUnit}'
           ${buildWeeksFilterClause(weeks).replace(/week/g, "wa.week")}
+          and eh.${filterUnitColumn} is not null
+          ${buildServingHierarchyFilterSelectionsClause(activeFilters)}
           ${parentFilter}
-        order by wa.filter_value
+        order by eh.${filterUnitColumn}
       `);
       return rows
         .map((row) => String(row.filter_value ?? "").trim())
         .filter((value) => value.length > 0);
     }
 
+    const filterValueExpr = buildFilterValueExpression(filterUnit);
     const rows = await runQuery<{ filter_value: string | null }>(`
-      select distinct filter_value
+      select distinct ${filterValueExpr} as filter_value
       from ${weeklyExpandedAggView}
       where measure_unit = '${measureUnit}'
         ${buildWeeksFilterClause(weeks)}
+        ${buildNotNullChecksForUnit(filterUnit)}
+        ${buildExpandedFilterSelectionsClause(activeFilters)}
         ${buildExpandedParentFilterClause(parentUnit, parentValue)}
       order by filter_value
     `);
@@ -678,13 +814,23 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       .map((row) => String(row.filter_value ?? "").trim())
       .filter((value) => value.length > 0);
   },
-  getHeatmap: async ({ measureUnit, filterValue, weeks, metrics, parentUnit, parentValue, periodUnit }, timings) => {
+  getHeatmap: async ({ measureUnit, filters, weeks, metrics, parentUnit, parentValue, periodUnit }, timings) => {
     const effectivePeriodUnit = normalizePeriodUnit(periodUnit);
     const supportedMetricIds = await bigqueryAnalyticsProvider.getSupportedMetricIds();
     const allowed = new Set(supportedMetricIds);
     const requested = (metrics ?? []).map((metric) => String(metric).trim()).filter((metric) => metric.length > 0);
     const metricIds = (requested.length > 0 ? requested : supportedMetricIds).filter((metric) => allowed.has(metric));
     if (metricIds.length === 0) return [];
+    const normalizedFilters = (filters ?? [])
+      .map((filter) => ({
+        unit: filter.unit,
+        values: filter.values.map((value) => value.trim()).filter((value) => value.length > 0)
+      }))
+      .filter((filter) => filter.unit !== "all" && getUnitConfig(filter.unit));
+
+    if (normalizedFilters.some((filter) => filter.values.length === 0)) {
+      return [];
+    }
 
     const queryStart = Date.now();
 
@@ -692,7 +838,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       const rows = await getHeatmapFromSource({
         periodUnit: effectivePeriodUnit,
         measureUnit,
-        filterValue,
+        filters: normalizedFilters,
         periods: weeks,
         metricIds,
         parentUnit,
@@ -707,18 +853,18 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     }
 
     let rows: BigQueryHeatmapAggRow[] = [];
-    if (measureUnit === "all") {
-      rows = await runQuery<BigQueryHeatmapAggRow>(`
-        select
+      if (measureUnit === "all") {
+        rows = await runQuery<BigQueryHeatmapAggRow>(`
+          select
           week,
           measure_unit,
           filter_value,
           metric_id,
           value
         from ${weeklyAggView}
-        where measure_unit = 'all'
-          ${buildWeeksFilterClause(weeks)}
-          and metric_id in (${metricIds.map((metric) => `'${escapeBigQueryLiteral(metric)}'`).join(", ")})
+          where measure_unit = 'all'
+            ${buildWeeksFilterClause(weeks)}
+            and metric_id in (${metricIds.map((metric) => `'${escapeBigQueryLiteral(metric)}'`).join(", ")})
         order by week, filter_value, metric_id
       `);
     } else {
@@ -734,8 +880,11 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       if (LEGACY_MV_UNITS.has(measureUnit)) {
         const measureUnitColumn = sanitizeIdentifier(COLUMN_BY_UNIT[measureUnit]);
         const parentFilter = buildServingHierarchyFilterClause(parentUnit ?? "", parentValue ?? null);
-        const selectedFilter = filterValue
-          ? ` and wa.filter_value = '${escapeBigQueryLiteral(filterValue)}'`
+        const directMeasureFilter = normalizedFilters.find((filter) => filter.unit === measureUnit);
+        const hierarchyFilters = normalizedFilters.filter((filter) => filter.unit !== measureUnit);
+        const needsHierarchyJoin = Boolean(parentUnit && parentValue) || hierarchyFilters.length > 0;
+        const selectedFilter = directMeasureFilter
+          ? ` and wa.filter_value in (${directMeasureFilter.values.map((value) => `'${escapeBigQueryLiteral(value)}'`).join(", ")})`
           : "";
         rows = await runQuery<BigQueryHeatmapAggRow>(`
           select distinct
@@ -745,11 +894,12 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
             wa.metric_id,
             wa.value
           from ${weeklyAggView} wa
-          ${parentUnit && parentValue ? `join ${entityHierarchyView} eh on eh.${measureUnitColumn} = wa.filter_value` : ""}
+          ${needsHierarchyJoin ? `join ${entityHierarchyView} eh on eh.${measureUnitColumn} = wa.filter_value` : ""}
           where wa.measure_unit = '${measureUnit}'
             ${buildWeeksFilterClause(weeks).replace(/week/g, "wa.week")}
             ${selectedFilter}
             ${metricFilter.replace(/metric_id/g, "wa.metric_id")}
+            ${buildServingHierarchyFilterSelectionsClause(hierarchyFilters)}
             ${parentFilter}
           order by wa.week, wa.filter_value, wa.metric_id
         `);
@@ -764,7 +914,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
           from ${weeklyExpandedAggView}
           where measure_unit = '${measureUnit}'
             ${buildWeeksFilterClause(weeks)}
-            ${filterValue ? ` and filter_value = '${escapeBigQueryLiteral(filterValue)}'` : ""}
+            ${buildExpandedFilterSelectionsClause(normalizedFilters)}
             ${metricFilter}
             ${buildExpandedParentFilterClause(parentUnit, parentValue ?? null)}
           order by week, filter_value, metric_id

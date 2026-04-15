@@ -318,6 +318,33 @@
     - `weekly_expanded_agg_mv`와 type을 먼저 drop하도록 순서 수정
     - 실행 전후 `set statement_timeout = 0` / `reset statement_timeout` 추가
     - retired 단위 `yoil_and_hour`, `yoil_group_and_hour` 관련 rebuild/index 제거
+
+### 7.15 2026-04-15 측정단위 기반 동적 필터 구조 변경
+- 문제:
+  - 기존 검색 UI는 `측정단위 -> 필터 기준 -> 필터 값` 2단 선택 구조라, 사용자가 실제 사용할 수 있는 필터 축을 한 번 더 선택해야 했음
+  - 기본 상태가 `0/n` 미선택이라 첫 조회 전 UX가 불명확했음
+- 변경:
+  - `필터 기준` 셀렉트를 제거
+  - `measureUnit`의 실제 source row(`dimension_type`)에서 값이 존재하는 엔티티 축만 찾아 각 축을 독립 필터로 직접 노출
+  - 예:
+    - `measureUnit=area` -> `area_group`, `area`
+    - `measureUnit=stadium` -> `area_group`, `area`, `stadium_group`, `stadium`
+- 필터 상태 모델:
+  - 단일 `filterValue` 중심에서 `filterSelections: Record<unit, string[]>` 구조로 전환
+  - 최초 로드 시 각 필터 축은 모든 옵션이 기본 선택 상태
+  - `전체 해제`로 0개 선택 상태를 만들 수 있으며, 이는 실제 빈 필터로 취급
+- API 반영:
+  - `GET /api/filter-units`
+    - `measureUnit` 기준 사용 가능한 필터 축 목록 제공
+  - `GET /api/filter-options`
+    - `filterUnit`별 옵션 목록 제공
+    - 다른 필터 축의 활성 선택은 `activeFilters` 컨텍스트로 반영
+  - `POST /api/heatmap`
+    - `filters: [{ unit, values[] }]` 구조로 여러 필터 축의 교집합을 전달
+    - 특정 축이 0개 선택이면 빈 결과 반환
+- 템플릿/호환성:
+  - 템플릿 저장 형식은 `filterSelections` 기준으로 확장
+  - 구버전 단일 `filterValue` 템플릿은 현재 측정단위 기준으로 호환 복원
   - `.github/workflows/weekly-mv-rebuild.yml`
     - rebuild step에 `PGOPTIONS="-c statement_timeout=0"` 추가
 - 운영 검증:

@@ -1,4 +1,6 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import {
   FilterOption,
   FilterTemplate,
@@ -8,6 +10,13 @@ import {
   PeriodUnit
 } from "../types";
 import MultiSelectDropdown from "./MultiSelectDropdown";
+
+type FilterGroup = {
+  unit: MeasurementUnit;
+  label: string;
+  options: FilterOption[];
+  selectedValues: string[];
+};
 
 type ControlBarProps = {
   periodUnit: PeriodUnit;
@@ -19,9 +28,8 @@ type ControlBarProps = {
   measurementUnit: MeasurementUnit;
   measurementUnitOptions: MeasurementUnitOption[];
   onMeasurementUnitChange: (value: MeasurementUnit) => void;
-  filterOptions: FilterOption[];
-  filterValues: string[];
-  onFilterChange: (values: string[]) => void;
+  filterGroups: FilterGroup[];
+  onFilterChange: (unit: MeasurementUnit, values: string[]) => void;
   selectedMetrics: Metric[];
   onRemoveSelectedMetric: (metricId: string) => void;
   onClearSelectedMetrics: () => void;
@@ -42,6 +50,20 @@ type ControlBarProps = {
   onApplyDefault: () => void;
 };
 
+const getFilterSummaryLabel = (group: FilterGroup) => {
+  if (group.options.length === 0) return "없음";
+  if (group.selectedValues.length === 0) return "선택";
+  if (group.selectedValues.length === group.options.length) return "전체";
+
+  const selectedLabels = group.options
+    .filter((option) => group.selectedValues.includes(option.value))
+    .map((option) => option.label);
+
+  if (selectedLabels.length === 0) return "선택";
+  if (selectedLabels.length === 1) return selectedLabels[0];
+  return `${selectedLabels[0]} 외 ${selectedLabels.length - 1}`;
+};
+
 export default function ControlBar({
   periodUnit,
   periodUnitOptions,
@@ -52,8 +74,7 @@ export default function ControlBar({
   measurementUnit,
   measurementUnitOptions,
   onMeasurementUnitChange,
-  filterOptions,
-  filterValues,
+  filterGroups,
   onFilterChange,
   selectedMetrics,
   onRemoveSelectedMetric,
@@ -77,7 +98,7 @@ export default function ControlBar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingDefault, setEditingDefault] = useState(false);
-  const [defaultTabName, setDefaultTabName] = useState("새 탭");
+  const [defaultTabName, setDefaultTabName] = useState("기본");
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [saveToast, setSaveToast] = useState(false);
@@ -101,31 +122,6 @@ export default function ControlBar({
     setEditingName("");
   };
 
-  const filterDropdownOptions = useMemo(
-    () => filterOptions.filter((o) => o.value !== "all"),
-    [filterOptions]
-  );
-
-  const filterLabel = useMemo(() => {
-    if (filterValues.length === 0) return "선택";
-    if (filterValues.length === filterDropdownOptions.length) return "전체";
-    const MAX_LEN = 5;
-    const labels = filterDropdownOptions
-      .filter((o) => filterValues.includes(o.value))
-      .map((o) => o.label);
-    let result = "";
-    for (const label of labels) {
-      const next = result ? `${result}, ${label}` : label;
-      if (next.length > MAX_LEN) {
-        return result ? `${result}...` : `${label.slice(0, MAX_LEN)}...`;
-      }
-      result = next;
-    }
-    return result;
-  }, [filterValues, filterDropdownOptions]);
-
-  const currentUserId = templates.find((template) => template.id === activeTemplateId)?.user_id;
-
   return (
     <div className="control-bar-wrap">
       <div className="template-tabs">
@@ -137,8 +133,7 @@ export default function ControlBar({
               value={defaultTabName}
               onChange={(event) => setDefaultTabName(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") setEditingDefault(false);
-                if (event.key === "Escape") setEditingDefault(false);
+                if (event.key === "Enter" || event.key === "Escape") setEditingDefault(false);
               }}
               onBlur={() => setEditingDefault(false)}
               autoFocus
@@ -155,6 +150,7 @@ export default function ControlBar({
             {defaultTabName}
           </button>
         )}
+
         {templates.map((template) => (
           <div key={template.id} className="template-tab-wrap" style={{ position: "relative" }}>
             {editingId === template.id ? (
@@ -187,7 +183,7 @@ export default function ControlBar({
                   event.preventDefault();
                   setContextMenuId(template.id);
                 }}
-                title={`${template.name}${template.is_default ? " (기본)" : ""}${template.is_shared ? " (공유)" : ""} - 더블클릭: 이름 수정, 우클릭: 관리`}
+                title={`${template.name}${template.is_default ? " (기본)" : ""}${template.is_shared ? " (공유)" : ""}`}
               >
                 <span className="template-tab-name">{template.name}</span>
                 {template.is_default && <span className="template-tab-badge">기본</span>}
@@ -205,12 +201,13 @@ export default function ControlBar({
                       onDeleteTemplate(template.id);
                     }
                   }}
-                  title="템플릿 삭제"
+                  title="탭 삭제"
                 >
                   ×
                 </span>
               </button>
             )}
+
             {contextMenuId === template.id && (
               <div className="template-tab-context" ref={contextMenuRef}>
                 {!template.is_default && (
@@ -248,6 +245,7 @@ export default function ControlBar({
             )}
           </div>
         ))}
+
         <button
           type="button"
           className="template-tab template-tab-add"
@@ -258,6 +256,7 @@ export default function ControlBar({
         </button>
         <div className="template-tabs-spacer" />
       </div>
+
       <div className="search-panel card control-bar-body">
         <div className="search-row search-row-metrics">
           <button type="button" className="btn-secondary search-metric-picker-btn" onClick={onOpenMetricPicker}>
@@ -269,7 +268,7 @@ export default function ControlBar({
                 key={metric.id}
                 type="button"
                 className="selected-metric-chip is-active"
-                title={`${metric.description || metric.name} (클릭 시 해제)`}
+                title={`${metric.description || metric.name} (클릭 시 제거)`}
                 onClick={() => onRemoveSelectedMetric(metric.id)}
                 aria-pressed
               >
@@ -302,7 +301,9 @@ export default function ControlBar({
               </select>
             </label>
           </div>
+
           <div className="filter-divider" />
+
           <label className="field search-field search-field-measurement-select">
             <span className="field-label">측정단위</span>
             <select value={measurementUnit} onChange={(event) => onMeasurementUnitChange(event.target.value)}>
@@ -313,16 +314,20 @@ export default function ControlBar({
               ))}
             </select>
           </label>
-          <div className="field search-field search-field-filter">
-            <span className="field-label">필터</span>
-            <MultiSelectDropdown
-              options={filterDropdownOptions}
-              selectedValues={filterValues}
-              onChange={onFilterChange}
-              label={filterLabel}
-              searchPlaceholder="필터 검색..."
-            />
-          </div>
+
+          {filterGroups.map((group) => (
+            <div key={group.unit} className="field search-field search-field-filter">
+              <span className="field-label">{group.label}</span>
+              <MultiSelectDropdown
+                options={group.options}
+                selectedValues={group.selectedValues}
+                onChange={(values) => onFilterChange(group.unit, values)}
+                label={getFilterSummaryLabel(group)}
+                searchPlaceholder={`${group.label} 검색`}
+              />
+            </div>
+          ))}
+
           <div className="search-actions-stack">
             <div className="search-actions-top">
               <button type="button" className="btn-ghost btn-reset" onClick={onResetFilters} title="필터 초기화">
@@ -340,12 +345,13 @@ export default function ControlBar({
                   setSaveToast(true);
                   setTimeout(() => setSaveToast(false), 1500);
                 }}
-                title={activeTemplateId ? "현재 탭에 필터 상태 저장" : "새 탭에 현재 상태 저장"}
+                title={activeTemplateId ? "현재 탭에 필터 상태 저장" : "기본 탭에 현재 상태 저장"}
               >
                 저장
               </button>
               {saveToast && <span className="save-toast">저장 완료</span>}
             </div>
+
             <button type="button" className="btn-primary search-submit-btn" onClick={onSearch} disabled={isSearchDisabled}>
               조회
             </button>

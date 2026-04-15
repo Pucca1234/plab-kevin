@@ -72,6 +72,9 @@ export const getUnitConfig = (unit: string) => {
 
 export const getEntityColumnsForUnit = (unit: string) => getUnitConfig(unit)?.entityColumns ?? [];
 
+export const getSupportedFilterUnitIds = () =>
+  Object.keys(UNIT_CONFIG_BY_UNIT).filter((unit) => !RETIRED_MEASUREMENT_UNITS.has(unit));
+
 export const buildEntityLabel = (unit: string, row: Record<string, unknown>) => {
   if (unit === "all") return ALL_LABEL;
   const columns = getEntityColumnsForUnit(unit);

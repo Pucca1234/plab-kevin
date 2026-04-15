@@ -41,6 +41,7 @@ export type FilterTemplateConfig = {
   periodRangeValue: string;
   measurementUnit: MeasurementUnit;
   filterValue: string;
+  filterSelections?: Record<string, string[]>;
   selectedMetricIds: string[];
 };
 
@@ -105,6 +106,7 @@ export type FilterAction = {
     periodRangeValue?: string;
     measurementUnit?: string;
     filterValue?: string;
+    filterSelections?: Record<string, string[]>;
     metricIds?: string[];
   };
 };
