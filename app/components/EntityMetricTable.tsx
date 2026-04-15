@@ -124,7 +124,7 @@ export default function EntityMetricTable({
 }: EntityMetricTableProps) {
   const weekColumnCount = weeks.length;
   const colCount = 3 + weekColumnCount;
-  const [columnWidths, setColumnWidths] = useState<number[]>([140, 100, 90, ...Array(weekColumnCount).fill(100)]);
+  const [columnWidths, setColumnWidths] = useState<number[]>([140, 200, 90, ...Array(weekColumnCount).fill(120)]);
   const [heatmapColorMap, setHeatmapColorMap] = useState<Record<string, number | null>>({});
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
@@ -190,7 +190,7 @@ export default function EntityMetricTable({
   const drilldownMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setColumnWidths([140, 100, 90, ...Array(weekColumnCount).fill(100)]);
+    setColumnWidths([140, 200, 90, ...Array(weekColumnCount).fill(120)]);
     manualResized.current.clear();
   }, [weekColumnCount]);
 
@@ -291,7 +291,7 @@ export default function EntityMetricTable({
         manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
       );
       if (!manualResized.current.has(1)) {
-        next[1] = Math.max(next[1] ?? 0, metricNameColumnMinWidth);
+        next[1] = 200;
       }
       if (prev.length === next.length && prev.every((v, i) => v === next[i])) return prev;
       return next;

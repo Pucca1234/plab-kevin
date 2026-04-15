@@ -1,8 +1,8 @@
-const FALLBACK_CHAR_WIDTH = 11;
-const METRIC_COLUMN_CHROME_WIDTH = 52;
+const FALLBACK_CHAR_WIDTH = 14;
+const METRIC_COLUMN_CHROME_WIDTH = 60;
 const MIN_METRIC_COLUMN_WIDTH = 120;
 
-let textMeasureCanvas: HTMLCanvasElement | null = null;
+let measureSpan: HTMLSpanElement | null = null;
 
 const getFallbackWidth = (labels: string[]) =>
   Math.max(...labels.map((label) => label.length), 0) * FALLBACK_CHAR_WIDTH;
@@ -10,13 +10,23 @@ const getFallbackWidth = (labels: string[]) =>
 const getTextWidth = (labels: string[]) => {
   if (typeof document === "undefined") return getFallbackWidth(labels);
 
-  textMeasureCanvas ??= document.createElement("canvas");
-  const context = textMeasureCanvas.getContext("2d");
-  if (!context) return getFallbackWidth(labels);
+  if (!measureSpan) {
+    measureSpan = document.createElement("span");
+    measureSpan.style.cssText =
+      "position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;font-weight:500;font-size:11px;";
+    document.body.appendChild(measureSpan);
+  }
 
-  const bodyStyles = getComputedStyle(document.body);
-  context.font = `500 11px ${bodyStyles.fontFamily || "monospace"}`;
-  return Math.max(...labels.map((label) => context.measureText(label).width), 0);
+  const bodyFont = getComputedStyle(document.body).fontFamily || "monospace";
+  measureSpan.style.fontFamily = bodyFont;
+
+  let maxWidth = 0;
+  for (const label of labels) {
+    measureSpan.textContent = label;
+    const w = measureSpan.getBoundingClientRect().width;
+    if (w > maxWidth) maxWidth = w;
+  }
+  return maxWidth;
 };
 
 export const getMetricLabelColumnMinWidth = (metricNames: string[]) => {
