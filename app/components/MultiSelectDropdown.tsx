@@ -19,15 +19,15 @@ export default function MultiSelectDropdown({
   onChange,
   label,
   searchPlaceholder = "검색...",
-  menuHeader,
+  menuHeader
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handle = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+    const handle = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -38,34 +38,31 @@ export default function MultiSelectDropdown({
   const filtered = useMemo(() => {
     if (!search.trim()) return options;
     const lower = search.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(lower));
+    return options.filter((option) => option.label.toLowerCase().includes(lower));
   }, [options, search]);
 
   const allFilteredSelected =
-    filtered.length > 0 && filtered.every((o) => selectedValues.includes(o.value));
+    filtered.length > 0 && filtered.every((option) => selectedValues.includes(option.value));
 
   const toggleFiltered = () => {
     if (allFilteredSelected) {
-      const filteredSet = new Set(filtered.map((o) => o.value));
-      onChange(selectedValues.filter((v) => !filteredSet.has(v)));
-    } else {
-      const current = new Set(selectedValues);
-      filtered.forEach((o) => current.add(o.value));
-      onChange(Array.from(current));
+      const filteredSet = new Set(filtered.map((option) => option.value));
+      onChange(selectedValues.filter((value) => !filteredSet.has(value)));
+      return;
     }
+
+    const next = new Set(selectedValues);
+    filtered.forEach((option) => next.add(option.value));
+    onChange(Array.from(next));
   };
 
   const toggleValue = (value: string) => {
     if (selectedValues.includes(value)) {
-      onChange(selectedValues.filter((v) => v !== value));
-    } else {
-      onChange([...selectedValues, value]);
+      onChange(selectedValues.filter((candidate) => candidate !== value));
+      return;
     }
+    onChange([...selectedValues, value]);
   };
-
-  const total = options.length;
-  const selected = selectedValues.length;
-  const showCountBadge = total > 0 && selected > 0 && selected < 3 && selected < total;
 
   return (
     <div className="ms-dropdown" ref={ref}>
@@ -73,16 +70,11 @@ export default function MultiSelectDropdown({
         type="button"
         className="ms-trigger"
         onClick={() => {
-          setIsOpen((p) => !p);
+          setIsOpen((open) => !open);
           setSearch("");
         }}
       >
         <span className="ms-trigger-label">{label}</span>
-        {showCountBadge && (
-          <span className="ms-badge">
-            {selected}/{total}
-          </span>
-        )}
         <svg
           className="ms-chevron"
           width="14"
@@ -101,6 +93,7 @@ export default function MultiSelectDropdown({
           />
         </svg>
       </button>
+
       {isOpen && (
         <div className="ms-menu">
           {menuHeader}
@@ -110,7 +103,7 @@ export default function MultiSelectDropdown({
               className="ms-search"
               placeholder={searchPlaceholder}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
               autoFocus
             />
           </div>
