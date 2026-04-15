@@ -2492,7 +2492,7 @@ main {
 
 .sparkline-tooltip-value {
   font-weight: 600;
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
 }
 
 .report-card h3 {
