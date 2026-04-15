@@ -959,6 +959,19 @@ export async function getMeasurementUnitIds() {
   return options.map((option) => option.value);
 }
 
+export async function getAvailablePeriodFilterUnits({
+  periodUnit
+}: {
+  periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+  periods?: string[];
+}) {
+  const effective = periodUnit === "year" || periodUnit === "quarter" || periodUnit === "month" || periodUnit === "day"
+    ? periodUnit
+    : "week";
+  const ordered = ["year", "quarter", "month", "week", "day"] as const;
+  return ordered.filter((unit) => ordered.indexOf(unit) <= ordered.indexOf(effective));
+}
+
 export async function getAvailableFilterUnits({
   measureUnit
 }: {
@@ -1295,6 +1308,7 @@ export const supabaseAnalyticsProvider: AnalyticsProvider = {
   getMetricDictionary,
   getMeasurementUnitOptions,
   getMeasurementUnitIds,
+  getAvailablePeriodFilterUnits,
   getAvailableFilterUnits,
   getAvailableDrilldownUnits,
   getFilterOptions,

@@ -25,6 +25,7 @@ type ControlBarProps = {
   periodRangeOptions: { label: string; value: string }[];
   onPeriodUnitChange: (value: PeriodUnit) => void;
   onPeriodRangeChange: (value: string) => void;
+  periodFilterGroups: FilterGroup[];
   measurementUnit: MeasurementUnit;
   measurementUnitOptions: MeasurementUnitOption[];
   onMeasurementUnitChange: (value: MeasurementUnit) => void;
@@ -77,11 +78,15 @@ const getDisplayFilterSummaryLabel = (group: FilterGroup, groups: FilterGroup[])
     return candidate.selectedValues.length !== candidate.options.length;
   });
 
+  if (selectedLabels.length >= 3) {
+    return `${selectedLabels[0]} 외 ${selectedLabels.length - 1} (${selectedLabels.length}/${group.options.length})`;
+  }
+
   if (group.selectedValues.length === group.options.length && hasOtherActiveFilter) {
     if (selectedLabels.length <= 2) {
       return selectedLabels.join(", ");
     }
-    return `${selectedLabels[0]} 외 ${selectedLabels.length - 1}건`;
+    return `${selectedLabels[0]} 외 ${selectedLabels.length - 1}`;
   }
 
   if (selectedLabels.length === 1 && group.selectedValues.length === group.options.length) {
@@ -98,6 +103,7 @@ export default function ControlBar({
   periodRangeOptions,
   onPeriodUnitChange,
   onPeriodRangeChange,
+  periodFilterGroups,
   measurementUnit,
   measurementUnitOptions,
   onMeasurementUnitChange,
@@ -150,6 +156,8 @@ export default function ControlBar({
     setEditingId(null);
     setEditingName("");
   };
+
+  const allFilterGroups = [...periodFilterGroups, ...filterGroups];
 
   return (
     <div className="control-bar-wrap">
@@ -331,8 +339,21 @@ export default function ControlBar({
             </label>
           </div>
 
-          <div className="filter-divider" />
+          {periodFilterGroups.map((group) => (
+            <div key={group.unit} className="field search-field search-field-filter">
+              <span className="field-label">{group.label}</span>
+              <MultiSelectDropdown
+                options={group.options}
+                selectedValues={group.selectedValues}
+                onChange={(values) => onFilterChange(group.unit, values)}
+                label={getDisplayFilterSummaryLabel(group, allFilterGroups)}
+                searchPlaceholder={`${group.label} 검색`}
+              />
+            </div>
+          ))}
+        </div>
 
+        <div className="search-row search-row-main search-row-secondary">
           <label className="field search-field search-field-measurement-select">
             <span className="field-label">측정단위</span>
             <select value={measurementUnit} onChange={(event) => onMeasurementUnitChange(event.target.value)}>
@@ -351,7 +372,7 @@ export default function ControlBar({
                 options={group.options}
                 selectedValues={group.selectedValues}
                 onChange={(values) => onFilterChange(group.unit, values)}
-                label={getDisplayFilterSummaryLabel(group, filterGroups)}
+                label={getDisplayFilterSummaryLabel(group, allFilterGroups)}
                 searchPlaceholder={`${group.label} 검색`}
               />
             </div>

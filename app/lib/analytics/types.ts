@@ -37,6 +37,10 @@ export type AnalyticsProvider = {
   ): Promise<MetricDictionaryItem[]>;
   getMeasurementUnitOptions(): Promise<MeasurementUnitOption[]>;
   getMeasurementUnitIds(): Promise<string[]>;
+  getAvailablePeriodFilterUnits(params: {
+    periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+    periods?: string[];
+  }): Promise<string[]>;
   getAvailableFilterUnits(params: {
     measureUnit: string;
     parentUnit?: string | null;

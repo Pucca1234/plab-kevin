@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 const MAX_WEEKS = 5000;
 const HEATMAP_CACHE_TTL = 180;
 const SUPPORTED_METRIC_IDS_CACHE_TTL = 3600;
+const PERIOD_FILTER_UNITS = ["year", "quarter", "month", "week", "day"] as const;
 
 type HeatmapRequestBody = {
   periodUnit?: "year" | "quarter" | "month" | "week" | "day";
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
     );
   };
 
-  const allowedUnits = new Set(await getMeasurementUnitIds());
+  const allowedUnits = new Set([...await getMeasurementUnitIds(), ...PERIOD_FILTER_UNITS]);
   if (!measureUnit || !allowedUnits.has(measureUnit)) {
     return badRequest("measureUnit is required and must be a supported measurement unit");
   }

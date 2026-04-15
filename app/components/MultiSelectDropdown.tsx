@@ -65,6 +65,7 @@ export default function MultiSelectDropdown({
 
   const total = options.length;
   const selected = selectedValues.length;
+  const showCountBadge = total > 0 && selected > 0 && selected < 3 && selected < total;
 
   return (
     <div className="ms-dropdown" ref={ref}>
@@ -77,7 +78,7 @@ export default function MultiSelectDropdown({
         }}
       >
         <span className="ms-trigger-label">{label}</span>
-        {selected < total && total > 0 && (
+        {showCountBadge && (
           <span className="ms-badge">
             {selected}/{total}
           </span>

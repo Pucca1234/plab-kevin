@@ -35,6 +35,13 @@ export async function getMeasurementUnitIds() {
   return getAnalyticsProvider().getMeasurementUnitIds();
 }
 
+export async function getAvailablePeriodFilterUnits(params?: {
+  periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+  periods?: string[];
+}) {
+  return getAnalyticsProvider().getAvailablePeriodFilterUnits(params ?? {});
+}
+
 export async function getAvailableFilterUnits(params: {
   measureUnit: string;
   parentUnit?: string | null;
