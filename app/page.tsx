@@ -458,6 +458,8 @@ export default function Home() {
   const [isMetricPickerOpen, setIsMetricPickerOpen] = useState(false);
   const [copiedMetricId, setCopiedMetricId] = useState<string | null>(null);
   const [metricSearchTerm, setMetricSearchTerm] = useState("");
+  const [metricCategoryFilter, setMetricCategoryFilter] = useState("");
+  const [metricOwnerFilter, setMetricOwnerFilter] = useState("");
   const [showDeltaValues, setShowDeltaValues] = useState(true);
   const [drilldownParent, setDrilldownParent] = useState<DrilldownParent>(null);
   const [appliedDrilldownHistory, setAppliedDrilldownHistory] = useState<DrilldownHistoryItem[]>([]);
@@ -1182,10 +1184,24 @@ export default function Home() {
     }
   };
 
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of metrics) if (m.category2) set.add(m.category2.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [metrics]);
+
+  const ownerOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of metrics) if (m.category3) set.add(m.category3.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [metrics]);
+
   const filteredMetrics = useMemo(() => {
     const keyword = metricSearchTerm.trim().toLowerCase();
-    if (!keyword) return metrics;
     return metrics.filter((metric) => {
+      if (metricCategoryFilter && (metric.category2 ?? "").trim() !== metricCategoryFilter) return false;
+      if (metricOwnerFilter && (metric.category3 ?? "").trim() !== metricOwnerFilter) return false;
+      if (!keyword) return true;
       const haystack = [
         metric.id,
         metric.name,
@@ -1197,7 +1213,7 @@ export default function Home() {
         .toLowerCase();
       return haystack.includes(keyword);
     });
-  }, [metrics, metricSearchTerm]);
+  }, [metrics, metricSearchTerm, metricCategoryFilter, metricOwnerFilter]);
 
   const groupedMetrics = useMemo(() => {
     const outer = new Map<string, Map<string, Metric[]>>();
@@ -1630,6 +1646,26 @@ export default function Home() {
               >
                 닫기
               </button>
+            </div>
+            <div className="metric-picker-filters">
+              <select
+                value={metricCategoryFilter}
+                onChange={(e) => setMetricCategoryFilter(e.target.value)}
+              >
+                <option value="">분류 전체</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                value={metricOwnerFilter}
+                onChange={(e) => setMetricOwnerFilter(e.target.value)}
+              >
+                <option value="">담당 전체</option>
+                {ownerOptions.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
             </div>
             <div className="metric-picker-search">
               <input
