@@ -53,6 +53,10 @@ const parseServiceAccountCredentials = () => {
 };
 
 const resolveGcloudCommand = () => {
+  if (process.platform !== "win32") {
+    return "gcloud";
+  }
+
   const localAppData = process.env.LOCALAPPDATA?.trim();
   const candidates = [
     localAppData
@@ -68,13 +72,10 @@ const resolveGcloudCommand = () => {
     }
   }
 
-  return "gcloud.cmd";
+  return "gcloud";
 };
 
 const getAccessToken = async () => {
-  const envToken = process.env.BIGQUERY_ACCESS_TOKEN?.trim();
-  if (envToken) return envToken;
-
   const now = Date.now();
   if (cachedServiceAccountToken && cachedServiceAccountToken.expiresAt - 60_000 > now) {
     return cachedServiceAccountToken.value;
@@ -101,25 +102,33 @@ const getAccessToken = async () => {
   }
 
   const gcloudCommand = resolveGcloudCommand();
-  if (process.platform === "win32") {
-    return execFileSync(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-Command",
-        `& '${gcloudCommand.replace(/'/g, "''")}' auth print-access-token`
-      ],
-      {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"]
-      }
-    ).trim();
-  }
+  try {
+    if (process.platform === "win32") {
+      return execFileSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-Command",
+          `& '${gcloudCommand.replace(/'/g, "''")}' auth print-access-token`
+        ],
+        {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"]
+        }
+      ).trim();
+    }
 
-  return execFileSync(gcloudCommand, ["auth", "print-access-token"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"]
-  }).trim();
+    return execFileSync(gcloudCommand, ["auth", "print-access-token"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"]
+    }).trim();
+  } catch {
+    const envToken = process.env.BIGQUERY_ACCESS_TOKEN?.trim();
+    if (envToken) return envToken;
+    throw new Error(
+      "BigQuery access token is unavailable. Configure BIGQUERY_SERVICE_ACCOUNT_JSON(_BASE64), run `gcloud auth login`, or set BIGQUERY_ACCESS_TOKEN."
+    );
+  }
 };
 
 const runBigQueryStatement = async (query) => {

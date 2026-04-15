@@ -141,6 +141,10 @@ export default function EntityMetricTable({
   const manualResized = useRef(new Set<number>());
   const gridRef = useRef<HTMLDivElement>(null);
   const [entitySortOrder, setEntitySortOrder] = useState<"asc" | "desc" | null>(null);
+  const [periodSort, setPeriodSort] = useState<{ weekIndex: number; metricId: string; order: "asc" | "desc" } | null>(null);
+  const [periodSortOpen, setPeriodSortOpen] = useState<number | null>(null);
+  const [periodSortPos, setPeriodSortPos] = useState<{ top: number; left: number } | null>(null);
+  const periodSortRef = useRef<HTMLDivElement>(null);
   const drilldownMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -173,11 +177,14 @@ export default function EntityMetricTable({
       if (expandedEntityName && drilldownMenuRef.current && !drilldownMenuRef.current.contains(event.target as Node)) {
         onDrilldownClose?.();
       }
+      if (periodSortRef.current && !periodSortRef.current.contains(event.target as Node)) {
+        setPeriodSortOpen(null);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [expandedEntityName, onDrilldownClose]);
+  }, [expandedEntityName, onDrilldownClose, periodSortOpen]);
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
@@ -195,6 +202,24 @@ export default function EntityMetricTable({
       }
     });
     rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
+
+    // 지표 컬럼(index 1): 숨겨진 측정 요소로 텍스트 너비 측정 후 아이콘 너비 추가
+    if (metrics.length > 0) {
+      const probe = document.createElement("span");
+      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font-weight:600;font-size:11px;";
+      document.body.appendChild(probe);
+      let maxTextW = 0;
+      for (const m of metrics) {
+        probe.textContent = m.name;
+        const tw = probe.offsetWidth;
+        if (tw > maxTextW) maxTextW = tw;
+      }
+      document.body.removeChild(probe);
+      // 텍스트 + dot(16) + gap(4) + 증감토글(14) + gap(4) + 셀패딩(8) + 여유(4)
+      const minMetricW = maxTextW + 50;
+      if (minMetricW > maxW[1]) maxW[1] = minMetricW;
+    }
+
     setColumnWidths((prev) => {
       const next = maxW.map((w, i) =>
         manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
@@ -217,12 +242,23 @@ export default function EntityMetricTable({
   );
 
   const sortedEntities = useMemo(() => {
-    if (!entitySortOrder) return entities;
-    return [...entities].sort((a, b) => {
-      const cmp = a.name.localeCompare(b.name, "ko-KR");
-      return entitySortOrder === "asc" ? cmp : -cmp;
-    });
-  }, [entities, entitySortOrder]);
+    let result = entities;
+    if (entitySortOrder) {
+      result = [...result].sort((a, b) => {
+        const cmp = a.name.localeCompare(b.name, "ko-KR");
+        return entitySortOrder === "asc" ? cmp : -cmp;
+      });
+    }
+    if (periodSort) {
+      const { weekIndex, metricId, order } = periodSort;
+      result = [...result].sort((a, b) => {
+        const aVal = (seriesByEntity[a.id] ?? {})[metricId]?.[weekIndex] ?? 0;
+        const bVal = (seriesByEntity[b.id] ?? {})[metricId]?.[weekIndex] ?? 0;
+        return order === "asc" ? aVal - bVal : bVal - aVal;
+      });
+    }
+    return result;
+  }, [entities, entitySortOrder, periodSort, seriesByEntity]);
 
   const toggleEntitySort = () => {
     setEntitySortOrder((prev) => {
@@ -230,6 +266,25 @@ export default function EntityMetricTable({
       if (prev === "asc") return "desc";
       return null;
     });
+  };
+
+  const openPeriodSortMenu = (weekIndex: number, e: React.MouseEvent) => {
+    if (periodSortOpen === weekIndex) { setPeriodSortOpen(null); return; }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPeriodSortPos({ top: rect.bottom + 4, left: rect.left });
+    setPeriodSortOpen(weekIndex);
+  };
+
+  const togglePeriodSort = (weekIndex: number, metricId: string) => {
+    if (periodSort && periodSort.weekIndex === weekIndex && periodSort.metricId === metricId) {
+      if (periodSort.order === "asc") {
+        setPeriodSort({ weekIndex, metricId, order: "desc" });
+      } else {
+        setPeriodSort(null);
+      }
+    } else {
+      setPeriodSort({ weekIndex, metricId, order: "asc" });
+    }
   };
 
   return (
@@ -299,8 +354,47 @@ export default function EntityMetricTable({
               />
             </div>
             {weeks.map((week, weekIndex) => (
-              <div key={week} className="data-cell data-week is-resizable">
-                {week}
+              <div key={week} className={`data-cell data-week is-resizable${periodSort?.weekIndex === weekIndex ? " is-sorted" : ""}`}>
+                <button
+                  type="button"
+                  className="week-sort-trigger"
+                  onClick={(e) => openPeriodSortMenu(weekIndex, e)}
+                  title="기간별 정렬"
+                >
+                  {week}
+                  {periodSort?.weekIndex === weekIndex && (
+                    <svg className="week-sort-icon" width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                      {periodSort.order === "asc"
+                        ? <polygon points="8 3 14 11 2 11" />
+                        : <polygon points="8 13 2 5 14 5" />}
+                    </svg>
+                  )}
+                </button>
+                {periodSortOpen === weekIndex && periodSortPos && createPortal(
+                  <div className="period-sort-menu" ref={periodSortRef} style={{ top: periodSortPos.top, left: periodSortPos.left }}>
+                    {metrics.map((m) => {
+                      const isActive = periodSort?.weekIndex === weekIndex && periodSort.metricId === m.id;
+                      const currentOrder = isActive ? periodSort!.order : null;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`period-sort-metric${isActive ? " is-active" : ""}`}
+                          onClick={() => togglePeriodSort(weekIndex, m.id)}
+                        >
+                          <span className="period-sort-metric-name">{m.name}</span>
+                          <span className={`period-sort-toggle${isActive ? " is-active" : ""}`}>
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                              <polygon points="8 2 12 7 4 7" opacity={currentOrder === "asc" ? 1 : 0.25} />
+                              <polygon points="8 14 4 9 12 9" opacity={currentOrder === "desc" ? 1 : 0.25} />
+                            </svg>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>,
+                  document.body
+                )}
                 <button
                   type="button"
                   className="col-resizer"

@@ -32,11 +32,12 @@ export default function Sparkline({
     if (!values.length) return [] as ({ x: number; y: number } | null)[];
     const min = completeValues.length ? Math.min(...completeValues) : 0;
     const max = completeValues.length ? Math.max(...completeValues) : 0;
-    const range = max - min || 1;
+    const flat = max === min;
+    const range = flat ? 1 : max - min;
     return values.map((value, index) => {
       if (value === null) return null;
       const x = values.length === 1 ? width / 2 : (index / (values.length - 1)) * width;
-      const y = height - ((value - min) / range) * height;
+      const y = flat ? height / 2 : height - ((value - min) / range) * height;
       return { x, y };
     });
   }, [values, completeValues, width, height]);
@@ -74,8 +75,9 @@ export default function Sparkline({
 
     const min = Math.min(...completeValues);
     const max = Math.max(...completeValues);
-    const range = max - min || 1;
-    const mapY = (v: number) => height - ((v - min) / range) * height;
+    const flat = max === min;
+    const range = flat ? 1 : max - min;
+    const mapY = (v: number) => flat ? height / 2 : height - ((v - min) / range) * height;
 
     const x0 = values.length === 1 ? width / 2 : (firstIdx / (values.length - 1)) * width;
     const xN = values.length === 1 ? width / 2 : (lastIdx / (values.length - 1)) * width;

@@ -104,6 +104,7 @@ export default function MetricTable({
     setHeatmapColorMap((prev) => ({ ...prev, [metricId]: colorIndex }));
     setColorPickerOpen(null);
   };
+  const [periodSort, setPeriodSort] = useState<{ weekIndex: number; order: "asc" | "desc" } | null>(null);
   const resizeIndexRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
@@ -131,6 +132,23 @@ export default function MetricTable({
       }
     });
     rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
+
+    // 지표 컬럼(index 0): 숨겨진 측정 요소로 텍스트 너비 측정 후 아이콘 너비 추가
+    if (metrics.length > 0) {
+      const probe = document.createElement("span");
+      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font-weight:600;font-size:11px;";
+      document.body.appendChild(probe);
+      let maxTextW = 0;
+      for (const m of metrics) {
+        probe.textContent = m.name;
+        const tw = probe.offsetWidth;
+        if (tw > maxTextW) maxTextW = tw;
+      }
+      document.body.removeChild(probe);
+      const minMetricW = maxTextW + 50;
+      if (minMetricW > maxW[0]) maxW[0] = minMetricW;
+    }
+
     setColumnWidths((prev) => {
       const next = maxW.map((w, i) =>
         manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
@@ -171,6 +189,28 @@ export default function MetricTable({
     [columnWidths]
   );
 
+  const togglePeriodSort = (weekIndex: number) => {
+    if (periodSort && periodSort.weekIndex === weekIndex) {
+      if (periodSort.order === "asc") {
+        setPeriodSort({ weekIndex, order: "desc" });
+      } else {
+        setPeriodSort(null);
+      }
+    } else {
+      setPeriodSort({ weekIndex, order: "asc" });
+    }
+  };
+
+  const sortedMetrics = useMemo(() => {
+    if (!periodSort) return metrics;
+    const { weekIndex, order } = periodSort;
+    return [...metrics].sort((a, b) => {
+      const aVal = (series[a.id] ?? [])[weekIndex] ?? 0;
+      const bVal = (series[b.id] ?? [])[weekIndex] ?? 0;
+      return order === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [metrics, periodSort, series]);
+
   const grid = (
     <div className="data-grid" ref={gridRef}>
       {showHeader && (
@@ -193,20 +233,37 @@ export default function MetricTable({
               onMouseDown={(event) => startResize(1, event.clientX)}
             />
           </div>
-          {weeks.map((week, weekIndex) => (
-            <div key={week} className="data-cell data-week is-resizable">
-              {week}
-              <button
-                type="button"
-                className="col-resizer"
-                aria-label={`Resize ${week} column`}
-                onMouseDown={(event) => startResize(2 + weekIndex, event.clientX)}
-              />
-            </div>
-          ))}
+          {weeks.map((week, weekIndex) => {
+            const isActive = periodSort?.weekIndex === weekIndex;
+            const currentOrder = isActive ? periodSort!.order : null;
+            return (
+              <div key={week} className={`data-cell data-week is-resizable${isActive ? " is-sorted" : ""}`}>
+                <button
+                  type="button"
+                  className="week-sort-trigger"
+                  onClick={() => togglePeriodSort(weekIndex)}
+                  title="기간별 정렬"
+                >
+                  {week}
+                  <span className={`period-sort-toggle${isActive ? " is-active" : ""}`}>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                      <polygon points="8 2 12 7 4 7" opacity={currentOrder === "asc" ? 1 : 0.25} />
+                      <polygon points="8 14 4 9 12 9" opacity={currentOrder === "desc" ? 1 : 0.25} />
+                    </svg>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="col-resizer"
+                  aria-label={`Resize ${week} column`}
+                  onMouseDown={(event) => startResize(2 + weekIndex, event.clientX)}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
-      {metrics.map((metric, metricIndex) => {
+      {sortedMetrics.map((metric, metricIndex) => {
         const values = series[metric.id] ?? Array(weeks.length).fill(0);
         const completeValues = values.filter((_, i) => !partialIndices.has(i));
         const min = completeValues.length ? Math.min(...completeValues) : 0;

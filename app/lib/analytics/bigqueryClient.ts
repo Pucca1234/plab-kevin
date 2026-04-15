@@ -10,6 +10,10 @@ const serviceAccountJson = process.env.BIGQUERY_SERVICE_ACCOUNT_JSON?.trim();
 const serviceAccountJsonBase64 = process.env.BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64?.trim();
 
 const resolveGcloudCommand = () => {
+  if (process.platform !== "win32") {
+    return "gcloud";
+  }
+
   const localAppData = process.env.LOCALAPPDATA?.trim();
   const candidates = [
     localAppData
@@ -29,7 +33,7 @@ const resolveGcloudCommand = () => {
       return candidate;
     }
   }
-  return "gcloud.cmd";
+  return "gcloud";
 };
 
 type BigQueryField = {
