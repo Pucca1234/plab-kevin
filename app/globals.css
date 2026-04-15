@@ -121,7 +121,7 @@ input, button, select, textarea {
 
 main {
   margin: 0;
-  padding: 4px 8px 0;
+  padding: 0;
 }
 
 /* ─── App Shell ─── */
@@ -144,19 +144,14 @@ main {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
-  padding-bottom: 4px;
+  min-height: 28px;
+  margin: 10px 15px 10px;
+  padding-bottom: 0;
   position: relative;
 }
 
 .app-header::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--border);
+  content: none;
 }
 
 .app-header-sticky {
@@ -250,7 +245,10 @@ main {
   display: grid;
   gap: 2px;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   padding-bottom: 0;
+  margin: 0;
 }
 
 /* ─── Cards & Panels — Lift Effect ─── */
@@ -645,7 +643,7 @@ main {
 /* ─── Top Controls / Search ─── */
 
 .top-controls-wrap {
-  margin-bottom: 2px;
+  margin: 0;
 }
 
 .top-controls-sticky {
@@ -661,6 +659,7 @@ main {
 .search-panel {
   display: grid;
   gap: 4px;
+  padding: 15px 15px 7px;
 }
 
 .search-row {
@@ -671,7 +670,13 @@ main {
 }
 
 .search-row-main {
+  padding-top: 10px;
   padding-bottom: 2px;
+}
+
+.search-row-secondary {
+  align-items: center;
+  padding-top: 0;
 }
 
 .search-actions-stack {
@@ -1062,6 +1067,8 @@ main {
 .table-card {
   display: grid;
   gap: 2px;
+  border-width: 0;
+  padding: 15px 15px 20px;
 }
 
 .table-embedded {
@@ -1079,7 +1086,9 @@ main {
 .table-scroll {
   overflow-x: auto;
   overflow-y: visible;
+  padding-left: 0;
   padding-bottom: 6px;
+  padding-right: 5px;
 }
 
 .table-scroll-top {
@@ -1891,7 +1900,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   flex-shrink: 0;
@@ -2768,6 +2777,7 @@ main {
 
 .control-bar-body {
   border-top: none;
+  border-bottom-width: 0;
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 
