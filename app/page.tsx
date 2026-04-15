@@ -1250,7 +1250,7 @@ export default function Home() {
     } catch (error) {
       const msg = (error as Error).message;
       if (msg !== "Unauthorized") {
-        pushError("탭 목록 불러오기 실패", msg);
+        pushError("템플릿 목록 불러오기 실패", msg);
       }
       return [];
     }
@@ -1345,7 +1345,7 @@ export default function Home() {
       setActiveTemplateId(response.template.id);
       await loadTemplates();
     } catch (error) {
-      pushError("탭 생성 실패", (error as Error).message);
+      pushError("템플릿 생성 실패", (error as Error).message);
     }
   };
 
