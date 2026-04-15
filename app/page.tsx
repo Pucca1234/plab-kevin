@@ -1665,18 +1665,6 @@ export default function Home() {
   ]);
 
   const [isExporting, setIsExporting] = useState(false);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
-        setExportMenuOpen(false);
-      }
-    };
-    if (exportMenuOpen) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [exportMenuOpen]);
 
   const buildSheet1Data = () => {
     const rows: (string | number)[][] = [];
@@ -1719,7 +1707,6 @@ export default function Home() {
 
   const downloadExcel = async () => {
     setIsExporting(true);
-    setExportMenuOpen(false);
     try {
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
@@ -1760,30 +1747,6 @@ export default function Home() {
     }
   };
 
-  const exportToSheets = async () => {
-    setIsExporting(true);
-    setExportMenuOpen(false);
-    try {
-      const res = await fetch("/api/export-sheets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sheet1Data: buildSheet1Data(),
-          ...rawDataParams()
-        })
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.open(data.url, "_blank");
-      } else {
-        pushError("스프레드시트 내보내기 실패", data.error || "알 수 없는 오류");
-      }
-    } catch (e) {
-      pushError("스프레드시트 내보내기 실패", (e as Error).message);
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   return (
     <main className={`app-shell${isChatOpen ? " chat-open" : ""}`}>
@@ -1945,26 +1908,14 @@ export default function Home() {
         ) : !isLoadingHeatmap && showResults ? (
           <div className="result-stack">
             <div className="result-toolbar">
-              <div className="export-menu-wrap" ref={exportMenuRef}>
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  onClick={() => setExportMenuOpen(!exportMenuOpen)}
-                  disabled={isExporting}
-                >
-                  {isExporting ? "내보내는 중..." : "내보내기"}
-                </button>
-                {exportMenuOpen && (
-                  <div className="export-menu-dropdown">
-                    <button type="button" className="export-menu-item" onClick={exportToSheets}>
-                      Google 스프레드시트
-                    </button>
-                    <button type="button" className="export-menu-item" onClick={downloadExcel}>
-                      Excel 다운로드
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={downloadExcel}
+                disabled={isExporting}
+              >
+                {isExporting ? "내보내는 중..." : "내보내기"}
+              </button>
             </div>
             {appliedMeasurementUnit === "all" ? (
               <MetricTable
