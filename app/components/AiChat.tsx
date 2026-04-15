@@ -339,16 +339,6 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
         <div ref={messagesEndRef} />
       </div>
 
-      {(showInitialSuggestions || (dynamicSuggestions.length > 0 && !isLoading)) && (
-        <div className="ai-panel-suggestions">
-          {(showInitialSuggestions ? INITIAL_SUGGESTIONS : dynamicSuggestions).map((s) => (
-            <button key={s} type="button" className="ai-suggestion-chip" onClick={() => sendMessage(s)}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="ai-panel-input-area">
         <textarea
           ref={inputRef}

@@ -1119,6 +1119,13 @@ main {
   z-index: 11;
   border-color: var(--border);
   border-bottom: 2px solid var(--border);
+  text-align: center;
+  justify-content: center;
+}
+
+.data-row.data-header .data-cell.data-entity {
+  text-align: center;
+  justify-content: center;
 }
 
 /* Data Cells */
@@ -1189,9 +1196,11 @@ main {
 .data-name {
   text-align: left;
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
   gap: 4px;
+  overflow: hidden;
 }
 
 .data-entity,
@@ -1201,9 +1210,11 @@ main {
 
 .data-metric {
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
   gap: 4px;
+  overflow: hidden;
 }
 
 .data-entity.is-empty .name-title {
@@ -1519,6 +1530,11 @@ main {
   font-weight: 600;
   font-size: 11px;
   color: var(--ink);
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .name-sub {
