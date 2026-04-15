@@ -568,8 +568,30 @@ export const getRawDataFromSource = async ({
   const periodCol = sanitizeIdentifier(PERIOD_COLUMN_BY_UNIT[pu]);
 
   // 차원 컬럼 + 선택된 지표 컬럼만 SELECT
-  const dimensionCols = ["period_type", "year", "quarter", "month", "week", "day",
-    "dimension_type", "area_group", "area", "stadium_group", "stadium", "time", "hour", "yoil", "yoil_group"];
+  const dimensionCols = [
+    "period_type",
+    "year",
+    "quarter",
+    "month",
+    "week",
+    "day",
+    "dimension_type",
+    "area_group",
+    "area",
+    "stadium_group",
+    "stadium",
+    "time",
+    "hour",
+    "yoil",
+    "yoil_group",
+    "match_grade",
+    "match_level",
+    "match_player_cnt",
+    "match_sex",
+    "plab_stadium",
+    "plaber_match",
+    "ai_report_match"
+  ];
   const metricCols = (metricIds ?? []).map((id) => sanitizeIdentifier(id));
   const selectCols = metricCols.length > 0
     ? [...dimensionCols, ...metricCols].map((c) => `src.${c}`).join(", ")
@@ -715,7 +737,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       { value: "all", label: ALL_LABEL },
       ...supportedUnits.map((unit) => ({
         value: unit,
-        label: MEASUREMENT_UNIT_LABEL_OVERRIDES[unit] || metricLabelMap.get(unit) || unit
+        label: metricLabelMap.get(unit) || MEASUREMENT_UNIT_LABEL_OVERRIDES[unit] || unit
       }))
     ];
     const sorted = sortMeasurementUnits(
@@ -769,7 +791,14 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       "time",
       "hour",
       "yoil",
-      "yoil_group"
+      "yoil_group",
+      "match_grade",
+      "match_level",
+      "match_player_cnt",
+      "match_sex",
+      "plab_stadium",
+      "plaber_match",
+      "ai_report_match"
     ];
     const rows = await runQuery<Record<string, number | string | null>>(`
       select

@@ -35,7 +35,16 @@ const MEASUREMENT_UNIT_LABEL_OVERRIDES: Record<string, string> = {
   stadium_group: "구장",
   stadium: "면",
   stadium_group_and_time: "구장 타임",
-  stadium_and_time: "면 타임"
+  stadium_and_time: "면 타임",
+  yoil: "요일",
+  yoil_group: "요일그룹",
+  match_grade: "등급",
+  match_level: "레벨",
+  match_player_cnt: "인원",
+  match_sex: "성별",
+  plab_stadium: "직영 여부",
+  plaber_match: "플래버 매치",
+  ai_report_match: "AI 리포트 매치"
 };
 const MEASUREMENT_UNIT_SORT_ORDER = [
   "all",
@@ -47,6 +56,15 @@ const MEASUREMENT_UNIT_SORT_ORDER = [
   "stadium",
   "stadium_group_and_time",
   "stadium_and_time",
+  "match_grade",
+  "match_level",
+  "match_player_cnt",
+  "match_sex",
+  "plab_stadium",
+  "plaber_match",
+  "ai_report_match",
+  "yoil_group",
+  "yoil",
   "time",
   "hour",
   "yoil_and_hour",
@@ -198,6 +216,15 @@ const unitConfigByUnit: Record<string, UnitConfig> = {
   stadium: { dimensionType: "stadium", entityColumns: ["stadium"] },
   stadium_group_and_time: { dimensionType: "stadium_group_and_time", entityColumns: ["stadium_group", "time"] },
   stadium_and_time: { dimensionType: "stadium_and_time", entityColumns: ["stadium", "time"] },
+  match_grade: { dimensionType: "match_grade", entityColumns: ["match_grade"] },
+  match_level: { dimensionType: "match_level", entityColumns: ["match_level"] },
+  match_player_cnt: { dimensionType: "match_player_cnt", entityColumns: ["match_player_cnt"] },
+  match_sex: { dimensionType: "match_sex", entityColumns: ["match_sex"] },
+  plab_stadium: { dimensionType: "plab_stadium", entityColumns: ["plab_stadium"] },
+  plaber_match: { dimensionType: "plaber_match", entityColumns: ["plaber_match"] },
+  ai_report_match: { dimensionType: "ai_report_match", entityColumns: ["ai_report_match"] },
+  yoil: { dimensionType: "yoil", entityColumns: ["yoil"] },
+  yoil_group: { dimensionType: "yoil_group", entityColumns: ["yoil_group"] },
   time: { dimensionType: "time", entityColumns: ["time"] },
   hour: { dimensionType: "hour", entityColumns: ["hour"] },
   yoil_and_hour: { dimensionType: "yoil_and_hour", entityColumns: ["yoil", "hour"] },
@@ -207,7 +234,16 @@ const columnByUnit: Record<string, string> = {
   area_group: "area_group",
   area: "area",
   stadium_group: "stadium_group",
-  stadium: "stadium"
+  stadium: "stadium",
+  match_grade: "match_grade",
+  match_level: "match_level",
+  match_player_cnt: "match_player_cnt",
+  match_sex: "match_sex",
+  plab_stadium: "plab_stadium",
+  plaber_match: "plaber_match",
+  ai_report_match: "ai_report_match",
+  yoil: "yoil",
+  yoil_group: "yoil_group"
 };
 
 const getUnitConfig = (unit: string): UnitConfig | null => {
@@ -945,7 +981,7 @@ export async function getMeasurementUnitOptions() {
     { value: "all", label: ALL_LABEL },
     ...supportedUnits.map((unit) => ({
       value: unit,
-      label: MEASUREMENT_UNIT_LABEL_OVERRIDES[unit] || metricLabelMap.get(unit) || unit
+      label: metricLabelMap.get(unit) || MEASUREMENT_UNIT_LABEL_OVERRIDES[unit] || unit
     }))
   ];
 

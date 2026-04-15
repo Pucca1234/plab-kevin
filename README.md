@@ -217,6 +217,23 @@
   - 주차 값 컬럼 헤더는 우측 정렬
   - 엔티티 테이블의 `측정단위` 헤더는 정렬 아이콘 없이 텍스트 중심으로 표시
 
+## 2026-04-16 측정단위 동기화
+- BigQuery source 점검 결과, `data_mart.data_mart_1_social_match`에 기존 앱에서 노출되지 않던 `dimension_type`가 추가된 것을 확인
+- 신규 반영 단위:
+  - `ai_report_match`
+  - `match_grade`
+  - `match_level`
+  - `match_player_cnt`
+  - `match_sex`
+  - `plab_stadium`
+  - `plaber_match`
+  - `yoil`
+  - `yoil_group`
+- 대응:
+  - `bigqueryShared.ts`와 provider 매핑에 신규 단위/엔티티 컬럼 추가
+  - `GET /api/measurement-units` 캐시 키를 갱신해 기존 목록 캐시 무효화
+  - 측정단위 라벨은 `metric_store_native.korean_name`을 최우선으로 사용하고, 값이 없을 때만 코드 fallback 라벨을 사용
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`
