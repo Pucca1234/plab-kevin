@@ -485,8 +485,22 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null);
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
-  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(null);
+  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = localStorage.getItem("kevin_default_tab_config");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [userName, setUserName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultTabConfig) {
+      localStorage.setItem("kevin_default_tab_config", JSON.stringify(defaultTabConfig));
+    }
+  }, [defaultTabConfig]);
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(true);
@@ -1235,6 +1249,18 @@ export default function Home() {
       const defaultTemplate = loaded.find((t) => t.is_default);
       if (defaultTemplate) {
         applyTemplateConfig(defaultTemplate);
+      } else if (defaultTabConfig) {
+        const cfg = defaultTabConfig;
+        const nextPeriodUnit = cfg.periodUnit ?? "week";
+        setPeriodUnit(nextPeriodUnit);
+        setPeriodRangeValue(cfg.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
+        setMeasurementUnit(cfg.measurementUnit ?? "all");
+        const resolvedFilter = cfg.filterValue ?? ALL_VALUE;
+        setFilterValue(resolvedFilter);
+        setFilterSelectedValues(resolvedFilter === ALL_VALUE ? [] : [resolvedFilter]);
+        if (cfg.selectedMetricIds?.length) {
+          setSelectedMetricIds(cfg.selectedMetricIds);
+        }
       }
     };
 

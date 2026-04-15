@@ -15,7 +15,7 @@ export default function Sparkline({
   values,
   width = 120,
   height = 28,
-  stroke = "#6CABDD",
+  stroke = "#000000",
   labels = [],
   formatValue
 }: SparklineProps) {
@@ -118,7 +118,7 @@ export default function Sparkline({
       onMouseLeave={handleLeave}
     >
       <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="sparkline">
-        {path && <path d={path} fill="none" strokeWidth="2" strokeLinecap="round" stroke={stroke} />}
+        {path && <path d={path} fill="none" strokeWidth="1.2" strokeLinecap="round" stroke={stroke} />}
         {trendPath && (
           <path d={trendPath} fill="none" strokeWidth="1.4" strokeLinecap="round" stroke={trendColor} strokeDasharray="3 3" />
         )}
