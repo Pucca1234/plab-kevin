@@ -33,13 +33,13 @@ const formatDelta = (metric: Metric, delta: number | null) => {
 };
 
 const METRIC_HEAT_COLORS: [number, number, number][] = [
-  [219, 68, 55],   // red
-  [230, 126, 34],  // orange
-  [241, 196, 15],  // yellow
-  [46, 204, 113],  // green
-  [26, 188, 156],  // teal
-  [52, 152, 219],  // blue
-  [142, 68, 173],  // purple
+  [59, 130, 246],  // blue
+  [16, 185, 129],  // emerald
+  [245, 158, 11],  // amber
+  [139, 92, 246],  // violet
+  [236, 72, 153],  // pink
+  [234, 88, 12],   // orange
+  [100, 116, 139], // slate
 ];
 
 const getMetricHeatColor = (
@@ -282,7 +282,7 @@ export default function MetricTable({
                         className={`heatmap-color-option${getActiveColorIndex(metric.id, metricIndex) === ci ? " is-active" : ""}`}
                         onClick={() => selectHeatmapColor(metric.id, ci)}
                         style={{ backgroundColor: `rgb(${color.join(",")})` }}
-                        title={["빨강", "주황", "노랑", "초록", "청록", "파랑", "보라"][ci]}
+                        title={["파랑", "초록", "노랑", "보라", "핑크", "주황", "회색"][ci]}
                       />
                     ))}
                     <button

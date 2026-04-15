@@ -27,7 +27,7 @@
   /* Semantic */
   --accent: #E49444;
   --accent-soft: rgba(228, 148, 68, 0.10);
-  --down: #C0392B;
+  --down: #991B1B;
   --warning: #D4A017;
   --warning-soft: rgba(212, 160, 23, 0.10);
   --success: #27AE60;
@@ -1663,9 +1663,9 @@ main {
 
 .value-delta {
   font-size: 10px;
-  font-weight: 600;
-  color: var(--muted);
-  opacity: 0.8;
+  font-weight: 700;
+  color: var(--ink);
+  opacity: 0.9;
   display: inline-flex;
   align-items: center;
   gap: 1px;
