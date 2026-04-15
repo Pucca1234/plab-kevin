@@ -14,10 +14,10 @@ type HeatmapMatrixProps = {
 };
 
 const getHeatColor = (value: number, min: number, max: number) => {
-  if (max === min) return "rgba(108, 171, 221, 0.475)";
+  if (max === min) return "rgba(78, 121, 167, 0.475)";
   const ratio = (value - min) / (max - min);
   const intensity = ratio * 0.95;
-  return `rgba(108, 171, 221, ${intensity})`;
+  return `rgba(78, 121, 167, ${intensity})`;
 };
 
 export default function HeatmapMatrix({ title, weeks, metrics, series, onInfoChange }: HeatmapMatrixProps) {

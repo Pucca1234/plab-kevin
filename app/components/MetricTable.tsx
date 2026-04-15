@@ -17,8 +17,8 @@ type MetricTableProps = {
   indent?: boolean;
   scrollable?: boolean;
   embedded?: boolean;
-  showDelta?: boolean;
-  onShowDeltaChange?: (next: boolean) => void;
+  hiddenDeltaMetrics?: Set<string>;
+  onToggleDeltaMetric?: (metricId: string) => void;
   partialIndices?: Set<number>;
 };
 
@@ -77,8 +77,8 @@ export default function MetricTable({
   indent = false,
   scrollable = true,
   embedded = false,
-  showDelta = true,
-  onShowDeltaChange,
+  hiddenDeltaMetrics = new Set(),
+  onToggleDeltaMetric,
   partialIndices = new Set()
 }: MetricTableProps) {
   const weekColumnCount = weeks.length;
@@ -149,7 +149,7 @@ export default function MetricTable({
       if (prev.length === next.length && prev.every((v, i) => v === next[i])) return prev;
       return next;
     });
-  }, [weeks, metrics, series, showDelta, colCount]);
+  }, [weeks, metrics, series, hiddenDeltaMetrics, colCount]);
 
   const startResize = (index: number, clientX: number) => {
     resizeIndexRef.current = index;
@@ -267,6 +267,19 @@ export default function MetricTable({
                   document.body
                 )}
               </div>
+              {onToggleDeltaMetric && (
+                <button
+                  type="button"
+                  className={`delta-toggle-icon${hiddenDeltaMetrics.has(metric.id) ? " is-off" : ""}`}
+                  onClick={() => onToggleDeltaMetric(metric.id)}
+                  title={hiddenDeltaMetrics.has(metric.id) ? "증감 노출" : "증감 숨기기"}
+                >
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                    <polygon points="8 1 14 7 2 7" />
+                    <polygon points="8 15 2 9 14 9" />
+                  </svg>
+                </button>
+              )}
             </div>
             <div className="data-cell data-spark">
               <Sparkline values={sparkValues} labels={weeks} formatValue={(value) => formatValue(value, metric)} />
@@ -286,7 +299,7 @@ export default function MetricTable({
                   style={{ backgroundColor: bgColor }}
                 >
                   <span className="value-main">{formatValue(value, metric)}</span>
-                  {showDelta && (
+                  {!hiddenDeltaMetrics.has(metric.id) && (
                     <span
                       className={`value-delta ${delta !== null ? "has-delta" : ""} ${
                         delta !== null && delta < 0 ? "is-negative" : ""
@@ -310,19 +323,9 @@ export default function MetricTable({
 
   return (
     <div className={wrapperClass}>
-      {(title || onShowDeltaChange) && (
+      {title && (
         <div className="table-head-row">
-          {title ? <div className="card-title">{title}</div> : <div />}
-          {onShowDeltaChange && (
-            <label className="table-toggle">
-              <input
-                type="checkbox"
-                checked={showDelta}
-                onChange={(event) => onShowDeltaChange(event.target.checked)}
-              />
-              <span>증감 노출</span>
-            </label>
-          )}
+          <div className="card-title">{title}</div>
         </div>
       )}
       {scrollable ? <div className="table-scroll">{grid}</div> : grid}

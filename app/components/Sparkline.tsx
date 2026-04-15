@@ -84,7 +84,7 @@ export default function Sparkline({
   }, [completeValues, values, width, height]);
 
   const trendPath = trend.path;
-  const trendColor = trend.slope < 0 ? "#D94444" : "#000000";
+  const trendColor = trend.slope < 0 ? "#C0392B" : "#333333";
 
   useEffect(() => {
     setHoverIndex(null);

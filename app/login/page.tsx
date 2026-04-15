@@ -188,7 +188,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "600px",
     height: "600px",
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(108, 171, 221, 0.08) 0%, transparent 70%)",
+    background: "radial-gradient(circle, rgba(78, 121, 167, 0.08) 0%, transparent 70%)",
     pointerEvents: "none",
   },
   bgOrb2: {
@@ -198,7 +198,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "500px",
     height: "500px",
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(108, 171, 221, 0.06) 0%, transparent 70%)",
+    background: "radial-gradient(circle, rgba(78, 121, 167, 0.06) 0%, transparent 70%)",
     pointerEvents: "none",
   },
   cardWrapper: {
@@ -210,12 +210,12 @@ const styles: Record<string, React.CSSProperties> = {
   accentBar: {
     height: "4px",
     borderRadius: "20px 20px 0 0",
-    background: "linear-gradient(90deg, #1C2C5B 0%, #6CABDD 50%, #98C5E9 100%)",
+    background: "linear-gradient(90deg, #3D6591 0%, #4E79A7 50%, #85B6B2 100%)",
   },
   card: {
     background: "var(--card)",
     borderRadius: "0 0 20px 20px",
-    boxShadow: "0 20px 60px rgba(28, 44, 91, 0.10), 0 8px 24px rgba(28, 44, 91, 0.06), 0 2px 8px rgba(28, 44, 91, 0.04)",
+    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.03)",
     padding: "48px 44px 36px",
     display: "flex",
     flexDirection: "column",
@@ -232,7 +232,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "48px",
     height: "48px",
     borderRadius: "14px",
-    background: "linear-gradient(135deg, #6CABDD 0%, #1C2C5B 100%)",
+    background: "linear-gradient(135deg, #4E79A7 0%, #3D6591 100%)",
     color: "#ffffff",
     fontFamily: "var(--font-display)",
     fontSize: "22px",
@@ -241,7 +241,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     marginBottom: "4px",
-    boxShadow: "0 4px 12px rgba(108, 171, 221, 0.30)",
+    boxShadow: "0 4px 12px rgba(78, 121, 167, 0.30)",
   },
   title: {
     fontFamily: "var(--font-display)",
@@ -294,12 +294,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   googleBtnHover: {
     borderColor: "var(--primary)",
-    boxShadow: "0 4px 16px rgba(108, 171, 221, 0.12), 0 2px 6px rgba(28, 44, 91, 0.06)",
+    boxShadow: "0 4px 16px rgba(78, 121, 167, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04)",
     transform: "scale(1.01)",
   },
   googleBtnActive: {
     transform: "scale(0.98)",
-    boxShadow: "0 2px 8px rgba(108, 171, 221, 0.08)",
+    boxShadow: "0 2px 8px rgba(78, 121, 167, 0.08)",
   },
   googleBtnDisabled: {
     background: "var(--bg-accent)",

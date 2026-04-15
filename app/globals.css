@@ -2,48 +2,48 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css");
 
 :root {
-  /* Backgrounds — cool blue-grey tint */
-  --bg: #F7F9FC;
-  --bg-accent: #EDF1F8;
-  --bg-deep: #E0E6F0;
+  /* Backgrounds — neutral light grey (Tableau-inspired) */
+  --bg: #F3F3F3;
+  --bg-accent: #EAEAEA;
+  --bg-deep: #E0E0E0;
   --card: #ffffff;
 
-  /* Text — Man City Dark Navy */
-  --ink: #1C2C5B;
-  --muted: #5A6A8A;
-  --secondary: #3D4E73;
+  /* Text — warm charcoal (no pure black) */
+  --ink: #333333;
+  --muted: #767676;
+  --secondary: #555555;
 
-  /* Borders — navy-tinted grey */
-  --border: #D4DCE8;
-  --border-subtle: rgba(212, 220, 232, 0.6);
+  /* Borders — neutral grey */
+  --border: #D4D4D4;
+  --border-subtle: rgba(212, 212, 212, 0.5);
 
-  /* Primary — Man City Sky Blue */
-  --primary: #6CABDD;
-  --primary-hover: #5898CC;
-  --primary-soft: rgba(108, 171, 221, 0.10);
-  --primary-muted: #D6E8F7;
-  --primary-ring: rgba(108, 171, 221, 0.18);
-  --primary-glow: rgba(108, 171, 221, 0.28);
-  --disabled-bg: #B8D9F0;
+  /* Primary — Tableau Blue */
+  --primary: #4E79A7;
+  --primary-hover: #3D6591;
+  --primary-soft: rgba(78, 121, 167, 0.08);
+  --primary-muted: #D0DCE8;
+  --primary-ring: rgba(78, 121, 167, 0.20);
+  --primary-glow: rgba(78, 121, 167, 0.28);
+  --disabled-bg: #A8C0D8;
   --on-primary: #ffffff;
 
   /* Semantic */
-  --accent: #D4A843;
-  --accent-soft: rgba(212, 168, 67, 0.10);
-  --down: #DC2626;
-  --warning: #D97706;
-  --warning-soft: rgba(217, 119, 6, 0.10);
-  --success: #059669;
-  --success-soft: rgba(5, 150, 105, 0.08);
-  --error-soft: rgba(220, 38, 38, 0.08);
+  --accent: #E49444;
+  --accent-soft: rgba(228, 148, 68, 0.10);
+  --down: #C0392B;
+  --warning: #D4A017;
+  --warning-soft: rgba(212, 160, 23, 0.10);
+  --success: #27AE60;
+  --success-soft: rgba(39, 174, 96, 0.08);
+  --error-soft: rgba(192, 57, 43, 0.08);
 
-  /* Elevation — navy-based shadows */
-  --shadow: 0 8px 30px rgba(28, 44, 91, 0.07), 0 2px 8px rgba(28, 44, 91, 0.04);
-  --shadow-soft: 0 2px 8px rgba(28, 44, 91, 0.05), 0 1px 3px rgba(28, 44, 91, 0.03);
-  --shadow-xs: 0 1px 2px rgba(28, 44, 91, 0.04);
-  --shadow-md: 0 4px 16px rgba(28, 44, 91, 0.08), 0 2px 6px rgba(28, 44, 91, 0.04);
-  --shadow-lg: 0 12px 40px rgba(28, 44, 91, 0.10), 0 4px 12px rgba(28, 44, 91, 0.05);
-  --shadow-lift: 0 8px 24px rgba(28, 44, 91, 0.10), 0 2px 8px rgba(28, 44, 91, 0.06);
+  /* Elevation — neutral shadows (flat Tableau style) */
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lift: 0 4px 16px rgba(0, 0, 0, 0.08);
 
   /* Radius */
   --radius: 8px;
@@ -99,7 +99,7 @@
 }
 
 ::selection {
-  background: rgba(108, 171, 221, 0.18);
+  background: rgba(78, 121, 167, 0.18);
   color: var(--ink);
 }
 
@@ -163,7 +163,7 @@ main {
   background: rgba(250, 251, 252, 0.82);
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
-  box-shadow: 0 1px 3px rgba(28, 44, 91, 0.06), 0 4px 16px rgba(28, 44, 91, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -409,7 +409,7 @@ main {
   background: var(--primary);
   color: var(--on-primary);
   border-color: var(--primary);
-  box-shadow: 0 10px 18px rgba(108, 171, 221, 0.2);
+  box-shadow: 0 10px 18px rgba(78, 121, 167, 0.2);
 }
 
 .segment-btn:disabled {
@@ -457,7 +457,7 @@ main {
 .metric-item.is-selected {
   border-color: var(--primary);
   background: var(--primary-soft);
-  box-shadow: 0 6px 14px rgba(108, 171, 221, 0.08);
+  box-shadow: 0 6px 14px rgba(78, 121, 167, 0.08);
 }
 
 .metric-text {
@@ -644,7 +644,7 @@ main {
   position: sticky;
   top: var(--sticky-header-height);
   z-index: 110;
-  background: rgba(250, 251, 252, 0.88);
+  background: rgba(243, 243, 243, 0.90);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding-bottom: 8px;
@@ -668,27 +668,66 @@ main {
 
 .search-actions-stack {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  margin-left: auto;
-  align-self: stretch;
-  justify-content: flex-end;
-}
-
-.search-actions-top {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+  position: relative;
 }
 
-.search-actions-top > button {
-  flex: 1;
-  text-align: center;
-  padding: 5px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
+.search-actions-stack > .save-toast {
+  position: absolute;
+  bottom: -18px;
+  right: 0;
+}
+
+.search-actions-stack > button.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.search-actions-stack > button.btn-icon:first-child {
+  margin-left: 0;
+}
+
+.search-actions-stack > button.btn-icon svg {
+  display: block;
+}
+
+.btn-icon.btn-icon-off {
+  opacity: 0.4;
+}
+
+/* Delta toggle icon (per-metric) */
+.delta-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.delta-toggle-icon:hover {
+  opacity: 1;
+  color: var(--primary);
+}
+
+.delta-toggle-icon.is-off {
+  opacity: 0.25;
 }
 
 .search-field {
@@ -721,6 +760,8 @@ main {
 
 .search-submit-btn {
   width: auto;
+  padding: 6px 24px;
+  white-space: nowrap;
 }
 
 .search-metric-picker-btn {
@@ -925,7 +966,7 @@ main {
   position: relative;
   display: inline-flex;
   align-items: center;
-  margin-left: 6px;
+  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -1109,7 +1150,7 @@ main {
 
 /* Row hover effect */
 .data-grid > .data-row:not(.data-header):hover .data-cell {
-  background: rgba(108, 171, 221, 0.05);
+  background: rgba(78, 121, 167, 0.05);
 }
 
 .data-cell.is-resizable {
@@ -1147,11 +1188,22 @@ main {
 
 .data-name {
   text-align: left;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
 }
 
 .data-entity,
 .data-metric {
   text-align: left;
+}
+
+.data-metric {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
 }
 
 .data-entity.is-empty .name-title {
@@ -1509,7 +1561,7 @@ main {
 }
 
 .value-delta.is-negative {
-  color: #D94444;
+  color: var(--down);
   background: transparent;
 }
 
@@ -1534,7 +1586,7 @@ main {
   z-index: 200;
   background: var(--card);
   border-left: 1px solid var(--border);
-  box-shadow: -4px 0 24px rgba(28, 44, 91, 0.08);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   animation: ai-panel-slide-in 0.25s ease-out;
@@ -1724,7 +1776,7 @@ main {
 .ai-panel-send:hover {
   background: var(--primary-hover);
   transform: scale(1.08);
-  box-shadow: 0 4px 12px rgba(108, 171, 221, 0.3);
+  box-shadow: 0 4px 12px rgba(78, 121, 167, 0.3);
 }
 
 .ai-panel-send:disabled {
@@ -1916,7 +1968,7 @@ main {
 .metric-picker-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 44, 91, 0.4);
+  background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(4px);
   z-index: 320;
   display: flex;
@@ -2277,7 +2329,7 @@ main {
 .fetch-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 44, 91, 0.45);
+  background: rgba(0, 0, 0, 0.40);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -2557,12 +2609,16 @@ main {
 }
 
 .save-toast {
-  font-size: 11px;
+  position: absolute;
+  bottom: -18px;
+  right: 0;
+  font-size: 10px;
   font-weight: 600;
   color: var(--success);
-  padding: 3px 10px;
+  padding: 2px 6px;
   white-space: nowrap;
   animation: toast-fade 1.5s ease-in-out forwards;
+  pointer-events: none;
 }
 
 @keyframes toast-fade {
@@ -2643,7 +2699,7 @@ main {
 .template-save-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 44, 91, 0.4);
+  background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(4px);
   z-index: 350;
   display: flex;

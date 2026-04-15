@@ -520,7 +520,7 @@ export default function Home() {
   const [metricSearchTerm, setMetricSearchTerm] = useState("");
   const [metricCategoryFilter, setMetricCategoryFilter] = useState("");
   const [metricOwnerFilter, setMetricOwnerFilter] = useState("");
-  const [showDeltaValues, setShowDeltaValues] = useState(true);
+  const [hiddenDeltaMetrics, setHiddenDeltaMetrics] = useState<Set<string>>(new Set());
   const [drilldownParent, setDrilldownParent] = useState<DrilldownParent>(null);
   const [appliedDrilldownHistory, setAppliedDrilldownHistory] = useState<DrilldownHistoryItem[]>([]);
   const [pendingDrilldown, setPendingDrilldown] = useState<PendingDrilldown>(null);
@@ -1827,6 +1827,8 @@ export default function Home() {
             setActiveTemplateId(null);
           }}
           onSaveDefaultConfig={handleSaveDefaultConfig}
+          onExport={downloadExcel}
+          isExporting={isExporting}
           onApplyDefault={() => {
             if (defaultTabConfig) {
               const nextPeriodUnit = defaultTabConfig.periodUnit ?? "week";
@@ -1897,32 +1899,21 @@ export default function Home() {
         ) : !showResults && !isLoadingHeatmap ? (
           <div className="card subtle empty-state">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true" className="empty-state-icon">
-              <rect x="6" y="6" width="36" height="36" rx="8" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              <path d="M14 30L20 22L26 26L34 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              <circle cx="34" cy="18" r="2" fill="currentColor" />
+              <circle cx="21" cy="21" r="12" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              <line x1="30" y1="30" x2="40" y2="40" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <span>옵션을 선택하고 조회를 눌러주세요.</span>
           </div>
         ) : !isLoadingHeatmap && showResults ? (
           <div className="result-stack">
-            <div className="result-toolbar">
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={downloadExcel}
-                disabled={isExporting}
-              >
-                {isExporting ? "내보내는 중..." : "내보내기"}
-              </button>
-            </div>
             {appliedMeasurementUnit === "all" ? (
               <MetricTable
                 title=""
                 weeks={displayedWeeks}
                 metrics={selectedMetrics}
                 series={seriesByEntity[ALL_LABEL] ?? {}}
-                showDelta={showDeltaValues}
-                onShowDeltaChange={setShowDeltaValues}
+                hiddenDeltaMetrics={hiddenDeltaMetrics}
+                onToggleDeltaMetric={(metricId) => setHiddenDeltaMetrics(prev => { const next = new Set(prev); next.has(metricId) ? next.delete(metricId) : next.add(metricId); return next; })}
                 partialIndices={partialIndices}
               />
             ) : (
@@ -1931,8 +1922,8 @@ export default function Home() {
                 entities={displayedEntities}
                 metrics={selectedMetrics}
                 seriesByEntity={seriesByEntity}
-                showDelta={showDeltaValues}
-                onShowDeltaChange={setShowDeltaValues}
+                hiddenDeltaMetrics={hiddenDeltaMetrics}
+                onToggleDeltaMetric={(metricId) => setHiddenDeltaMetrics(prev => { const next = new Set(prev); next.has(metricId) ? next.delete(metricId) : next.add(metricId); return next; })}
               partialIndices={partialIndices}
               onEntitySelect={handleEntityClick}
                 entityFilterOptions={
