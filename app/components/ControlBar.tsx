@@ -183,6 +183,7 @@ export default function ControlBar({
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [saveToast, setSaveToast] = useState(false);
+  const [mascotIndex, setMascotIndex] = useState(1);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -417,23 +418,28 @@ export default function ControlBar({
             <button type="button" className="template-save-btn btn-icon" onClick={onResetFilters} title="필터 초기화">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </button>
-            <button
-              type="button"
-              className="template-save-btn btn-icon"
-              onClick={() => {
-                if (activeTemplateId) {
-                  onUpdateTemplateConfig(activeTemplateId);
-                } else {
-                  onSaveDefaultConfig();
-                }
-                setSaveToast(true);
-                setTimeout(() => setSaveToast(false), 1500);
-              }}
-              title={activeTemplateId ? "현재 템플릿에 필터 상태 저장" : "기본 템플릿에 현재 상태 저장"}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            </button>
-            {saveToast && <span className="save-toast">저장 완료</span>}
+            <div className="save-btn-wrap">
+              {saveToast && (
+                <img key={Date.now()} src={`/mascot-${mascotIndex}.png`} alt="" className="save-mascot" />
+              )}
+              <button
+                type="button"
+                className={`template-save-btn btn-icon${saveToast ? " save-done" : ""}`}
+                onClick={() => {
+                  if (activeTemplateId) {
+                    onUpdateTemplateConfig(activeTemplateId);
+                  } else {
+                    onSaveDefaultConfig();
+                  }
+                  setMascotIndex([1, 2, 3][Math.floor(Math.random() * 3)]);
+                  setSaveToast(true);
+                  setTimeout(() => setSaveToast(false), 1800);
+                }}
+                title={activeTemplateId ? "현재 템플릿에 필터 상태 저장" : "기본 템플릿에 현재 상태 저장"}
+              >
+                <svg className="save-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              </button>
+            </div>
             {onExport && (
               <button type="button" className="template-save-btn btn-icon" onClick={onExport} disabled={isExporting} title="내보내기">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>

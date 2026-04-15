@@ -2878,6 +2878,45 @@ main {
   min-width: 0;
 }
 
+.save-btn-wrap {
+  position: relative;
+  display: inline-flex;
+  margin-left: 2px;
+}
+
+.save-btn-wrap > button.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+.save-mascot {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: mascot-popup 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  z-index: 10;
+}
+
+@keyframes mascot-popup {
+  0% { opacity: 0; transform: translateX(-50%) translateY(100%) scale(0.3); }
+  20% { opacity: 1; transform: translateX(-50%) translateY(-8px) scale(1.1); }
+  35% { transform: translateX(-50%) translateY(-4px) scale(1); }
+  65% { opacity: 1; transform: translateX(-50%) translateY(-4px) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(100%) scale(0.3); }
+}
+
 .template-save-btn {
   flex-shrink: 0;
   font-size: 11px;
@@ -2892,30 +2931,36 @@ main {
   color: var(--on-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
+  overflow: visible;
+  position: relative;
+}
+
+.template-save-btn .save-icon {
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.template-save-btn.save-done {
+  background: var(--success);
+}
+
+.template-save-btn.save-done .save-icon {
+  animation: floppy-insert 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes floppy-insert {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-4px) scale(1.15); }
+  60% { transform: translateY(3px) scale(0.85); }
+  80% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(0) scale(1); }
 }
 
 .template-save-btn:hover {
   background: var(--primary-hover);
 }
 
-.save-toast {
-  position: absolute;
-  bottom: -18px;
-  right: 0;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--success);
-  padding: 2px 6px;
-  white-space: nowrap;
-  animation: toast-fade 1.5s ease-in-out forwards;
-  pointer-events: none;
-}
-
-@keyframes toast-fade {
-  0% { opacity: 0; transform: translateY(2px); }
-  15% { opacity: 1; transform: translateY(0); }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
+.template-save-btn.save-done:hover {
+  background: var(--success);
 }
 
 /* Tab inline edit */
