@@ -5,6 +5,7 @@ import { getFilterOptions, getMeasurementUnitIds } from "../../lib/dataQueries";
 export const dynamic = "force-dynamic";
 
 const FILTER_OPTIONS_BATCH_CACHE_TTL = 300;
+const PERIOD_FILTER_UNITS = ["year", "quarter", "month", "week", "day"] as const;
 
 type ActiveFilter = { unit: string; values: string[] };
 
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
 
-  const allowedUnits = new Set(await getMeasurementUnitIds());
+  const allowedUnits = new Set([...await getMeasurementUnitIds(), ...PERIOD_FILTER_UNITS]);
   if (!measureUnit || !allowedUnits.has(measureUnit)) {
     return NextResponse.json({ error: "Invalid measureUnit." }, { status: 400 });
   }

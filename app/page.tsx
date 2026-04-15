@@ -129,6 +129,14 @@ const defaultPeriodRangeValueByUnit: Record<PeriodUnit, string> = {
   day: "recent_30"
 };
 
+const periodFilterLabelMap: Record<PeriodUnit, string> = {
+  year: "연",
+  quarter: "분기",
+  month: "월",
+  week: "주",
+  day: "일"
+};
+
 const buildCommit =
   process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
@@ -247,7 +255,7 @@ const buildFilterSummary = (
   measurementUnitLabelMap: Record<string, string>
 ) => {
   const activeFilters = buildActiveFilters(selections, optionsByUnit);
-  if (measurementUnit === "all" || activeFilters.length === 0) {
+  if (activeFilters.length === 0) {
     return ALL_LABEL;
   }
 
@@ -506,6 +514,7 @@ export default function Home() {
   const [measurementUnitOptions, setMeasurementUnitOptions] = useState<MeasurementUnitOption[]>([
     { value: "all", label: ALL_LABEL }
   ]);
+  const [periodFilterUnitOptions, setPeriodFilterUnitOptions] = useState<MeasurementUnitOption[]>([]);
   const [filterUnitOptions, setFilterUnitOptions] = useState<MeasurementUnitOption[]>([]);
   const [filterOptionsByUnit, setFilterOptionsByUnit] = useState<Record<string, FilterOption[]>>({});
   const [filterSelectionsByUnit, setFilterSelectionsByUnit] = useState<FilterSelectionMap>({});
@@ -610,6 +619,17 @@ export default function Home() {
         selectedValues: filterSelectionsByUnit[option.value] ?? []
       })),
     [filterOptionsByUnit, filterSelectionsByUnit, filterUnitOptions]
+  );
+
+  const periodFilterGroups = useMemo(
+    () =>
+      periodFilterUnitOptions.map((option) => ({
+        unit: option.value,
+        label: option.label,
+        options: filterOptionsByUnit[option.value] ?? [],
+        selectedValues: filterSelectionsByUnit[option.value] ?? []
+      })),
+    [filterOptionsByUnit, filterSelectionsByUnit, periodFilterUnitOptions]
   );
 
   const activeSearchFilters = useMemo(
@@ -756,14 +776,6 @@ export default function Home() {
     let canceled = false;
 
     const loadFilterUnits = async () => {
-      if (measurementUnit === "all") {
-        setFilterUnitOptions([]);
-        setFilterOptionsByUnit({});
-        setFilterSelectionsByUnit({});
-        setEntityFilterValue(ALL_VALUE);
-        return;
-      }
-
       setIsLoadingFilter(true);
       setErrorMessage(null);
       try {
@@ -781,16 +793,33 @@ export default function Home() {
           params.set("parentUnit", drilldownParent.unit);
           params.set("parentValue", drilldownParent.value);
         }
-        const unitsResponse = await fetchJsonWithTimeout<{ options: MeasurementUnitOption[] }>(
-          `/api/filter-units?${params.toString()}`,
-          15000
-        );
+        const [periodUnitsResponse, unitsResponse] = await Promise.all([
+          fetchJsonWithTimeout<{ options: string[] }>(
+            `/api/period-filter-units?periodUnit=${periodUnit}${effectivePeriodRangeValue !== "all"
+              ? `&${(weeksResponse.weeks ?? []).map((week) => `period=${encodeURIComponent(week)}`).join("&")}`
+              : ""}`,
+            15000
+          ),
+          measurementUnit === "all"
+            ? Promise.resolve({ options: [] as MeasurementUnitOption[] })
+            : fetchJsonWithTimeout<{ options: MeasurementUnitOption[] }>(
+                `/api/filter-units?${params.toString()}`,
+                15000
+              )
+        ]);
         if (canceled) return;
 
+        setPeriodFilterUnitOptions(
+          (periodUnitsResponse.options ?? []).map((unit) => ({
+            value: unit,
+            label: periodFilterLabelMap[unit as PeriodUnit] ?? unit
+          }))
+        );
         setFilterUnitOptions(unitsResponse.options ?? []);
       } catch (error) {
         if (!canceled) {
           const message = (error as Error).message;
+          setPeriodFilterUnitOptions([]);
           setFilterUnitOptions([]);
           setFilterOptionsByUnit({});
           setFilterSelectionsByUnit({});
@@ -812,7 +841,8 @@ export default function Home() {
     let canceled = false;
 
     const loadFilters = async () => {
-      if (measurementUnit === "all" || filterUnitOptions.length === 0) {
+      const combinedFilterUnits = [...periodFilterUnitOptions, ...filterUnitOptions];
+      if (combinedFilterUnits.length === 0) {
         setFilterOptionsByUnit({});
         setFilterSelectionsByUnit({});
         setEntityFilterValue(ALL_VALUE);
@@ -833,7 +863,7 @@ export default function Home() {
           periodUnit
         });
         effectiveWeeks.forEach((week) => params.append("week", week));
-        filterUnitOptions.forEach((option) => params.append("filterUnit", option.value));
+        combinedFilterUnits.forEach((option) => params.append("filterUnit", option.value));
         if (drilldownParent?.unit && drilldownParent?.value) {
           params.set("parentUnit", drilldownParent.unit);
           params.set("parentValue", drilldownParent.value);
@@ -884,10 +914,11 @@ export default function Home() {
     return () => {
       canceled = true;
     };
-  }, [
-    measurementUnit,
-    filterUnitOptions,
-    JSON.stringify(filterSelectionsByUnit),
+    }, [
+      measurementUnit,
+      periodFilterUnitOptions,
+      filterUnitOptions,
+      JSON.stringify(filterSelectionsByUnit),
     drilldownParent?.unit,
     drilldownParent?.value,
     effectivePeriodRangeValue,
@@ -1129,8 +1160,16 @@ export default function Home() {
   const handleMeasurementChange = (value: MeasurementUnit) => {
     setMeasurementUnit(value);
     setFilterUnitOptions([]);
-    setFilterOptionsByUnit({});
-    setFilterSelectionsByUnit({});
+    setFilterOptionsByUnit((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([unit]) => periodFilterUnitOptions.some((option) => option.value === unit))
+      )
+    );
+    setFilterSelectionsByUnit((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([unit]) => periodFilterUnitOptions.some((option) => option.value === unit))
+      )
+    );
     setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
     setPendingDrilldown(null);
@@ -1792,6 +1831,7 @@ export default function Home() {
           periodRangeOptions={periodRangeOptions}
           onPeriodUnitChange={handlePeriodUnitChange}
           onPeriodRangeChange={handlePeriodRangeChange}
+          periodFilterGroups={periodFilterGroups}
           measurementUnit={measurementUnit}
           measurementUnitOptions={measurementUnitOptions}
           onMeasurementUnitChange={handleMeasurementChange}
