@@ -176,6 +176,10 @@
   - 예: `periodUnit=month`일 때 source row에서 값이 존재하는 `year`, `quarter`, `month`만 기간 필터 축으로 노출
   - 신규 API: `GET /api/period-filter-units`
   - 기간 필터도 기본 전체 선택, `전체 해제`, cascade, heatmap 교집합 적용 방식을 동일하게 사용
+- 기간 필터 옵션 정합성 수정:
+  - `measureUnit=all` 상태에서 기간 필터(`year/quarter/month/week/day`) 옵션이 `전체`만 보이던 문제 수정
+  - 원인: `getFilterOptions()`가 `measureUnit === "all"`이면 조기 반환하며 기간 필터 source 조회까지 가지 못함
+  - 조치: 기간 필터는 `measureUnit=all`이어도 source query 경로로 내려가 실제 distinct period 값을 반환하도록 보정
 - 검색 UI 2층 구조:
   - 1층: `기간단위`, `기간범위`, 기간 필터들
   - 2층: `측정단위`, 측정단위 기반 엔티티 필터들

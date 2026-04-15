@@ -834,8 +834,8 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       .map(({ unit }) => unit);
   },
   getFilterOptions: async (measureUnit, options) => {
-    if (measureUnit === "all") return [ALL_LABEL];
     const filterUnit = options?.filterUnit && options.filterUnit !== "all" ? options.filterUnit : measureUnit;
+    if (measureUnit === "all" && !isPeriodFilterUnit(filterUnit)) return [ALL_LABEL];
     const activeFilters = (options?.activeFilters ?? [])
       .map((filter) => ({
         unit: filter.unit,
@@ -845,7 +845,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     if (activeFilters.some((filter) => filter.values.length === 0)) {
       return [];
     }
-    if (!getUnitConfig(measureUnit) || (!getUnitConfig(filterUnit) && !isPeriodFilterUnit(filterUnit))) {
+    if ((measureUnit !== "all" && !getUnitConfig(measureUnit)) || (!getUnitConfig(filterUnit) && !isPeriodFilterUnit(filterUnit))) {
       throw new Error(`Unsupported measure unit: ${measureUnit}`);
     }
 
