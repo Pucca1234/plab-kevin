@@ -1398,12 +1398,12 @@ main {
 .ms-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding: 5px 6px;
   border-radius: 6px;
   font-size: 12px;
   color: var(--ink);
+  position: relative;
 }
 
 .ms-option:hover {
@@ -1415,8 +1415,10 @@ main {
   align-items: center;
   gap: 4px;
   min-width: 0;
-  flex: 1;
+  width: 100%;
   cursor: pointer;
+  padding-right: 0;
+  transition: padding-right var(--transition-fast);
 }
 
 .ms-option input[type="checkbox"] {
@@ -1430,13 +1432,27 @@ main {
 
 .ms-option-label {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
+.ms-option:hover .ms-option-main,
+.ms-option:focus-within .ms-option-main {
+  padding-right: 92px;
+}
+
+.ms-option:hover .ms-option-label,
+.ms-option:focus-within .ms-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ms-option-only {
-  flex-shrink: 0;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--card);
@@ -1448,6 +1464,10 @@ main {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  max-width: 86px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ms-option:hover .ms-option-only,
