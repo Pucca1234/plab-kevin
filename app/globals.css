@@ -874,6 +874,14 @@ main {
   cursor: pointer;
 }
 
+.heatmap-color-picker-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
 .heatmap-toggle-dot {
   display: inline-block;
   width: 10px;
@@ -881,7 +889,6 @@ main {
   border-radius: 50%;
   border: none;
   padding: 0;
-  margin-left: 6px;
   cursor: pointer;
   vertical-align: middle;
   flex-shrink: 0;
@@ -891,6 +898,55 @@ main {
 
 .heatmap-toggle-dot:hover {
   opacity: 1;
+}
+
+.heatmap-color-dropdown {
+  position: fixed;
+  transform: translateX(-10px);
+  display: flex;
+  gap: 3px;
+  padding: 5px 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.heatmap-color-option {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.heatmap-color-option:hover {
+  transform: scale(1.2);
+}
+
+.heatmap-color-option.is-active {
+  border-color: var(--foreground);
+}
+
+.heatmap-color-off {
+  background: var(--bg);
+  border-color: var(--border);
+  font-size: 8px;
+  line-height: 10px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heatmap-color-off.is-active {
+  border-color: var(--foreground);
+  color: var(--foreground);
 }
 
 .breadcrumb {
