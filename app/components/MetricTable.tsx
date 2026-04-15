@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { createPortal } from "react-dom";
 import { Metric } from "../types";
 import { formatValue } from "../lib/format";
+import { measureMetricLabelColumnMinWidth } from "../lib/tableSizing";
 import Sparkline from "./Sparkline";
 
 type MetricTableProps = {
@@ -161,6 +162,33 @@ export default function MetricTable({
     if (!grid) return;
     const rows = Array.from(grid.querySelectorAll(".data-row")) as HTMLElement[];
     if (!rows.length) return;
+    const nameCells = Array.from(grid.querySelectorAll(".data-cell.data-name")) as HTMLElement[];
+    const metricNameEls = Array.from(grid.querySelectorAll(".data-name .name-title")) as HTMLElement[];
+    // 측정 전: flex/ellipsis 제약을 해제해 실제 텍스트 폭을 읽는다.
+    const overflowEls = Array.from(grid.querySelectorAll(".data-metric, .data-name, .data-metric .name-title, .data-name .name-title")) as HTMLElement[];
+    const restoreStyles = overflowEls.map((el) => ({
+      el,
+      overflow: el.style.overflow,
+      textOverflow: el.style.textOverflow,
+      flexShrink: el.style.flexShrink,
+      minWidth: el.style.minWidth,
+      maxWidth: el.style.maxWidth,
+      width: el.style.width,
+      display: el.style.display,
+      flex: el.style.flex
+    }));
+    overflowEls.forEach((el) => {
+      el.style.overflow = "visible";
+      el.style.textOverflow = "clip";
+      el.style.flexShrink = "0";
+      el.style.minWidth = "max-content";
+      el.style.maxWidth = "none";
+    });
+    metricNameEls.forEach((el) => {
+      el.style.display = "inline-block";
+      el.style.width = "max-content";
+      el.style.flex = "0 0 auto";
+    });
     const maxContentStr = Array(colCount).fill("max-content").join(" ");
     const origStyles = rows.map((r) => r.style.gridTemplateColumns);
     rows.forEach((r) => { r.style.gridTemplateColumns = maxContentStr; });
@@ -172,11 +200,28 @@ export default function MetricTable({
       }
     });
     rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
+    const metricNameColumnMinWidth = measureMetricLabelColumnMinWidth(
+      nameCells,
+      metrics.map((metric) => metric.name)
+    );
+    restoreStyles.forEach(({ el, overflow, textOverflow, flexShrink, minWidth, maxWidth, width, display, flex }) => {
+      el.style.overflow = overflow;
+      el.style.textOverflow = textOverflow;
+      el.style.flexShrink = flexShrink;
+      el.style.minWidth = minWidth;
+      el.style.maxWidth = maxWidth;
+      el.style.width = width;
+      el.style.display = display;
+      el.style.flex = flex;
+    });
 
     setColumnWidths((prev) => {
       const next = maxW.map((w, i) =>
         manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
       );
+      if (!manualResized.current.has(0)) {
+        next[0] = Math.max(next[0] ?? 0, metricNameColumnMinWidth);
+      }
       if (prev.length === next.length && prev.every((v, i) => v === next[i])) return prev;
       return next;
     });

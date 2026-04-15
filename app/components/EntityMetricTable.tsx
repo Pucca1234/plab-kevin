@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Entity, FilterOption, MeasurementUnitOption, Metric } from "../types";
 import Sparkline from "./Sparkline";
 import { formatValue } from "../lib/format";
+import { measureMetricLabelColumnMinWidth } from "../lib/tableSizing";
 
 type EntityMetricTableProps = {
   weeks: string[];
@@ -232,6 +233,33 @@ export default function EntityMetricTable({
     if (!grid) return;
     const rows = Array.from(grid.querySelectorAll(".data-row")) as HTMLElement[];
     if (!rows.length) return;
+    const metricCells = Array.from(grid.querySelectorAll(".data-cell.data-metric")) as HTMLElement[];
+    const metricNameEls = Array.from(grid.querySelectorAll(".data-metric .name-title")) as HTMLElement[];
+    // 측정 전: flex/ellipsis 제약을 해제해 실제 텍스트 폭을 읽는다.
+    const overflowEls = Array.from(grid.querySelectorAll(".data-metric, .data-metric .name-title")) as HTMLElement[];
+    const restoreStyles = overflowEls.map((el) => ({
+      el,
+      overflow: el.style.overflow,
+      textOverflow: el.style.textOverflow,
+      flexShrink: el.style.flexShrink,
+      minWidth: el.style.minWidth,
+      maxWidth: el.style.maxWidth,
+      width: el.style.width,
+      display: el.style.display,
+      flex: el.style.flex
+    }));
+    overflowEls.forEach((el) => {
+      el.style.overflow = "visible";
+      el.style.textOverflow = "clip";
+      el.style.flexShrink = "0";
+      el.style.minWidth = "max-content";
+      el.style.maxWidth = "none";
+    });
+    metricNameEls.forEach((el) => {
+      el.style.display = "inline-block";
+      el.style.width = "max-content";
+      el.style.flex = "0 0 auto";
+    });
     const maxContentStr = Array(colCount).fill("max-content").join(" ");
     const origStyles = rows.map((r) => r.style.gridTemplateColumns);
     rows.forEach((r) => { r.style.gridTemplateColumns = maxContentStr; });
@@ -243,11 +271,28 @@ export default function EntityMetricTable({
       }
     });
     rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
+    const metricNameColumnMinWidth = measureMetricLabelColumnMinWidth(
+      metricCells,
+      metrics.map((metric) => metric.name)
+    );
+    restoreStyles.forEach(({ el, overflow, textOverflow, flexShrink, minWidth, maxWidth, width, display, flex }) => {
+      el.style.overflow = overflow;
+      el.style.textOverflow = textOverflow;
+      el.style.flexShrink = flexShrink;
+      el.style.minWidth = minWidth;
+      el.style.maxWidth = maxWidth;
+      el.style.width = width;
+      el.style.display = display;
+      el.style.flex = flex;
+    });
 
     setColumnWidths((prev) => {
       const next = maxW.map((w, i) =>
         manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
       );
+      if (!manualResized.current.has(1)) {
+        next[1] = Math.max(next[1] ?? 0, metricNameColumnMinWidth);
+      }
       if (prev.length === next.length && prev.every((v, i) => v === next[i])) return prev;
       return next;
     });

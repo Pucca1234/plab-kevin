@@ -51,8 +51,8 @@
   --radius-full: 999px;
 
   /* Typography */
-  --font-body: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "SFMono-Regular", "JetBrains Mono", "Fira Code", "Menlo", monospace;
+  --font-display: "SFMono-Regular", "JetBrains Mono", "Fira Code", "Menlo", monospace;
   --font-mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", "Menlo", monospace;
 
   /* Transitions */
@@ -1237,6 +1237,19 @@ main {
   overflow: hidden;
 }
 
+.data-metric .name-title,
+.data-name .name-title {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.data-metric .heatmap-color-picker-wrap,
+.data-metric .delta-toggle-icon {
+  flex-shrink: 0;
+}
+
 .data-entity.is-empty .name-title {
   visibility: hidden;
 }
@@ -1262,7 +1275,7 @@ main {
 }
 
 .entity-sort-trigger {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 2px;
   border: 0;
@@ -1272,6 +1285,8 @@ main {
   font-weight: 700;
   cursor: pointer;
   padding: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .entity-sort-icon {
