@@ -64,6 +64,31 @@ const getFilterSummaryLabel = (group: FilterGroup) => {
   return `${selectedLabels[0]} 외 ${selectedLabels.length - 1}`;
 };
 
+const getDisplayFilterSummaryLabel = (group: FilterGroup, groups: FilterGroup[]) => {
+  const selectedLabels = group.options
+    .filter((option) => group.selectedValues.includes(option.value))
+    .map((option) => option.label);
+
+  const hasOtherActiveFilter = groups.some((candidate) => {
+    if (candidate.unit === group.unit) return false;
+    if (candidate.options.length === 0) return false;
+    return candidate.selectedValues.length !== candidate.options.length;
+  });
+
+  if (group.selectedValues.length === group.options.length && hasOtherActiveFilter) {
+    if (selectedLabels.length <= 2) {
+      return selectedLabels.join(", ");
+    }
+    return `${selectedLabels[0]} 외 ${selectedLabels.length - 1}건`;
+  }
+
+  if (selectedLabels.length === 1 && group.selectedValues.length === group.options.length) {
+    return selectedLabels[0];
+  }
+
+  return getFilterSummaryLabel(group);
+};
+
 export default function ControlBar({
   periodUnit,
   periodUnitOptions,
@@ -322,7 +347,7 @@ export default function ControlBar({
                 options={group.options}
                 selectedValues={group.selectedValues}
                 onChange={(values) => onFilterChange(group.unit, values)}
-                label={getFilterSummaryLabel(group)}
+                label={getDisplayFilterSummaryLabel(group, filterGroups)}
                 searchPlaceholder={`${group.label} 검색`}
               />
             </div>
