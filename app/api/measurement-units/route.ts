@@ -11,7 +11,7 @@ const getMeasurementUnitsCached = unstable_cache(
     const units = await getMeasurementUnitOptions();
     return { units, cachedAt: Date.now() };
   },
-  ["api-measurement-units-v2"],
+  ["api-measurement-units-v3"],
   { revalidate: MEASUREMENT_UNIT_CACHE_TTL }
 );
 

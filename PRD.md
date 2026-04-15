@@ -334,6 +334,9 @@
   - 최초 로드 시 각 필터 축은 모든 옵션이 기본 선택 상태
   - `전체 해제`로 0개 선택 상태를 만들 수 있으며, 이는 실제 빈 필터로 취급
 - API 반영:
+  - `GET /api/measurement-units`
+    - 측정단위 목록은 source의 실제 `dimension_type`/provider 매핑을 기준으로 노출
+    - 표시 라벨은 `metric_store_native.korean_name`을 최우선으로 사용하고, 값이 없을 때만 코드 fallback 라벨을 사용
   - `GET /api/filter-units`
     - `measureUnit` 기준 사용 가능한 필터 축 목록 제공
   - `GET /api/filter-options`
@@ -384,6 +387,21 @@
       - 각 옵션 행 hover 시 `지정된 값만 보기` 버튼을 노출하고, 클릭 시 해당 값만 단독 선택 후 즉시 결과에 반영
       - 옵션 라벨은 기본 상태에서는 원문을 최대한 그대로 노출하고, hover/focus 시 버튼 공간이 필요할 때에만 말줄임(`...`)을 적용
       - 드롭다운 메뉴 가로 폭은 고정하고, hover 시 메뉴 박스 전체가 늘어나지 않도록 옵션 행 내부 텍스트만 축약
+- 2026-04-16 source 단위 추가 반영:
+  - BigQuery source(`data_mart_1_social_match`)에서 신규 `dimension_type`를 확인하고 앱 측정단위 목록에 반영
+  - 추가 대상:
+    - `ai_report_match`
+    - `match_grade`
+    - `match_level`
+    - `match_player_cnt`
+    - `match_sex`
+    - `plab_stadium`
+    - `plaber_match`
+    - `yoil`
+    - `yoil_group`
+  - 관련 조치:
+    - `UNIT_CONFIG_BY_UNIT`, `COLUMN_BY_UNIT`, 정렬 순서, 라벨 매핑 확장
+    - `measurement-units` API 캐시 키 갱신
 - UI 표현 보정:
   - Kevin AI 첫 세션 기본 제목을 `대화`로 단순화
   - 기본 저장 탭 이름을 `템플릿`으로 축약하고, 추가 탭은 `템플릿2`, `템플릿3` 규칙으로 생성
