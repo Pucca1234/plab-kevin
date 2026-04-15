@@ -1002,15 +1002,15 @@ main {
 .heatmap-color-dropdown {
   position: fixed;
   transform: translateX(-10px);
-  display: flex;
-  gap: 3px;
-  padding: 5px 6px;
+  display: grid;
+  grid-template-columns: repeat(6, 14px);
+  gap: 4px;
+  padding: 6px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  white-space: nowrap;
 }
 
 .heatmap-color-option {
@@ -1637,7 +1637,7 @@ main {
 }
 
 .name-title {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 11px;
   color: var(--ink);
   flex-shrink: 1;
@@ -1655,7 +1655,7 @@ main {
 /* Value — Compact Typography */
 .value-main {
   font-family: var(--font-mono);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 12px;
   color: var(--ink);
   letter-spacing: -0.01em;
@@ -1663,9 +1663,9 @@ main {
 
 .value-delta {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--ink);
-  opacity: 0.9;
+  opacity: 0.85;
   display: inline-flex;
   align-items: center;
   gap: 1px;
