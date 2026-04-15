@@ -233,6 +233,8 @@
   - `bigqueryShared.ts`와 provider 매핑에 신규 단위/엔티티 컬럼 추가
   - `GET /api/measurement-units` 캐시 키를 갱신해 기존 목록 캐시 무효화
   - 측정단위 라벨은 `metric_store_native.korean_name`을 최우선으로 사용하고, 값이 없을 때만 코드 fallback 라벨을 사용
+  - 신규 단위는 `legacy weekly_agg`/`weekly_expanded_agg` 대상이 아니므로, 주간 조회에서도 `source query` 경로를 사용하도록 `bigqueryProvider` 분기 보정
+  - 이 조치로 새 단위 선택 시 결과 heatmap, 필터 옵션, 드릴다운 후보 확인 경로가 0건으로 비던 문제를 완화
 
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`

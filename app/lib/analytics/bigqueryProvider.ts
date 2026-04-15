@@ -59,6 +59,16 @@ const entityHierarchyView = `\`${projectId}.${servingDataset}.entity_hierarchy\`
 const weeklyAggView = `\`${projectId}.${servingDataset}.weekly_agg\``;
 const weeklyExpandedAggView = `\`${projectId}.${servingDataset}.weekly_expanded_agg\``;
 const METADATA_CACHE_TTL_MS = 10 * 60 * 1000;
+const EXPANDED_MV_UNITS = new Set([
+  "area_group_and_time",
+  "area_and_time",
+  "stadium_group_and_time",
+  "stadium_and_time",
+  "time",
+  "hour",
+  "yoil_and_hour",
+  "yoil_group_and_hour"
+]);
 const PERIOD_COLUMN_BY_UNIT: Record<SupportedPeriodUnit, string> = {
   year: "year",
   quarter: "quarter",
@@ -111,6 +121,8 @@ const normalizePeriodUnit = (value?: string | null): SupportedPeriodUnit =>
 
 const isPeriodFilterUnit = (value?: string | null): value is SupportedPeriodUnit =>
   value === "year" || value === "quarter" || value === "month" || value === "week" || value === "day";
+
+const canUseExpandedMvUnit = (value: string) => EXPANDED_MV_UNITS.has(value);
 
 const buildPeriodValueExpression = (periodUnit: SupportedPeriodUnit, qualifier = "") => {
   const prefix = qualifier ? `${qualifier}.` : "";
@@ -884,7 +896,15 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     const weeks = (options?.weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
     const hasPeriodFilters = activeFilters.some((filter) => isPeriodFilterUnit(filter.unit));
 
-    if (periodUnit !== "week" || isPeriodFilterUnit(filterUnit) || hasPeriodFilters) {
+    const useSourceFilterOptions =
+      periodUnit !== "week" ||
+      isPeriodFilterUnit(filterUnit) ||
+      hasPeriodFilters ||
+      (!LEGACY_MV_UNITS.has(measureUnit) && !canUseExpandedMvUnit(measureUnit)) ||
+      (!isPeriodFilterUnit(filterUnit) && !LEGACY_MV_UNITS.has(filterUnit) && !canUseExpandedMvUnit(filterUnit)) ||
+      Boolean(parentUnit && !LEGACY_MV_UNITS.has(parentUnit) && !canUseExpandedMvUnit(parentUnit));
+
+    if (useSourceFilterOptions) {
       return getFilterOptionsFromSource({
         measureUnit,
         filterUnit,
@@ -980,7 +1000,16 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
 
     const queryStart = Date.now();
 
-    if (effectivePeriodUnit !== "week" || normalizedFilters.some((filter) => isPeriodFilterUnit(filter.unit))) {
+    const useSourceHeatmap =
+      effectivePeriodUnit !== "week" ||
+      normalizedFilters.some((filter) => isPeriodFilterUnit(filter.unit)) ||
+      (!LEGACY_MV_UNITS.has(measureUnit) && !canUseExpandedMvUnit(measureUnit)) ||
+      Boolean(parentUnit && !LEGACY_MV_UNITS.has(parentUnit) && !canUseExpandedMvUnit(parentUnit)) ||
+      normalizedFilters.some(
+        (filter) => !isPeriodFilterUnit(filter.unit) && !LEGACY_MV_UNITS.has(filter.unit) && !canUseExpandedMvUnit(filter.unit)
+      );
+
+    if (useSourceHeatmap) {
       const rows = await getHeatmapFromSource({
         periodUnit: effectivePeriodUnit,
         measureUnit,

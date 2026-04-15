@@ -402,6 +402,8 @@
   - 관련 조치:
     - `UNIT_CONFIG_BY_UNIT`, `COLUMN_BY_UNIT`, 정렬 순서, 라벨 매핑 확장
     - `measurement-units` API 캐시 키 갱신
+    - 신규 단위는 `legacy`/`weekly_expanded_agg` 집계 테이블 대상이 아니므로, 주간 조회에서도 `source query` 경로를 사용하도록 `bigqueryProvider` 분기 보정
+    - 이 보정으로 새 단위 선택 시 결과/필터/드릴다운 확인 경로가 집계 테이블 미존재 때문에 0건으로 떨어지던 문제를 줄임
 - UI 표현 보정:
   - Kevin AI 첫 세션 기본 제목을 `대화`로 단순화
   - 기본 저장 탭 이름을 `템플릿`으로 축약하고, 추가 탭은 `템플릿2`, `템플릿3` 규칙으로 생성
