@@ -67,7 +67,11 @@ const getServiceAccountAccessToken = async () => {
 
   const auth = new GoogleAuth({
     credentials,
-    scopes: ["https://www.googleapis.com/auth/bigquery"]
+    scopes: [
+      "https://www.googleapis.com/auth/bigquery",
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file"
+    ]
   });
   const client = await auth.getClient();
   const tokenResponse = await client.getAccessToken();
@@ -83,7 +87,7 @@ const getServiceAccountAccessToken = async () => {
   return token;
 };
 
-const getAccessToken = async () => {
+export const getAccessToken = async () => {
   const serviceAccountToken = await getServiceAccountAccessToken();
   if (serviceAccountToken) return serviceAccountToken;
 

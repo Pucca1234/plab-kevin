@@ -38,13 +38,24 @@ const formatDelta = (metric: Metric, delta: number | null) => {
 };
 
 const METRIC_HEAT_COLORS: [number, number, number][] = [
-  [108, 171, 221], // blue
-  [130, 194, 135], // green
-  [221, 160, 108], // orange
-  [176, 131, 205], // purple
-  [219, 132, 132], // red
-  [108, 200, 200], // teal
-  [200, 180, 108], // gold
+  [219, 68, 55],   // red
+  [230, 126, 34],  // orange
+  [241, 196, 15],  // yellow
+  [46, 204, 113],  // green
+  [26, 188, 156],  // teal
+  [52, 152, 219],  // blue
+  [142, 68, 173],  // purple
+  [231, 76, 160],  // pink
+  [127, 140, 141], // gray
+  [192, 57, 43],   // dark red
+  [160, 106, 28],  // brown
+  [39, 174, 96],   // emerald
+  [22, 160, 133],  // dark teal
+  [41, 128, 185],  // dark blue
+  [44, 62, 80],    // navy
+  [108, 52, 131],  // dark purple
+  [211, 84, 0],    // burnt orange
+  [189, 195, 199], // silver
 ];
 
 const getMetricHeatColor = (
@@ -429,7 +440,7 @@ export default function EntityMetricTable({
                               className={`heatmap-color-option${getActiveColorIndex(metric.id, index) === ci ? " is-active" : ""}`}
                               onClick={() => selectHeatmapColor(metric.id, ci)}
                               style={{ backgroundColor: `rgb(${color.join(",")})` }}
-                              title={["파랑", "초록", "주황", "보라", "빨강", "청록", "골드"][ci]}
+                              title={["빨강", "주황", "노랑", "초록", "청록", "파랑", "보라", "핑크", "회색", "진빨강", "갈색", "에메랄드", "진청록", "진파랑", "남색", "진보라", "번트오렌지", "실버"][ci]}
                             />
                           ))}
                           <button

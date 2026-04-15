@@ -1664,6 +1664,127 @@ export default function Home() {
     measurementUnitLabelMap
   ]);
 
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    if (exportMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [exportMenuOpen]);
+
+  const buildSheet1Data = () => {
+    const rows: (string | number)[][] = [];
+    if (appliedMeasurementUnit === "all") {
+      rows.push(["지표", ...displayedWeeks]);
+      for (const metric of selectedMetrics) {
+        const values = (seriesByEntity[ALL_LABEL] ?? {})[metric.id] ?? [];
+        rows.push([metric.name, ...values]);
+      }
+    } else {
+      rows.push(["엔티티", "지표", ...displayedWeeks]);
+      for (const entity of displayedEntities) {
+        const series = seriesByEntity[entity.id] ?? {};
+        for (const metric of selectedMetrics) {
+          const values = series[metric.id] ?? [];
+          rows.push([entity.name, metric.name, ...values]);
+        }
+      }
+    }
+    return rows;
+  };
+
+  const rawDataParams = () => {
+    const filterSummary = buildFilterSummary(
+      appliedMeasurementUnit,
+      appliedFilterSelectionsByUnit,
+      filterOptionsByUnit,
+      measurementUnitLabelMap
+    );
+    return {
+      periodUnit: appliedPeriodUnit,
+      measureUnit: appliedMeasurementUnit,
+      weeks,
+      metrics: selectedMetrics.map((m) => m.id),
+      filterValue: filterSummary === ALL_VALUE ? null : filterSummary,
+      parentUnit: drilldownParent?.unit ?? null,
+      parentValue: drilldownParent?.value ?? null
+    };
+  };
+
+  const downloadExcel = async () => {
+    setIsExporting(true);
+    setExportMenuOpen(false);
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+
+      const ws1 = XLSX.utils.aoa_to_sheet(buildSheet1Data());
+      XLSX.utils.book_append_sheet(wb, ws1, "조회 데이터");
+
+      try {
+        const res = await fetch("/api/raw-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(rawDataParams())
+        });
+        const data = await res.json();
+        if (data.rows?.length) {
+          const rows = data.rows as Record<string, unknown>[];
+          const allKeys = Object.keys(rows[0]);
+          const nonNullKeys = allKeys.filter((key) =>
+            rows.some((row) => row[key] !== null && row[key] !== undefined)
+          );
+          const cleaned = rows.map((row) => {
+            const obj: Record<string, unknown> = {};
+            for (const key of nonNullKeys) obj[key] = row[key];
+            return obj;
+          });
+          const ws2 = XLSX.utils.json_to_sheet(cleaned);
+          XLSX.utils.book_append_sheet(wb, ws2, "원본 데이터");
+        }
+      } catch (e) {
+        console.error("Raw data fetch failed:", e);
+      }
+
+      XLSX.writeFile(wb, `kevin_data_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e) {
+      console.error("Excel download failed:", e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportToSheets = async () => {
+    setIsExporting(true);
+    setExportMenuOpen(false);
+    try {
+      const res = await fetch("/api/export-sheets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sheet1Data: buildSheet1Data(),
+          ...rawDataParams()
+        })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank");
+      } else {
+        pushError("스프레드시트 내보내기 실패", data.error || "알 수 없는 오류");
+      }
+    } catch (e) {
+      pushError("스프레드시트 내보내기 실패", (e as Error).message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <main className={`app-shell${isChatOpen ? " chat-open" : ""}`}>
       <header className="app-header">
@@ -1823,6 +1944,28 @@ export default function Home() {
           </div>
         ) : !isLoadingHeatmap && showResults ? (
           <div className="result-stack">
+            <div className="result-toolbar">
+              <div className="export-menu-wrap" ref={exportMenuRef}>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                  disabled={isExporting}
+                >
+                  {isExporting ? "내보내는 중..." : "내보내기"}
+                </button>
+                {exportMenuOpen && (
+                  <div className="export-menu-dropdown">
+                    <button type="button" className="export-menu-item" onClick={exportToSheets}>
+                      Google 스프레드시트
+                    </button>
+                    <button type="button" className="export-menu-item" onClick={downloadExcel}>
+                      Excel 다운로드
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             {appliedMeasurementUnit === "all" ? (
               <MetricTable
                 title=""

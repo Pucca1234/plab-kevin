@@ -510,6 +510,59 @@ ${metricStructs}
   `);
 };
 
+export const getRawDataFromSource = async ({
+  periodUnit,
+  measureUnit,
+  filterValue,
+  periods,
+  metricIds,
+  parentUnit,
+  parentValue
+}: {
+  periodUnit: "year" | "quarter" | "month" | "week" | "day";
+  measureUnit: string;
+  filterValue: string | null;
+  periods: string[];
+  metricIds?: string[];
+  parentUnit?: string | null;
+  parentValue?: string | null;
+}): Promise<Record<string, unknown>[]> => {
+  const pu = normalizePeriodUnit(periodUnit);
+  const periodCol = sanitizeIdentifier(PERIOD_COLUMN_BY_UNIT[pu]);
+
+  // 차원 컬럼 + 선택된 지표 컬럼만 SELECT
+  const dimensionCols = ["period_type", "year", "quarter", "month", "week", "day",
+    "dimension_type", "area_group", "area", "stadium_group", "stadium", "time", "hour", "yoil", "yoil_group"];
+  const metricCols = (metricIds ?? []).map((id) => sanitizeIdentifier(id));
+  const selectCols = metricCols.length > 0
+    ? [...dimensionCols, ...metricCols].map((c) => `src.${c}`).join(", ")
+    : "src.*";
+
+  let dimensionFilter = "";
+  if (measureUnit === "all") {
+    dimensionFilter = "and coalesce(nullif(trim(src.dimension_type), ''), 'all') = 'all'";
+  } else {
+    const queryUnit = resolveQueryUnitForDrilldownStrict(measureUnit, parentUnit);
+    if (!queryUnit) return [];
+    const queryUnitConfig = getUnitConfig(queryUnit);
+    if (!queryUnitConfig) return [];
+    dimensionFilter = `and src.dimension_type = '${queryUnitConfig.dimensionType}'
+      ${buildNotNullChecksForUnit(queryUnit)}
+      ${filterValue ? buildSourceEntityFilterClause(measureUnit, filterValue) : ""}
+      ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}`;
+  }
+
+  return runQuery<Record<string, unknown>>(`
+    select ${selectCols}
+    from ${sourceTable} src
+    where src.period_type = '${pu}'
+      ${buildPeriodFilterClause(pu, periods, "src")}
+      ${dimensionFilter}
+    order by cast(src.${periodCol} as string)
+    limit 10000
+  `);
+};
+
 export const bigqueryAnalyticsProvider: AnalyticsProvider = {
   getWeeksData: async (options) => {
     const limit = typeof options?.limit === "number" && options.limit > 0 ? options.limit : undefined;
