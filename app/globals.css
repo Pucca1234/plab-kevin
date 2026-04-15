@@ -51,8 +51,8 @@
   --radius-full: 999px;
 
   /* Typography */
-  --font-body: "SFMono-Regular", "JetBrains Mono", "Fira Code", "Menlo", monospace;
-  --font-display: "SFMono-Regular", "JetBrains Mono", "Fira Code", "Menlo", monospace;
+  --font-body: "Inter", "Pretendard Variable", "Pretendard", -apple-system, sans-serif;
+  --font-display: "Inter", "Pretendard Variable", "Pretendard", -apple-system, sans-serif;
   --font-mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", "Menlo", monospace;
 
   /* Transitions */
@@ -1226,6 +1226,10 @@ main {
 .data-entity,
 .data-metric {
   text-align: left;
+}
+
+.data-entity {
+  overflow: hidden;
 }
 
 .data-metric {

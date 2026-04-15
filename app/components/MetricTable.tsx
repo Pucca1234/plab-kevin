@@ -113,7 +113,7 @@ export default function MetricTable({
 }: MetricTableProps) {
   const weekColumnCount = weeks.length;
   const colCount = 2 + weekColumnCount;
-  const [columnWidths, setColumnWidths] = useState<number[]>([180, 100, ...Array(weekColumnCount).fill(100)]);
+  const [columnWidths, setColumnWidths] = useState<number[]>([180, 100, ...Array(weekColumnCount).fill(120)]);
   const [heatmapColorMap, setHeatmapColorMap] = useState<Record<string, number | null>>({});
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
@@ -153,7 +153,7 @@ export default function MetricTable({
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setColumnWidths([180, 100, ...Array(weekColumnCount).fill(100)]);
+    setColumnWidths([180, 100, ...Array(weekColumnCount).fill(120)]);
     manualResized.current.clear();
   }, [weekColumnCount]);
 
