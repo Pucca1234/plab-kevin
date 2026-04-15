@@ -347,6 +347,12 @@
   - 구버전 단일 `filterValue` 템플릿은 현재 측정단위 기준으로 호환 복원
   - `.github/workflows/weekly-mv-rebuild.yml`
     - rebuild step에 `PGOPTIONS="-c statement_timeout=0"` 추가
+- 후속 보정:
+  - `전체 선택`과 `0개 선택`을 분리해 기본 표시와 실제 조회 의미를 일치시킴
+  - 전체 선택 필터는 API 요청에서 제외하고, 빈 선택 필터만 empty 조건으로 전달
+  - 각 필터 축 옵션 계산 시 다른 필터의 선택값을 반영하는 cascade 구조로 보강
+  - 브라우저의 다중 순차 옵션 호출을 `GET /api/filter-options-batch` 1회 요청으로 통합
+  - 배치 옵션 조회는 TTL 300초 캐시를 사용해 반복 로딩 비용을 줄임
 - 운영 검증:
   - 원격 DB 수동 재생성 성공
   - 재생성 완료 시간 약 19분, 현재 workflow `timeout-minutes: 30` 내에서 수용 가능
