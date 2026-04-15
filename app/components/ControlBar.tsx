@@ -133,7 +133,7 @@ export default function ControlBar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingDefault, setEditingDefault] = useState(false);
-  const [defaultTabName, setDefaultTabName] = useState("기본 템플릿");
+  const [defaultTabName, setDefaultTabName] = useState("템플릿");
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [saveToast, setSaveToast] = useState(false);
@@ -286,7 +286,7 @@ export default function ControlBar({
         <button
           type="button"
           className="template-tab template-tab-add"
-          onClick={() => onCreateEmptyTab(`템플릿 ${templates.length + 1}`)}
+          onClick={() => onCreateEmptyTab(`템플릿${templates.length + 2}`)}
           title="새 템플릿 추가"
         >
           +

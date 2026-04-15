@@ -1119,13 +1119,22 @@ main {
   z-index: 11;
   border-color: var(--border);
   border-bottom: 2px solid var(--border);
-  text-align: center;
+  flex-direction: row;
+  align-items: center;
+}
+
+.data-row.data-header .data-cell.data-entity,
+.data-row.data-header .data-cell.data-name,
+.data-row.data-header .data-cell.data-metric {
+  justify-content: flex-start;
+}
+
+.data-row.data-header .data-cell.data-spark {
   justify-content: center;
 }
 
-.data-row.data-header .data-cell.data-entity {
-  text-align: center;
-  justify-content: center;
+.data-row.data-header .data-cell.data-week {
+  justify-content: flex-end;
 }
 
 /* Data Cells */
