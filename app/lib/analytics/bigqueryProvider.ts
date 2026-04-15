@@ -781,7 +781,10 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
         unit: filter.unit,
         values: filter.values.map((value) => value.trim()).filter((value) => value.length > 0)
       }))
-      .filter((filter) => filter.values.length > 0 && filter.unit !== filterUnit);
+      .filter((filter) => filter.unit !== filterUnit);
+    if (activeFilters.some((filter) => filter.values.length === 0)) {
+      return [];
+    }
     if (!getUnitConfig(measureUnit) || !getUnitConfig(filterUnit)) {
       throw new Error(`Unsupported measure unit: ${measureUnit}`);
     }
@@ -819,7 +822,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
         .filter((value) => value.length > 0);
     }
 
-    if (!parentUnit && LEGACY_MV_UNITS.has(measureUnit) && filterUnit === measureUnit) {
+    if (!parentUnit && LEGACY_MV_UNITS.has(measureUnit) && filterUnit === measureUnit && activeFilters.length === 0) {
       const rows = await runQuery<{ filter_value: string | null }>(`
         select distinct filter_value
         from ${weeklyAggView}

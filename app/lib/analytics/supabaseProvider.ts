@@ -1046,6 +1046,9 @@ export async function getFilterOptions(
 ) {
   if (measureUnit === "all") return [ALL_LABEL];
   const filterUnit = options?.filterUnit && options.filterUnit !== "all" ? options.filterUnit : measureUnit;
+  if ((options?.activeFilters ?? []).some((filter) => filter.values.length === 0)) {
+    return [];
+  }
   if (filterUnit !== measureUnit) {
     return [];
   }

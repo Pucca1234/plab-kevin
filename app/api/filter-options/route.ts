@@ -44,10 +44,15 @@ export async function GET(request: Request) {
             const value = activeFilterValues[index];
             if (!unit || !value || unit === filterUnit) return acc;
             const existing = acc.find((item) => item.unit === unit);
+            const normalizedValue = value === "__NONE__" ? null : value;
             if (existing) {
-              existing.values.push(value);
+              if (normalizedValue) {
+                existing.values.push(normalizedValue);
+              } else {
+                existing.values = [];
+              }
             } else {
-              acc.push({ unit, values: [value] });
+              acc.push({ unit, values: normalizedValue ? [normalizedValue] : [] });
             }
             return acc;
           }, []),

@@ -228,18 +228,17 @@ const buildActiveFilters = (
   selections: FilterSelectionMap,
   optionsByUnit: Record<string, FilterOption[]>
 ): { unit: string; values: string[] }[] =>
-  Object.entries(optionsByUnit)
-    .map(([unit, options]) => {
-      const selected = selections[unit] ?? [];
-      if (selected.length === 0 && options.length > 0) {
-        return { unit, values: [] };
-      }
-      return {
-        unit,
-        values: selected.length === options.length ? [] : selected
-      };
-    })
-    .filter((filter, index) => filter.values.length > 0 || (Object.values(optionsByUnit)[index]?.length ?? 0) > 0);
+  Object.entries(optionsByUnit).flatMap(([unit, options]) => {
+    const hasSelection = Object.prototype.hasOwnProperty.call(selections, unit);
+    const selected = hasSelection ? (selections[unit] ?? []) : options.map((option) => option.value);
+    if (selected.length === 0 && options.length > 0) {
+      return [{ unit, values: [] }];
+    }
+    if (selected.length >= options.length) {
+      return [];
+    }
+    return [{ unit, values: selected }];
+  });
 
 const buildFilterSummary = (
   measurementUnit: MeasurementUnit,
@@ -828,43 +827,43 @@ export default function Home() {
           6000
         );
         const effectiveWeeks = effectivePeriodRangeValue !== "all" ? (weeksResponse.weeks ?? []) : [];
-        const nextOptionsEntries = await Promise.all(
-          filterUnitOptions.map(async (filterUnitOption) => {
-            const params = new URLSearchParams({
-              measureUnit: measurementUnit,
-              filterUnit: filterUnitOption.value,
-              periodUnit
-            });
-            effectiveWeeks.forEach((week) => params.append("week", week));
-            if (drilldownParent?.unit && drilldownParent?.value) {
-              params.set("parentUnit", drilldownParent.unit);
-              params.set("parentValue", drilldownParent.value);
-            }
+        const currentSelections = normalizeSelections(filterSelectionsByUnit, filterOptionsByUnit);
+        const params = new URLSearchParams({
+          measureUnit: measurementUnit,
+          periodUnit
+        });
+        effectiveWeeks.forEach((week) => params.append("week", week));
+        filterUnitOptions.forEach((option) => params.append("filterUnit", option.value));
+        if (drilldownParent?.unit && drilldownParent?.value) {
+          params.set("parentUnit", drilldownParent.unit);
+          params.set("parentValue", drilldownParent.value);
+        }
+        for (const [unit, values] of Object.entries(currentSelections)) {
+          const optionCount = filterOptionsByUnit[unit]?.length ?? 0;
+          if (values.length === 0) {
+            params.append("activeFilterUnit", unit);
+            params.append("activeFilterValue", "__NONE__");
+            continue;
+          }
+          if (optionCount > 0 && values.length === optionCount) continue;
+          values.forEach((value) => {
+            params.append("activeFilterUnit", unit);
+            params.append("activeFilterValue", value);
+          });
+        }
 
-            const currentSelections = normalizeSelections(filterSelectionsByUnit, filterOptionsByUnit);
-            for (const [unit, values] of Object.entries(currentSelections)) {
-              if (unit === filterUnitOption.value) continue;
-              const optionCount = filterOptionsByUnit[unit]?.length ?? 0;
-              if (optionCount > 0 && values.length === optionCount) continue;
-              values.forEach((value) => {
-                params.append("activeFilterUnit", unit);
-                params.append("activeFilterValue", value);
-              });
-            }
-
-            const response = await fetchJsonWithTimeout<{ options: string[] }>(
-              `/api/filter-options?${params.toString()}`,
-              15000
-            );
-            return [
-              filterUnitOption.value,
-              (response.options ?? []).map((value) => ({ label: value, value }))
-            ] as const;
-          })
+        const response = await fetchJsonWithTimeout<{ optionsByUnit: Record<string, string[]> }>(
+          `/api/filter-options-batch?${params.toString()}`,
+          15000
         );
         if (canceled) return;
 
-        const nextOptionsByUnit = Object.fromEntries(nextOptionsEntries);
+        const nextOptionsByUnit = Object.fromEntries(
+          Object.entries(response.optionsByUnit ?? {}).map(([unit, values]) => [
+            unit,
+            values.map((value) => ({ label: value, value }))
+          ])
+        );
         setFilterOptionsByUnit(nextOptionsByUnit);
         setFilterSelectionsByUnit((current) => normalizeSelections(current, nextOptionsByUnit));
         setEntityFilterValue(ALL_VALUE);
@@ -1138,10 +1137,9 @@ export default function Home() {
   };
 
   const handleFilterChange = (unit: MeasurementUnit, values: string[]) => {
-    const fallbackValues = filterOptionsByUnit[unit]?.map((option) => option.value) ?? [];
     setFilterSelectionsByUnit((current) => ({
       ...current,
-      [unit]: values.length > 0 ? values : fallbackValues
+      [unit]: values
     }));
     setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
