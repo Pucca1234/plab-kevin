@@ -18,6 +18,11 @@ type FilterGroup = {
   selectedValues: string[];
 };
 
+type SingleSelectOption = {
+  label: string;
+  value: string;
+};
+
 type ControlBarProps = {
   periodUnit: PeriodUnit;
   periodUnitOptions: { label: string; value: PeriodUnit }[];
@@ -53,13 +58,87 @@ type ControlBarProps = {
   isExporting?: boolean;
 };
 
+function SingleSelectDropdown({
+  title,
+  value,
+  options,
+  onChange
+}: {
+  title: string;
+  value: string;
+  options: SingleSelectOption[];
+  onChange: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handle = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  const current = options.find((option) => option.value === value);
+  const triggerLabel = current ? `${title} : ${current.label}` : title;
+
+  return (
+    <div className="ss-dropdown" ref={ref}>
+      <button
+        type="button"
+        className="ss-trigger"
+        onClick={() => setIsOpen((open) => !open)}
+        title={triggerLabel}
+      >
+        <span className="ss-trigger-label">{triggerLabel}</span>
+        <svg
+          className="ss-chevron"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          style={{ transform: isOpen ? "rotate(180deg)" : undefined }}
+        >
+          <path
+            d="M6 9L12 15L18 9"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="ss-menu">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`ss-option ${option.value === value ? "is-active" : ""}`}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              title={option.label}
+            >
+              <span className="ss-option-label">{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const getMultiSelectDisplayLabel = (group: FilterGroup) => {
   const total = group.options.length;
   const selected = group.selectedValues.length;
 
-  if (total === 0) return group.label;
-  if (selected === 0) return group.label;
-  if (selected === total) return group.label;
+  if (selected === 0 || selected === total || total === 0) return group.label;
   return `${group.label} (${selected})`;
 };
 
@@ -281,25 +360,23 @@ export default function ControlBar({
         </div>
 
         <div className="search-row search-row-main">
-          <label className="field search-field">
-            <select value={periodUnit} onChange={(event) => onPeriodUnitChange(event.target.value as PeriodUnit)}>
-              {periodUnitOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {`기간단위 : ${option.label}`}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="field search-field">
+            <SingleSelectDropdown
+              title="기간단위"
+              value={periodUnit}
+              options={periodUnitOptions}
+              onChange={(value) => onPeriodUnitChange(value as PeriodUnit)}
+            />
+          </div>
 
-          <label className="field search-field">
-            <select value={periodRangeValue} onChange={(event) => onPeriodRangeChange(event.target.value)}>
-              {periodRangeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {`기간범위 : ${option.label}`}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="field search-field">
+            <SingleSelectDropdown
+              title="기간범위"
+              value={periodRangeValue}
+              options={periodRangeOptions}
+              onChange={onPeriodRangeChange}
+            />
+          </div>
 
           {periodFilterGroups.map((group) => (
             <div key={group.unit} className="field search-field">
@@ -315,15 +392,14 @@ export default function ControlBar({
         </div>
 
         <div className="search-row search-row-main search-row-secondary">
-          <label className="field search-field">
-            <select value={measurementUnit} onChange={(event) => onMeasurementUnitChange(event.target.value)}>
-              {measurementUnitOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {`측정단위 : ${option.label}`}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="field search-field">
+            <SingleSelectDropdown
+              title="측정단위"
+              value={measurementUnit}
+              options={measurementUnitOptions}
+              onChange={(value) => onMeasurementUnitChange(value as MeasurementUnit)}
+            />
+          </div>
 
           {filterGroups.map((group) => (
             <div key={group.unit} className="field search-field">

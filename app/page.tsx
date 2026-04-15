@@ -276,6 +276,11 @@ const buildFilterSummary = (
     .join(" / ");
 };
 
+const sortFilterOptionValues = (unit: string, values: string[]) => {
+  if (!PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit)) return values;
+  return [...values].sort((left, right) => right.localeCompare(left, "ko", { numeric: true }));
+};
+
 
 const fetchJson = async <T,>(input: RequestInfo, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, init);
@@ -893,7 +898,7 @@ export default function Home() {
         const nextOptionsByUnit = Object.fromEntries(
           Object.entries(response.optionsByUnit ?? {}).map(([unit, values]) => [
             unit,
-            values.map((value) => ({ label: value, value }))
+            sortFilterOptionValues(unit, values).map((value) => ({ label: value, value }))
           ])
         );
         setFilterOptionsByUnit(nextOptionsByUnit);
