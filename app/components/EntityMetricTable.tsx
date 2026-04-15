@@ -203,23 +203,6 @@ export default function EntityMetricTable({
     });
     rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
 
-    // 지표 컬럼(index 1): 숨겨진 측정 요소로 텍스트 너비 측정 후 아이콘 너비 추가
-    if (metrics.length > 0) {
-      const probe = document.createElement("span");
-      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font-weight:600;font-size:11px;";
-      document.body.appendChild(probe);
-      let maxTextW = 0;
-      for (const m of metrics) {
-        probe.textContent = m.name;
-        const tw = probe.offsetWidth;
-        if (tw > maxTextW) maxTextW = tw;
-      }
-      document.body.removeChild(probe);
-      // 텍스트 + dot(16) + gap(4) + 증감토글(14) + gap(4) + 셀패딩(8) + 여유(4)
-      const minMetricW = maxTextW + 50;
-      if (minMetricW > maxW[1]) maxW[1] = minMetricW;
-    }
-
     setColumnWidths((prev) => {
       const next = maxW.map((w, i) =>
         manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)

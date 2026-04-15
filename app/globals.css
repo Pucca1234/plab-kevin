@@ -111,6 +111,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+*, *::before, *::after {
+  font-family: inherit;
+}
+
+input, button, select, textarea {
+  font-family: var(--font-body);
+}
+
 main {
   margin: 0;
   padding: 4px 8px 0;
@@ -1227,13 +1235,6 @@ main {
   justify-content: flex-start;
   gap: 4px;
   overflow: hidden;
-}
-
-.data-metric .name-title {
-  flex-shrink: 0;
-  min-width: auto;
-  overflow: visible;
-  text-overflow: unset;
 }
 
 .data-entity.is-empty .name-title {

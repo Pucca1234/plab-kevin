@@ -133,22 +133,6 @@ export default function MetricTable({
     });
     rows.forEach((r, idx) => { r.style.gridTemplateColumns = origStyles[idx]; });
 
-    // 지표 컬럼(index 0): 숨겨진 측정 요소로 텍스트 너비 측정 후 아이콘 너비 추가
-    if (metrics.length > 0) {
-      const probe = document.createElement("span");
-      probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font-weight:600;font-size:11px;";
-      document.body.appendChild(probe);
-      let maxTextW = 0;
-      for (const m of metrics) {
-        probe.textContent = m.name;
-        const tw = probe.offsetWidth;
-        if (tw > maxTextW) maxTextW = tw;
-      }
-      document.body.removeChild(probe);
-      const minMetricW = maxTextW + 50;
-      if (minMetricW > maxW[0]) maxW[0] = minMetricW;
-    }
-
     setColumnWidths((prev) => {
       const next = maxW.map((w, i) =>
         manualResized.current.has(i) ? (prev[i] ?? w) : Math.max(w, 40)
