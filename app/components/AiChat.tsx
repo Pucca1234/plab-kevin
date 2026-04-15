@@ -31,7 +31,7 @@ const FIRST_SESSION_ID = "s-initial";
 
 export default function AiChat({ onApplyFilters, dashboardContext, availableOptions, isOpen, onToggle }: AiChatProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([
-    { id: FIRST_SESSION_ID, title: "새 대화", messages: [], dynamicSuggestions: [] },
+    { id: FIRST_SESSION_ID, title: "대화", messages: [], dynamicSuggestions: [] },
   ]);
   const [activeSessionId, setActiveSessionId] = useState(FIRST_SESSION_ID);
   const [input, setInput] = useState("");

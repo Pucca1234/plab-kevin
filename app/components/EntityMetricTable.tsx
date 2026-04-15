@@ -45,17 +45,6 @@ const METRIC_HEAT_COLORS: [number, number, number][] = [
   [26, 188, 156],  // teal
   [52, 152, 219],  // blue
   [142, 68, 173],  // purple
-  [231, 76, 160],  // pink
-  [127, 140, 141], // gray
-  [192, 57, 43],   // dark red
-  [160, 106, 28],  // brown
-  [39, 174, 96],   // emerald
-  [22, 160, 133],  // dark teal
-  [41, 128, 185],  // dark blue
-  [44, 62, 80],    // navy
-  [108, 52, 131],  // dark purple
-  [211, 84, 0],    // burnt orange
-  [189, 195, 199], // silver
 ];
 
 const getMetricHeatColor = (
@@ -283,34 +272,6 @@ export default function EntityMetricTable({
                 onClick={toggleEntitySort}
               >
                 측정단위
-                <svg className="entity-sort-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M12 5V19"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity={entitySortOrder ? 1 : 0.4}
-                  />
-                  {entitySortOrder === "desc" ? (
-                    <path
-                      d="M5 12L12 19L19 12"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  ) : (
-                    <path
-                      d="M5 12L12 5L19 12"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      opacity={entitySortOrder === "asc" ? 1 : 0.4}
-                    />
-                  )}
-                </svg>
               </button>
               <button
                 type="button"
@@ -430,7 +391,7 @@ export default function EntityMetricTable({
                               className={`heatmap-color-option${getActiveColorIndex(metric.id, index) === ci ? " is-active" : ""}`}
                               onClick={() => selectHeatmapColor(metric.id, ci)}
                               style={{ backgroundColor: `rgb(${color.join(",")})` }}
-                              title={["빨강", "주황", "노랑", "초록", "청록", "파랑", "보라", "핑크", "회색", "진빨강", "갈색", "에메랄드", "진청록", "진파랑", "남색", "진보라", "번트오렌지", "실버"][ci]}
+                              title={["빨강", "주황", "노랑", "초록", "청록", "파랑", "보라"][ci]}
                             />
                           ))}
                           <button
