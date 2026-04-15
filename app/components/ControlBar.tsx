@@ -98,7 +98,7 @@ export default function ControlBar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingDefault, setEditingDefault] = useState(false);
-  const [defaultTabName, setDefaultTabName] = useState("기본");
+  const [defaultTabName, setDefaultTabName] = useState("기본 템플릿");
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [saveToast, setSaveToast] = useState(false);
@@ -201,7 +201,7 @@ export default function ControlBar({
                       onDeleteTemplate(template.id);
                     }
                   }}
-                  title="탭 삭제"
+                  title="템플릿 삭제"
                 >
                   ×
                 </span>
@@ -249,8 +249,8 @@ export default function ControlBar({
         <button
           type="button"
           className="template-tab template-tab-add"
-          onClick={() => onCreateEmptyTab(`탭 ${templates.length + 1}`)}
-          title="새 탭 추가"
+          onClick={() => onCreateEmptyTab(`템플릿 ${templates.length + 1}`)}
+          title="새 템플릿 추가"
         >
           +
         </button>
@@ -345,7 +345,7 @@ export default function ControlBar({
                   setSaveToast(true);
                   setTimeout(() => setSaveToast(false), 1500);
                 }}
-                title={activeTemplateId ? "현재 탭에 필터 상태 저장" : "기본 탭에 현재 상태 저장"}
+                title={activeTemplateId ? "현재 템플릿에 필터 상태 저장" : "기본 템플릿에 현재 상태 저장"}
               >
                 저장
               </button>

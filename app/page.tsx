@@ -519,6 +519,8 @@ export default function Home() {
   const [isMetricPickerOpen, setIsMetricPickerOpen] = useState(false);
   const [copiedMetricId, setCopiedMetricId] = useState<string | null>(null);
   const [metricSearchTerm, setMetricSearchTerm] = useState("");
+  const [metricCategoryFilter, setMetricCategoryFilter] = useState("");
+  const [metricOwnerFilter, setMetricOwnerFilter] = useState("");
   const [showDeltaValues, setShowDeltaValues] = useState(true);
   const [drilldownParent, setDrilldownParent] = useState<DrilldownParent>(null);
   const [appliedDrilldownHistory, setAppliedDrilldownHistory] = useState<DrilldownHistoryItem[]>([]);
@@ -546,8 +548,22 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null);
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
-  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(null);
+  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = localStorage.getItem("kevin_default_tab_config");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [userName, setUserName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultTabConfig) {
+      localStorage.setItem("kevin_default_tab_config", JSON.stringify(defaultTabConfig));
+    }
+  }, [defaultTabConfig]);
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(true);
@@ -1361,10 +1377,24 @@ export default function Home() {
     }
   };
 
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of metrics) if (m.category2) set.add(m.category2.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [metrics]);
+
+  const ownerOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of metrics) if (m.category3) set.add(m.category3.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [metrics]);
+
   const filteredMetrics = useMemo(() => {
     const keyword = metricSearchTerm.trim().toLowerCase();
-    if (!keyword) return metrics;
     return metrics.filter((metric) => {
+      if (metricCategoryFilter && (metric.category2 ?? "").trim() !== metricCategoryFilter) return false;
+      if (metricOwnerFilter && (metric.category3 ?? "").trim() !== metricOwnerFilter) return false;
+      if (!keyword) return true;
       const haystack = [
         metric.id,
         metric.name,
@@ -1376,7 +1406,7 @@ export default function Home() {
         .toLowerCase();
       return haystack.includes(keyword);
     });
-  }, [metrics, metricSearchTerm]);
+  }, [metrics, metricSearchTerm, metricCategoryFilter, metricOwnerFilter]);
 
   const groupedMetrics = useMemo(() => {
     const outer = new Map<string, Map<string, Metric[]>>();
@@ -1413,7 +1443,7 @@ export default function Home() {
     } catch (error) {
       const msg = (error as Error).message;
       if (msg !== "Unauthorized") {
-        pushError("탭 목록 불러오기 실패", msg);
+        pushError("템플릿 목록 불러오기 실패", msg);
       }
       return [];
     }
@@ -1428,6 +1458,24 @@ export default function Home() {
       const defaultTemplate = loaded.find((t) => t.is_default);
       if (defaultTemplate) {
         applyTemplateConfig(defaultTemplate);
+      } else if (defaultTabConfig) {
+        const cfg = defaultTabConfig;
+        const nextPeriodUnit = cfg.periodUnit ?? "week";
+        const nextMeasurementUnit = cfg.measurementUnit ?? "all";
+        const legacySelections =
+          cfg.filterValue && cfg.filterValue !== ALL_VALUE && nextMeasurementUnit !== "all"
+            ? { [nextMeasurementUnit]: [cfg.filterValue] }
+            : {};
+        setPeriodUnit(nextPeriodUnit);
+        setPeriodRangeValue(cfg.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
+        setMeasurementUnit(nextMeasurementUnit);
+        setFilterSelectionsByUnit(
+          Object.keys(cfg.filterSelections ?? {}).length > 0 ? (cfg.filterSelections ?? {}) : legacySelections
+        );
+        setEntityFilterValue(ALL_VALUE);
+        if (cfg.selectedMetricIds?.length) {
+          setSelectedMetricIds(cfg.selectedMetricIds);
+        }
       }
     };
 
@@ -1504,7 +1552,7 @@ export default function Home() {
       setActiveTemplateId(response.template.id);
       await loadTemplates();
     } catch (error) {
-      pushError("탭 생성 실패", (error as Error).message);
+      pushError("템플릿 생성 실패", (error as Error).message);
     }
   };
 
@@ -1837,6 +1885,26 @@ export default function Home() {
               >
                 닫기
               </button>
+            </div>
+            <div className="metric-picker-filters">
+              <select
+                value={metricCategoryFilter}
+                onChange={(e) => setMetricCategoryFilter(e.target.value)}
+              >
+                <option value="">분류 전체</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                value={metricOwnerFilter}
+                onChange={(e) => setMetricOwnerFilter(e.target.value)}
+              >
+                <option value="">담당 전체</option>
+                {ownerOptions.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
             </div>
             <div className="metric-picker-search">
               <input
