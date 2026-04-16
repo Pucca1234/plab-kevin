@@ -22,6 +22,60 @@
   - 간헐적으로 수동 재실행으로 늦게 반영되는 날이 있음
   - serving rebuild는 매일 08:30 KST 기준 실행하고, 늦은 반영분은 다음날 스케줄에서 따라잡는 것을 기본 정책으로 한다.
 
+### 2.2 2026-04-16 현재 인수인계 메모
+- 현재 프로젝트 기준:
+  - 로컬 경로: `c:\Users\actio\Desktop\projects\plab-kevin`
+  - GitHub repo: `Pucca1234/plab-kevin`
+  - Vercel project: `plab-kevin`
+  - production URL: `https://plab-kevin.vercel.app`
+  - 최신 `main` 기준 커밋: `900a16b fix: render drilldown menu in portal`
+  - 다음 작업은 최신 `origin/main`에서 새 브랜치를 생성해 진행한다.
+- 새 채팅방에서 우선 파악할 문서:
+  - `README.md`: 현재 시스템 상태, BigQuery 운영 기준, 최근 적용 이력
+  - `PRD.md`: 제품 요구사항, API 계약, 집계/정확도 규칙, UX 결정사항
+  - `AGENTS.md`: 문서 업데이트 및 커밋/푸시/머지 절차 규칙
+- 현재 데이터/서빙 기준:
+  - 분석 backend 기본값은 `ANALYTICS_BACKEND=bigquery`다.
+  - read-only 원천:
+    - `plabfootball-51bf5.data_mart.data_mart_1_social_match`
+    - `plabfootball-51bf5.googlesheets.metric_store_native`
+  - serving dataset:
+    - `plabfootball-51bf5.kevin_serving.weeks_view`
+    - `plabfootball-51bf5.kevin_serving.entity_hierarchy`
+    - `plabfootball-51bf5.kevin_serving.weekly_agg`
+    - `plabfootball-51bf5.kevin_serving.weekly_expanded_agg`
+- 현재 주요 UX 요구사항:
+  - 필터 영역은 지표/기간 필터 row와 측정단위/측정 필터/action row의 2줄 구조를 유지한다.
+  - 기간 필터는 연/분기/월/주/일 선택값을 동적으로 노출하며 최신 값 우선 정렬을 유지한다.
+  - 측정단위 필터는 source row의 `dimension_type` 기준 실제 값에서 동적으로 계산한다.
+  - 지표 선택 패널에서 카테고리와 담당자 필터는 서로 연동한다. 카테고리 선택 시 담당자 목록은 해당 카테고리에 존재하는 담당자만 남는다.
+  - 결과 테이블은 엔티티명 클릭으로 하위 측정단위 드릴다운 옵션을 노출해야 한다.
+  - 드릴다운 메뉴는 테이블 내부 overflow에 갇히면 안 된다. 최신 구현은 `document.body` portal과 `position: fixed` 좌표를 사용해 짧은 결과 테이블의 하단 스크롤바 위에서도 메뉴가 잘리지 않도록 한다.
+  - empty-state 영역은 `main-panel` 폭을 따라 100%로 보이고 좌측으로 쏠려 보이면 안 된다.
+- 현재 주요 코드 소유 영역:
+  - `app/page.tsx`: dashboard state, filter/template/drilldown orchestration
+  - `app/components/EntityMetricTable.tsx`: 결과 테이블, 엔티티 드릴다운 메뉴, period sort, heatmap, resize
+  - `app/components/MultiSelectDropdown.tsx`: dropdown 공통 UI
+  - `app/lib/analytics/bigqueryProvider.ts`: BigQuery provider 및 query generation
+  - `app/lib/analytics/bigqueryShared.ts`: 측정단위/필터/metric mapping
+  - `app/lib/analytics/bigqueryClient.ts`: BigQuery 인증 및 client 생성
+  - 주요 API: `/api/heatmap`, `/api/filter-options`, `/api/filter-options-batch`, `/api/filter-units`, `/api/period-filter-units`, `/api/drilldown-options`, `/api/measurement-units`, `/api/metrics`, `/api/weeks`, `/api/raw-data`
+- 최근 적용된 버그 수정:
+  - 신규 동기화 측정단위가 serving table에 없을 때 source query 경로로 조회한다.
+  - `6p_cancel_match_rate` 등 숫자로 시작하는 metric identifier는 BigQuery SQL에서 backtick escape한다.
+  - header/search/table spacing, `main-panel` width, empty-state width를 정리했다.
+  - 드릴다운 메뉴가 표 뒤로 숨거나 스크롤바에 가려지는 문제를 portal 기반 렌더링으로 해결했다.
+- 다음 작업 시 검증 기준:
+  - `npm run build`가 통과해야 한다.
+  - `git diff --check`로 whitespace conflict marker를 확인한다.
+  - UI 변경은 가능한 경우 실제 브라우저에서 필터 선택, 조회, 엔티티 드릴다운 클릭까지 확인한다.
+  - 커밋/푸시/머지 요청을 받으면 변경 내용에 맞춰 `README.md`와 `PRD.md`를 먼저 업데이트한다.
+- 주의사항:
+  - source BigQuery table은 수정하지 않는다. 필요한 신규 객체는 `kevin_serving` dataset에만 둔다.
+  - `.env.local`은 로컬 전용이며 커밋하지 않는다.
+  - 일부 기존 TSX 한글 문자열은 에디터/콘솔 인코딩에 따라 깨져 보일 수 있으므로, 기능 수정과 무관한 대규모 재인코딩은 하지 않는다.
+  - PowerShell에서는 `&&` 대신 명령을 분리하거나 `;`를 사용한다.
+
 ## 3. 데이터 구조
 ### 3.1 원천 테이블 (Read-only)
 - `plabfootball-51bf5.data_mart.data_mart_1_social_match`

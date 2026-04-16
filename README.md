@@ -41,6 +41,53 @@
     - 로컬 `gcloud auth login` fallback
   - Vercel 배포 시에는 service account JSON 계열 env 사용 권장
 
+## 새 채팅방 인수인계 메모 (2026-04-16)
+- 현재 기준:
+  - 작업 프로젝트: `c:\Users\actio\Desktop\projects\plab-kevin`
+  - GitHub repo: `Pucca1234/plab-kevin`
+  - Vercel project: `plab-kevin`
+  - production URL: `https://plab-kevin.vercel.app`
+  - 최신 `main` 기준 커밋: `900a16b fix: render drilldown menu in portal`
+  - 새 작업은 반드시 최신 `origin/main`에서 새 브랜치를 만들어 시작합니다.
+- 읽어야 할 우선 문서:
+  - `README.md`: 프로젝트 상태, BigQuery 운영 기준, 최근 작업 이력
+  - `PRD.md`: 제품/API/집계 규칙, 운영 검증 기준, UX 결정사항
+  - `AGENTS.md`: 커밋/푸시 전 문서 업데이트 규칙
+- 핵심 파일 지도:
+  - `app/page.tsx`: 대시보드 상태, 템플릿, 필터 선택, 기간/측정단위/드릴다운 orchestration
+  - `app/components/EntityMetricTable.tsx`: 결과 테이블, 엔티티 행, 드릴다운 메뉴, 기간 정렬, heatmap 색상, 컬럼 리사이즈
+  - `app/components/MultiSelectDropdown.tsx`: 단일/다중 선택 드롭다운 공통 UI
+  - `app/lib/analytics/provider.ts`: analytics backend provider 선택
+  - `app/lib/analytics/bigqueryProvider.ts`: BigQuery 쿼리 생성 및 API 응답 조립
+  - `app/lib/analytics/bigqueryShared.ts`: 측정단위/필터/컬럼/label 매핑과 drilldown 단위 해석
+  - `app/lib/analytics/bigqueryClient.ts`: BigQuery 클라이언트와 인증 fallback
+  - API routes: `/api/heatmap`, `/api/filter-options`, `/api/filter-options-batch`, `/api/filter-units`, `/api/period-filter-units`, `/api/drilldown-options`, `/api/measurement-units`, `/api/metrics`, `/api/weeks`, `/api/raw-data`
+- 현재 UX 동작:
+  - 필터 영역은 2줄 구조입니다. 1줄은 지표/기간 필터, 2줄은 측정단위/측정단위 필터/액션 버튼입니다.
+  - 기간 필터는 연/분기/월/주/일 축을 동적으로 노출하며 최신 값이 먼저 보이도록 정렬합니다.
+  - 측정단위 필터는 BigQuery 원천 row의 `dimension_type`별 실제 값에서 동적으로 구성합니다.
+  - `filterSelections`가 필터 선택 상태의 기준입니다. 사용자가 특정 필터를 비우면 해당 조건은 빈 결과로 처리합니다.
+  - 지표 선택 패널은 카테고리와 담당자 필터를 연동합니다. 카테고리를 선택하면 담당자 dropdown도 해당 카테고리에 존재하는 담당자만 보여줍니다.
+  - 결과 테이블의 엔티티명 클릭 시 `/api/drilldown-options` 결과를 드릴다운 메뉴로 보여줍니다.
+  - 드릴다운 메뉴는 `document.body` portal + `position: fixed`로 렌더링합니다. 행이 적어 가로 스크롤바가 바로 아래 붙는 경우에도 메뉴가 `.table-scroll` overflow나 스크롤바에 잘리지 않도록 하기 위한 최신 수정입니다.
+- 최근 중요 수정 이력:
+  - `8d6ff94`: 신규 동기화 측정단위가 legacy/expanded serving table에 없을 때 source query 경로를 사용하도록 보정
+  - `2526170`: header/search/table spacing, `main-panel` 폭, empty-state 폭 등 대시보드 레이아웃 보정
+  - `7e27844`: `6p_cancel_match_rate`처럼 숫자로 시작하는 BigQuery metric identifier를 backtick escape하여 쿼리 syntax error 해결
+  - `3e15fe0`: 테이블 뒤로 숨어 보이지 않던 드릴다운 메뉴 z-index/overflow 1차 보정
+  - `900a16b`: 드릴다운 메뉴를 portal로 옮겨 짧은 결과 테이블의 하단 스크롤바에 가려지는 문제 해결
+- 검증 명령:
+  - `npm run build`
+  - `git diff --check`
+  - UI 수정 시 가능하면 로컬 서버에서 실제 필터/드릴다운 동작을 확인합니다.
+- 작업 주의사항:
+  - 분석 source of truth는 BigQuery입니다. Supabase는 인증/템플릿 등 앱 운영 데이터에 사용합니다.
+  - BigQuery source table은 read-only입니다. 신규/갱신 객체는 `plabfootball-51bf5.kevin_serving`에만 둡니다.
+  - `.env.local`은 로컬에 존재하지만 커밋하지 않습니다.
+  - 일부 TSX 파일의 기존 한글 문자열은 파일 표시 환경에 따라 깨져 보일 수 있습니다. 빌드가 통과하는 상태에서 불필요한 대규모 재인코딩은 피합니다.
+  - PowerShell에서는 `&&` 대신 명령을 분리하거나 `;`를 사용합니다.
+  - `.git/index.lock`이 보이면 먼저 실행 중인 git 프로세스를 확인하고, stale lock이 확실할 때만 제거합니다.
+
 ## 2026-04-01 BigQuery 전환 작업 이력
 - 새 프로젝트 구성:
   - GitHub repo `Pucca1234/plab-kevin`
