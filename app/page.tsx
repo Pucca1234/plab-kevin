@@ -1439,9 +1439,12 @@ export default function Home() {
 
   const ownerOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const m of metrics) if (m.category3) set.add(m.category3.trim());
+    for (const m of metrics) {
+      if (metricCategoryFilter && (m.category2 ?? "").trim() !== metricCategoryFilter) continue;
+      if (m.category3) set.add(m.category3.trim());
+    }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [metrics]);
+  }, [metrics, metricCategoryFilter]);
 
   const filteredMetrics = useMemo(() => {
     const keyword = metricSearchTerm.trim().toLowerCase();
@@ -2029,7 +2032,10 @@ export default function Home() {
             <div className="metric-picker-filters">
               <select
                 value={metricCategoryFilter}
-                onChange={(e) => setMetricCategoryFilter(e.target.value)}
+                onChange={(e) => {
+                  setMetricCategoryFilter(e.target.value);
+                  setMetricOwnerFilter("");
+                }}
               >
                 <option value="">분류 전체</option>
                 {categoryOptions.map((c) => (
