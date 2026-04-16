@@ -258,6 +258,16 @@
   - `app/lib/analytics/bigqueryProvider.ts`의 identifier sanitizer가 BigQuery용 식별자를 항상 백틱(`\``)으로 감싸도록 수정
   - 이 보정으로 source query / raw data query / 동적 metric struct 조립 경로에서 숫자 시작 metric도 동일하게 안전하게 조회 가능
 
+## 2026-04-16 드릴다운 메뉴 표시 보정
+- 현상:
+  - 엔티티명 클릭 시 드릴다운 옵션 요청과 렌더링은 동작하지만, 메뉴가 테이블 row/grid 뒤로 가려져 보이지 않는 것처럼 보임
+- 원인:
+  - 드릴다운 메뉴는 엔티티 셀 내부 `position: absolute`로 렌더링되는데, `data-grid`와 `data-entity`의 overflow clipping 및 stacking context 부족으로 셀 밖 영역이 잘림
+- 조치:
+  - 확장된 엔티티 셀과 row에 `position`/`z-index`/`overflow: visible`을 부여
+  - `data-grid` overflow를 visible로 조정
+  - 드릴다운 메뉴 z-index를 상향해 테이블 셀 위에 안정적으로 표시되도록 수정
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`

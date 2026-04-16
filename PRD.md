@@ -419,6 +419,14 @@
   - 조치:
     - `bigqueryProvider.ts`의 identifier sanitizer를 BigQuery 식별자용 백틱 래핑 형태로 보정
     - 이에 따라 heatmap/source/raw-data 경로의 동적 metric SELECT/STRUCT 조립에서 숫자 시작 metric도 안전하게 조회 가능
+- 2026-04-16 드릴다운 메뉴 표시 보정:
+  - 증상:
+    - 엔티티 셀 클릭 시 드릴다운 옵션은 로드되지만 메뉴가 테이블 뒤로 가려지거나 셀 영역 밖에서 잘려 보임
+  - 원인:
+    - 엔티티 셀 내부 absolute 메뉴가 `data-grid`/`data-entity` overflow clipping과 낮은 stacking context 영향을 받음
+  - 조치:
+    - 확장된 엔티티 셀과 row를 별도 stacking context로 올리고 overflow를 visible로 보정
+    - 드릴다운 메뉴 z-index를 테이블 셀보다 높게 설정해 옵션 목록이 클릭한 엔티티 아래에 노출되도록 수정
 - UI 표현 보정:
   - Kevin AI 첫 세션 기본 제목을 `대화`로 단순화
   - 기본 저장 탭 이름을 `템플릿`으로 축약하고, 추가 탭은 `템플릿2`, `템플릿3` 규칙으로 생성
