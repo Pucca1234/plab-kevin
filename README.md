@@ -248,6 +248,16 @@
   - 빈 상태 카드와 오류 카드가 좌측에 몰려 보이지 않도록 창 크기에 따라 자연스럽게 늘어나도록 수정
   - 결과 테이블 카드 외곽 테두리는 제거하고 내부 패딩/스크롤 여백만 유지
 
+## 2026-04-16 BigQuery 숫자 시작 지표 조회 보정
+- 현상:
+  - 월 단위 조회에서 `6인 취소 매치 비율`, `7인 취소 매치 비율`, `8인 취소 매치 비율`, `9인 취소 매치 비율` 같은 지표를 선택하면 BigQuery가 `Syntax error: Expected keyword AS but got "p_cancel_match_rate"`로 실패
+- 원인:
+  - source query 경로에서 동적 metric column을 SQL identifier로 조립할 때, `6p_cancel_match_rate`처럼 숫자로 시작하는 컬럼명을 백틱 없이 사용
+  - BigQuery에서는 숫자로 시작하는 컬럼 identifier를 반드시 백틱으로 감싸야 함
+- 조치:
+  - `app/lib/analytics/bigqueryProvider.ts`의 identifier sanitizer가 BigQuery용 식별자를 항상 백틱(`\``)으로 감싸도록 수정
+  - 이 보정으로 source query / raw data query / 동적 metric struct 조립 경로에서 숫자 시작 metric도 동일하게 안전하게 조회 가능
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`

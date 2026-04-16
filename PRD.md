@@ -410,6 +410,15 @@
   - 측정단위 row는 액션 버튼 묶음과 세로 가운데 정렬되도록 보정
   - `main-panel`은 고정 폭 대신 `width: 100%`로 확장해 빈 상태/오류 카드가 좌측으로 몰려 보이지 않도록 수정
   - 결과 테이블 카드는 외곽 border를 제거하고 내부 패딩과 스크롤 여백만 유지
+- 2026-04-16 BigQuery 숫자 시작 metric identifier 보정:
+  - 증상:
+    - 월 단위 source query 경로에서 `6p_cancel_match_rate`, `7p_cancel_match_rate` 등 숫자로 시작하는 metric을 선택하면 BigQuery가 문법 오류(`Expected keyword AS`)를 반환
+  - 원인:
+    - 동적 metric column을 SQL 식별자로 조립할 때 백틱 없이 raw identifier를 사용
+    - BigQuery는 숫자로 시작하는 컬럼명을 반드시 백틱으로 감싸야 함
+  - 조치:
+    - `bigqueryProvider.ts`의 identifier sanitizer를 BigQuery 식별자용 백틱 래핑 형태로 보정
+    - 이에 따라 heatmap/source/raw-data 경로의 동적 metric SELECT/STRUCT 조립에서 숫자 시작 metric도 안전하게 조회 가능
 - UI 표현 보정:
   - Kevin AI 첫 세션 기본 제목을 `대화`로 단순화
   - 기본 저장 탭 이름을 `템플릿`으로 축약하고, 추가 탭은 `템플릿2`, `템플릿3` 규칙으로 생성

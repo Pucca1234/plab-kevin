@@ -113,7 +113,7 @@ const sanitizeIdentifier = (identifier: string) => {
   if (!/^[a-zA-Z0-9_]+$/.test(identifier)) {
     throw new Error(`Invalid BigQuery identifier: ${identifier}`);
   }
-  return identifier;
+  return `\`${identifier}\``;
 };
 
 const normalizePeriodUnit = (value?: string | null): SupportedPeriodUnit =>
