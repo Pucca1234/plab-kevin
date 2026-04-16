@@ -427,6 +427,9 @@
   - 조치:
     - 확장된 엔티티 셀과 row를 별도 stacking context로 올리고 overflow를 visible로 보정
     - 드릴다운 메뉴 z-index를 테이블 셀보다 높게 설정해 옵션 목록이 클릭한 엔티티 아래에 노출되도록 수정
+  - 후속 보정:
+    - 결과 행이 적어 가로 스크롤바가 메뉴와 겹치는 케이스는 CSS stacking만으로 안정적으로 해결하기 어려워, 메뉴를 `document.body` 포털로 분리
+    - 클릭한 엔티티 셀의 viewport 좌표를 기준으로 `position: fixed` 드롭다운을 띄우고, window scroll/resize 시 위치를 재계산
 - UI 표현 보정:
   - Kevin AI 첫 세션 기본 제목을 `대화`로 단순화
   - 기본 저장 탭 이름을 `템플릿`으로 축약하고, 추가 탭은 `템플릿2`, `템플릿3` 규칙으로 생성

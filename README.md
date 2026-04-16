@@ -267,6 +267,10 @@
   - 확장된 엔티티 셀과 row에 `position`/`z-index`/`overflow: visible`을 부여
   - `data-grid` overflow를 visible로 조정
   - 드릴다운 메뉴 z-index를 상향해 테이블 셀 위에 안정적으로 표시되도록 수정
+- 후속 보정:
+  - 결과 행이 적어 가로 스크롤바가 바로 아래에 붙는 경우, 메뉴가 스크롤 컨테이너 영역에 다시 가려지는 문제를 확인
+  - 드릴다운 메뉴를 테이블 내부 absolute 요소가 아니라 `document.body` 포털 레이어로 렌더링하도록 변경
+  - 클릭한 엔티티 셀의 viewport 좌표를 기준으로 `position: fixed` 배치하고, 스크롤/리사이즈 시 위치를 재계산하도록 수정
 
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`

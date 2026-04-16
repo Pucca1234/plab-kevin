@@ -1685,6 +1685,11 @@ main {
   padding: 6px;
 }
 
+.entity-filter-menu.entity-drilldown-menu-portal {
+  position: fixed;
+  z-index: 500;
+}
+
 .entity-filter-option {
   width: 100%;
   text-align: left;

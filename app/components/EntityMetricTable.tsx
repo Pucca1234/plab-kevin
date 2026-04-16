@@ -188,6 +188,8 @@ export default function EntityMetricTable({
   const [periodSortPos, setPeriodSortPos] = useState<{ top: number; left: number } | null>(null);
   const periodSortRef = useRef<HTMLDivElement>(null);
   const drilldownMenuRef = useRef<HTMLDivElement | null>(null);
+  const drilldownAnchorRef = useRef<HTMLDivElement | null>(null);
+  const [drilldownMenuPos, setDrilldownMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     setColumnWidths([140, 200, 90, ...Array(weekColumnCount).fill(120)]);
@@ -216,7 +218,10 @@ export default function EntityMetricTable({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (expandedEntityName && drilldownMenuRef.current && !drilldownMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedMenu = Boolean(drilldownMenuRef.current?.contains(target));
+      const clickedAnchor = Boolean(drilldownAnchorRef.current?.contains(target));
+      if (expandedEntityName && !clickedMenu && !clickedAnchor) {
         onDrilldownClose?.();
       }
       if (periodSortRef.current && !periodSortRef.current.contains(event.target as Node)) {
@@ -227,6 +232,32 @@ export default function EntityMetricTable({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [expandedEntityName, onDrilldownClose, periodSortOpen]);
+
+  useLayoutEffect(() => {
+    if (!expandedEntityName) {
+      setDrilldownMenuPos(null);
+      return;
+    }
+
+    const updatePosition = () => {
+      const anchor = drilldownAnchorRef.current;
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
+      const maxLeft = Math.max(12, window.innerWidth - 272);
+      setDrilldownMenuPos({
+        top: rect.bottom + 6,
+        left: Math.min(Math.max(12, rect.left), maxLeft)
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [expandedEntityName, drilldownUnitOptions.length, isDrilldownOptionsLoading]);
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
@@ -499,11 +530,11 @@ export default function EntityMetricTable({
                     }
                   >
                     {isFirst && onEntitySelect ? (
-                      <div className="entity-cell-wrap" ref={isExpanded ? drilldownMenuRef : undefined}>
+                      <div className="entity-cell-wrap" ref={isExpanded ? drilldownAnchorRef : undefined}>
                         <span className="name-title">
                           {entity.name}
                         </span>
-                        {isExpanded && (
+                        {false && isExpanded && (
                           <div
                             className="entity-drilldown-menu entity-filter-menu"
                             onClick={(event) => event.stopPropagation()}
@@ -620,6 +651,32 @@ export default function EntityMetricTable({
           })}
         </div>
       </div>
+      {expandedEntityName && drilldownMenuPos && createPortal(
+        <div
+          className="entity-drilldown-menu entity-filter-menu entity-drilldown-menu-portal"
+          ref={drilldownMenuRef}
+          style={{ top: drilldownMenuPos.top, left: drilldownMenuPos.left }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {isDrilldownOptionsLoading ? (
+            <div className="entity-drilldown-empty">드릴다운 옵션 확인 중...</div>
+          ) : drilldownUnitOptions.length > 0 ? (
+            drilldownUnitOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className="entity-filter-option"
+                onClick={() => onDrilldownSelect?.(option.value)}
+              >
+                {option.label}
+              </button>
+            ))
+          ) : (
+            <div className="entity-drilldown-empty">선택 가능한 측정단위가 없습니다.</div>
+          )}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
