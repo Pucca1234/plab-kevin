@@ -67,13 +67,26 @@ Kevin fit:
 
 ## Prototype Directions
 
+2026-04-17 correction:
+- 프로토타입은 실제 `plab-kevin` 대시보드의 UI 구성을 바꾸지 않는다.
+- 세 후보 모두 동일한 정보 구조를 유지한다.
+  - 상단 헤더
+  - 템플릿 탭
+  - 지표 선택 row
+  - 기간 필터 row
+  - 측정단위 필터/action row
+  - 결과 테이블
+  - 엔티티 드릴다운 메뉴
+  - Kevin AI 사이드 패널
+  - 지표 선택 사이드 패널
+- A/B/C 차이는 레이아웃 변경이 아니라 색상, border, radius, density, emphasis의 차이로만 둔다.
+
 ### Prototype A: Dense Operations
 Route: `/prototype/design-a`
 
 Design intent:
-- Carbon + Elastic UI에서 가져온 고밀도 운영형 화면.
-- border와 compact control을 사용해 한 화면에 많은 필터와 데이터가 들어오도록 구성.
-- 실제 Kevin 운영 화면에 가장 가까운 구조적 후보.
+- 실제 Kevin 운영 화면 구성을 유지한 상태에서 Carbon + Elastic UI 계열의 compact density를 적용한다.
+- border와 compact control을 사용하되 필터 row, 테이블, 패널 위치는 기존과 동일하게 둔다.
 
 Best for:
 - 필터/테이블 사용 빈도가 높은 운영팀.
@@ -87,9 +100,8 @@ Risks:
 Route: `/prototype/design-b`
 
 Design intent:
-- Fluent 2 + Atlassian 계열의 부드러운 업무용 SaaS 스타일.
-- 흰색 배경, 맨시티 블루 포인트, 넓은 여백, 부드러운 panel radius를 사용.
-- 정보량을 유지하되 신규 사용자도 접근하기 쉬운 인상을 목표로 한다.
+- 실제 Kevin 운영 화면 구성을 유지한 상태에서 Fluent 2 + Atlassian 계열의 부드러운 control 표현을 적용한다.
+- 흰색 배경, 맨시티 블루 포인트, 조금 더 부드러운 radius와 여백을 사용한다.
 
 Best for:
 - 운영팀 외 이해관계자까지 같이 보는 화면.
@@ -103,7 +115,7 @@ Risks:
 Route: `/prototype/design-c`
 
 Design intent:
-- 관제형 헤더와 강한 테이블 계층을 둔 분석 도구 스타일.
+- 실제 Kevin 운영 화면 구성을 유지한 상태에서 헤더와 테이블 헤더의 대비만 강화한다.
 - 흰색 바탕을 유지하되 상단 헤더와 테이블 헤더에서 짙은 네이비를 사용해 상태 판단을 빠르게 한다.
 - 맨시티 블루는 primary action과 heatmap 강조에 사용한다.
 
@@ -119,13 +131,13 @@ Risks:
 
 각 프로토타입은 같은 더미 데이터와 기능 표면을 사용한다. 선택 시 아래 기준으로 평가한다.
 
-- 필터 2줄 구조가 한눈에 들어오는가
+- 실제 운영 화면과 동일한 필터 2줄 구조가 한눈에 들어오는가
 - 지표 선택 패널에서 지표명/ID/설명/담당자 정보를 빠르게 훑을 수 있는가
 - 대형 테이블에서 엔티티, 지표명, 기간 값, heatmap 농도가 잘 읽히는가
 - 드릴다운 메뉴가 자연스럽고 테이블과 충돌하지 않는가
 - Kevin AI 영역이 방해되지 않으면서 필요할 때 눈에 띄는가
 - 모바일/좁은 화면에서 최소한의 구조가 유지되는가
-- 실제 운영 화면에 단계적으로 이식할 수 있는가
+- 실제 운영 화면에 구조 변경 없이 스타일 토큰 중심으로 이식할 수 있는가
 
 ## Recommended Next Implementation Plan
 

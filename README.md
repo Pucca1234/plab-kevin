@@ -330,7 +330,9 @@
   - `/prototype/design-c`: Command Center
 - 구현 범위:
   - 실제 API/DB 연결 없이 더미데이터 사용
-  - 기간/측정단위 2줄 필터, 템플릿 탭, 지표 선택 패널, 다중 선택 드롭다운, KPI 요약, heatmap 테이블, sparkline, 엔티티 드릴다운, Kevin AI 패널 표면을 샘플로 구성
+  - 실제 운영 화면의 UI 구성은 유지
+  - 템플릿 탭, 지표 선택 row, 기간/측정단위 2줄 필터, 지표 선택 패널, 다중 선택 드롭다운, heatmap 테이블, sparkline, 엔티티 드릴다운, Kevin AI 패널 표면을 샘플로 구성
+  - A/B/C 후보 차이는 레이아웃 변경이 아니라 맨체스터 시티 블루 기반 색상, border, radius, density, emphasis 차이로 제한
 - 격리 원칙:
   - 기존 운영 페이지(`/`)와 전역 스타일은 변경하지 않음
   - 프로토타입 코드는 `app/prototype/` 하위와 `DESIGN_SYSTEM_RESEARCH.md`에 한정

@@ -502,15 +502,16 @@
     - `/prototype/design-c`: Command Center
   - 프로토타입은 실제 API/DB 연결 없이 더미데이터로 구성한다.
   - 포함 기능 표면:
-    - 기간/측정단위 2줄 필터
     - 템플릿 탭
+    - 지표 선택 row
+    - 기간/측정단위 2줄 필터
     - 지표 선택 패널
     - 다중 선택 드롭다운
-    - KPI 요약
     - heatmap 테이블
     - sparkline
     - 엔티티 드릴다운
     - Kevin AI 패널
+  - 실제 운영 화면의 정보 구조와 UI 구성은 유지하며, 후보별 차이는 색상, border, radius, density, emphasis로 제한한다.
   - 운영 화면과 전역 스타일을 변경하지 않도록 `app/prototype/` 하위와 CSS Module로 격리한다.
   - 디자인 검토 접근성을 위해 `/prototype` 하위 라우트는 앱 Supabase 로그인 미들웨어에서 제외한다.
   - 후보 폐기 시 `app/prototype/` 및 `DESIGN_SYSTEM_RESEARCH.md` 제거만으로 되돌릴 수 있어야 한다.
