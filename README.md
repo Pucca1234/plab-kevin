@@ -334,6 +334,7 @@
 - 격리 원칙:
   - 기존 운영 페이지(`/`)와 전역 스타일은 변경하지 않음
   - 프로토타입 코드는 `app/prototype/` 하위와 `DESIGN_SYSTEM_RESEARCH.md`에 한정
+  - `/prototype` 하위 라우트는 디자인 검토용이므로 앱 Supabase 로그인 미들웨어에서 제외
   - 후보가 마음에 들지 않으면 `app/prototype/` 및 `DESIGN_SYSTEM_RESEARCH.md` 제거로 쉽게 되돌릴 수 있음
 
 ## 데이터 집계 규칙

@@ -512,6 +512,7 @@
     - 엔티티 드릴다운
     - Kevin AI 패널
   - 운영 화면과 전역 스타일을 변경하지 않도록 `app/prototype/` 하위와 CSS Module로 격리한다.
+  - 디자인 검토 접근성을 위해 `/prototype` 하위 라우트는 앱 Supabase 로그인 미들웨어에서 제외한다.
   - 후보 폐기 시 `app/prototype/` 및 `DESIGN_SYSTEM_RESEARCH.md` 제거만으로 되돌릴 수 있어야 한다.
 - 운영 검증:
   - 원격 DB 수동 재생성 성공
