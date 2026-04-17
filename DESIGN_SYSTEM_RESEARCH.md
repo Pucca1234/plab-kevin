@@ -185,6 +185,7 @@ Risks:
   - Kevin AI 패널
   - 지표 선택 사이드 패널
 - 파일은 `public/design-prototypes/` 아래에 둔다.
+- `/design-prototypes` 경로는 디자인 검토용 정적 파일이므로 앱 Supabase 로그인 미들웨어에서 제외한다.
 - 제거 시 해당 폴더만 삭제하면 되므로 운영 앱과 쉽게 분리된다.
 
 Files:
