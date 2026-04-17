@@ -169,3 +169,38 @@ Risks:
 - `app/prototype/_components/PrototypeDashboard.tsx`
 - `app/prototype/_components/prototypeData.ts`
 - `app/prototype/_components/prototypeDashboard.module.css`
+
+## Static HTML Prototypes
+
+2026-04-17 second pass:
+- 목적은 디자인만 빠르게 확인하는 것이므로 Next 라우트와 분리된 정적 HTML 파일을 추가한다.
+- 기존 Kevin 정보 구조는 유지한다.
+  - 헤더
+  - 템플릿 탭
+  - 지표 선택 row
+  - 기간 필터 row
+  - 측정단위/action row
+  - 결과 테이블
+  - 드릴다운 메뉴
+  - Kevin AI 패널
+  - 지표 선택 사이드 패널
+- 파일은 `public/design-prototypes/` 아래에 둔다.
+- 제거 시 해당 폴더만 삭제하면 되므로 운영 앱과 쉽게 분리된다.
+
+Files:
+- `public/design-prototypes/kevin-linear.html`
+  - Linear의 dashboard/filter/productivity UI 감각을 참고한 세련된 흰 배경 + 맨체스터 시티 블루 포인트 스타일
+  - 저장된 view, 빠른 필터, compact table scan에 초점
+- `public/design-prototypes/kevin-pajamas.html`
+  - GitLab Pajamas의 dashboard/data visualization 패턴을 참고한 데이터 제품형 스타일
+  - 명확한 panel boundary, table header hierarchy, dashboard-level filtering에 초점
+
+References:
+- Linear dashboards and filters:
+  - https://linear.app/docs/dashboards
+  - https://linear.app/docs/filters
+- GitLab Pajamas dashboards and data visualization:
+  - https://design.gitlab.com/patterns/dashboards
+  - https://design.gitlab.com/data-visualization/
+- Shopify Polaris Index Filters:
+  - https://polaris-react.shopify.com/components/selection-and-input/index-filters

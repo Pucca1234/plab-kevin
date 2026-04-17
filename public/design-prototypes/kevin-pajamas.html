@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kevin Prototype - Pajamas Data</title>
+  <style>
+    :root {
+      --bg: #f6f8fa;
+      --panel: #ffffff;
+      --panel-alt: #f1f5f9;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #d7dee8;
+      --line-strong: #c4ceda;
+      --city: #6cabdd;
+      --city-strong: #0079bf;
+      --city-deep: #0b3a5b;
+      --city-soft: #e8f4fc;
+      --city-heat: 108, 171, 221;
+      --green: #108548;
+      --red: #dd2b0e;
+      font-family: Inter, "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; letter-spacing: 0; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .shell { min-height: 100vh; margin-right: 384px; }
+    .header {
+      display: flex; align-items: center; justify-content: space-between; min-height: 46px;
+      margin: 10px 15px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px;
+      background: var(--panel);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 4px; background: var(--city-deep); color: #fff; font-weight: 800; }
+    .brand h1 { margin: 0; font-size: 16px; }
+    .brand span, .meta { color: var(--muted); font-size: 12px; }
+    .meta { display: flex; align-items: center; gap: 12px; }
+    .meta b { color: var(--city-deep); }
+    .outline { height: 26px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--panel); color: var(--muted); padding: 0 10px; font-size: 12px; }
+
+    .tabs {
+      display: flex; align-items: center; height: 31px; margin: 0 15px; border: 1px solid var(--line-strong);
+      border-bottom: 0; background: var(--panel-alt); border-radius: 4px 4px 0 0;
+    }
+    .tab { height: 30px; border: 0; border-right: 1px solid var(--line-strong); background: transparent; color: var(--muted); padding: 0 13px; font-size: 11px; font-weight: 650; }
+    .tab.active { background: var(--panel); color: var(--city-deep); box-shadow: inset 0 2px 0 var(--city); }
+    .tab.add { font-size: 15px; padding: 0 9px; }
+
+    .controls {
+      display: grid; gap: 6px; margin: 0 15px; padding: 12px; border: 1px solid var(--line-strong);
+      background: var(--panel); border-radius: 0 0 4px 4px;
+    }
+    .metric-line { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 8px; align-items: center; }
+    .metric-button { height: 32px; border: 1px solid var(--city); border-radius: 4px; background: var(--city-soft); color: var(--city-deep); font-size: 12px; font-weight: 700; }
+    .chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+    .chip { display: inline-flex; align-items: center; height: 22px; max-width: 168px; border: 1px solid var(--line); border-radius: 4px; background: #fff; color: var(--ink); padding: 0 7px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .select {
+      display: inline-flex; align-items: center; justify-content: space-between; width: 150px; height: 32px;
+      border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; color: var(--ink); padding: 0 9px; font-size: 12px;
+    }
+    .select::after { content: ""; width: 7px; height: 7px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: rotate(45deg) translateY(-2px); opacity: .65; }
+    .actions { display: flex; margin-left: auto; gap: 3px; }
+    .square, .search { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 4px; border: 1px solid var(--line-strong); background: #fff; color: var(--ink); }
+    .search { border-color: var(--city-strong); background: var(--city-strong); color: #fff; }
+    .square svg, .search svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .menu {
+      position: absolute; left: 314px; top: 151px; width: 250px; padding: 6px; z-index: 8;
+      border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; box-shadow: 0 8px 20px rgba(31,41,55,.16);
+    }
+    .menu button, .menu label { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 7px; width: 100%; min-height: 29px; border: 0; background: transparent; border-radius: 3px; padding: 0 6px; text-align: left; font-size: 12px; }
+    .menu button { display: block; color: var(--city-deep); font-weight: 700; }
+    .menu label:hover, .menu button:hover { background: var(--city-soft); }
+    .menu input { accent-color: var(--city-strong); }
+    .menu small { color: var(--city-strong); visibility: hidden; }
+    .menu label:hover small { visibility: visible; }
+
+    .main { display: grid; }
+    .table-card { margin: 0; padding: 14px 15px 20px; }
+    .table-head { display: flex; align-items: center; justify-content: space-between; min-height: 28px; }
+    .path { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
+    .path a { color: var(--city-strong); text-decoration: underline; font-weight: 700; }
+    .path strong { color: var(--ink); }
+    .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 650; }
+    .toggle input { accent-color: var(--city-strong); }
+    .scroll { overflow: auto; padding-bottom: 8px; }
+    .grid { min-width: 1140px; border: 1px solid var(--line-strong); background: var(--panel); }
+    .grid-row { display: grid; grid-template-columns: 140px 210px 96px repeat(6, 124px); min-height: 36px; }
+    .cell { display: flex; align-items: center; min-width: 0; padding: 0 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #fff; font-size: 12px; }
+    .head .cell { background: var(--panel-alt); color: var(--muted); font-size: 11px; font-weight: 800; border-bottom-color: var(--line-strong); }
+    .head .period, .value { justify-content: flex-end; }
+    .spark { justify-content: center; color: #374151; }
+    .entity { overflow: visible; color: var(--city-deep); font-weight: 800; }
+    .anchor { position: relative; width: 100%; }
+    .anchor > button { border: 0; background: transparent; color: inherit; padding: 0; font-weight: inherit; }
+    .drill { position: absolute; top: 27px; left: 0; z-index: 20; display: grid; gap: 2px; width: 206px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; box-shadow: 0 8px 20px rgba(31,41,55,.16); }
+    .drill button { height: 29px; border: 0; border-radius: 3px; background: transparent; color: var(--ink); text-align: left; padding: 0 8px; }
+    .drill button:hover { background: var(--city-soft); color: var(--city-deep); }
+    .metric { justify-content: space-between; gap: 8px; }
+    .metric span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,.08); background: var(--city); }
+    .sparkline { width: 104px; height: 28px; }
+    .sparkline polyline { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .value { gap: 4px; font-variant-numeric: tabular-nums; background: rgba(var(--city-heat), calc(.07 + var(--heat) * .40)); }
+    .value b { font-size: 12px; }
+    .value small { color: var(--green); font-size: 10px; font-weight: 700; }
+    .value small.neg { color: var(--red); }
+
+    .ai-toggle { position: fixed; right: 18px; bottom: 18px; z-index: 40; width: 42px; height: 42px; border: 0; border-radius: 6px; background: var(--city-deep); color: #fff; box-shadow: 0 8px 20px rgba(31,41,55,.2); }
+    .ai { position: fixed; top: 0; right: 0; z-index: 35; display: grid; grid-template-rows: auto 1fr auto; width: 384px; height: 100vh; border-left: 1px solid var(--line-strong); background: #fff; }
+    .ai-head { display: flex; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--line); }
+    .ai h3, .ai p { margin: 0; }
+    .ai h3 { font-size: 15px; }
+    .ai p { color: var(--muted); font-size: 12px; }
+    .ai-body { display: grid; align-content: start; gap: 10px; padding: 14px; }
+    .ai-card { display: grid; gap: 7px; border-left: 3px solid var(--city); background: var(--panel-alt); padding: 12px; }
+    .reco { display: flex; flex-wrap: wrap; gap: 6px; }
+    .reco button { height: 28px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; color: var(--city-deep); padding: 0 9px; font-size: 11px; }
+    .chat { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
+    .chat input { min-width: 0; height: 34px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 10px; }
+    .chat button { height: 34px; border: 0; border-radius: 4px; background: var(--city-strong); color: #fff; padding: 0 12px; }
+
+    .picker { position: fixed; top: 0; right: 0; z-index: 60; display: grid; grid-template-rows: auto auto auto 1fr auto; width: 460px; height: 100vh; background: #fff; box-shadow: -12px 0 28px rgba(31,41,55,.18); }
+    .picker::before { content: ""; position: fixed; inset: 0 460px 0 0; background: rgba(31,41,55,.20); }
+    .picker-head, .picker-foot { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .picker-head h3 { margin: 0; font-size: 15px; }
+    .picker button { border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; }
+    .picker-head button, .picker-foot button { height: 32px; padding: 0 12px; }
+    .picker-foot { border-top: 1px solid var(--line); border-bottom: 0; }
+    .picker-foot button:last-child { background: var(--city-strong); border-color: var(--city-strong); color: #fff; font-weight: 800; }
+    .picker-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 14px; }
+    .picker select, .picker-search input { width: 100%; height: 33px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 10px; background: #fff; }
+    .picker-search { padding: 0 14px 12px; border-bottom: 1px solid var(--line); }
+    .picker-body { display: grid; align-content: start; gap: 14px; overflow: auto; padding: 14px; }
+    .category { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .category:first-child { border-top: 0; padding-top: 0; }
+    .category h4 { margin: 0; color: var(--muted); font-size: 12px; }
+    .metric-item { position: relative; display: grid; gap: 5px; min-height: 92px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; padding: 10px 94px 10px 12px; text-align: left; }
+    .metric-item.selected { border-color: var(--city); background: var(--city-soft); }
+    .metric-item span, .metric-item p { margin: 0; color: var(--muted); font-size: 11px; }
+    .metric-item em { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; height: 26px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; color: var(--muted); padding: 0 8px; font-size: 11px; font-style: normal; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="header"><div class="brand"><span class="brand-mark">K</span><h1>Kevin</h1><span>Pajamas-inspired data system</span></div><div class="meta"><span>Prototype HTML</span><b>layout locked</b><button class="outline">운영 화면</button></div></header>
+    <section><div class="tabs"><button class="tab active">템플릿</button><button class="tab">템플릿2</button><button class="tab">템플릿3</button><button class="tab add">+</button></div><div class="controls"><div class="metric-line"><button class="metric-button">지표 선택</button><div class="chips"><span class="chip">전체 매치 수</span><span class="chip">진행률</span><span class="chip">매칭률</span><span class="chip">로스율</span><span class="chip">활성 유저당 신청</span></div></div><div class="row"><button class="select">기간단위 : 월</button><button class="select">기간범위 : 최근 6개월</button><button class="select">연 (1)</button><button class="select">월 (3)</button></div><div class="row"><button class="select">측정단위 : 지역</button><button class="select">지역그룹 (2)</button><button class="select">지역 (3)</button><div class="actions"><button class="square"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8"/><path d="M4 4v4h4"/></svg></button><button class="square"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8"/><path d="M8 20v-6h8v6"/></svg></button><button class="square"><svg viewBox="0 0 24 24"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/></svg></button><button class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button></div></div></div><div class="menu"><button>전체 선택</button><button>전체 해제</button><label><input type="checkbox" checked><span>서울</span><small>지정된 값만 보기</small></label><label><input type="checkbox" checked><span>경기</span><small>지정된 값만 보기</small></label><label><input type="checkbox"><span>인천</span><small>지정된 값만 보기</small></label></div></section>
+    <section class="main"><div class="table-card"><div class="table-head"><div class="path"><a>지역그룹(전체)</a><span>&gt;</span><strong>지역(경기)</strong></div><label class="toggle"><input type="checkbox" checked>증감 노출</label></div><div class="scroll"><div class="grid"><div class="grid-row head"><div class="cell">측정단위</div><div class="cell">지표명</div><div class="cell spark">추이</div><div class="cell period">26.01</div><div class="cell period">26.02</div><div class="cell period">26.03</div><div class="cell period">26.04</div><div class="cell period">26.05</div><div class="cell period">26.06</div></div><div class="grid-row"><div class="cell entity"><div class="anchor"><button>고양시</button><div class="drill"><button>구장</button><button>면</button><button>지역 타임</button><button>구장 타임</button></div></div></div><div class="cell metric"><span>전체 매치 수</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,28 20,25 42,19 62,11 84,9 104,0"/></svg></div><div class="cell value" style="--heat:.54"><b>244</b></div><div class="cell value" style="--heat:.56"><b>251</b><small>(+7)</small></div><div class="cell value" style="--heat:.59"><b>266</b><small>(+15)</small></div><div class="cell value" style="--heat:.64"><b>288</b><small>(+22)</small></div><div class="cell value" style="--heat:.66"><b>295</b><small>(+7)</small></div><div class="cell value" style="--heat:.71"><b>319</b><small>(+24)</small></div></div><div class="grid-row"><div class="cell entity"></div><div class="cell metric"><span>진행률</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,28 20,24 42,14 62,10 84,15 104,0"/></svg></div><div class="cell value" style="--heat:.71"><b>71.0%</b></div><div class="cell value" style="--heat:.72"><b>72.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.76"><b>76.0%</b><small>(+4.0%p)</small></div><div class="cell value" style="--heat:.77"><b>77.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.75"><b>75.0%</b><small class="neg">(-2.0%p)</small></div><div class="cell value" style="--heat:.79"><b>79.0%</b><small>(+4.0%p)</small></div></div><div class="grid-row"><div class="cell entity"></div><div class="cell metric"><span>매칭률</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,28 20,25 42,21 62,11 84,14 104,0"/></svg></div><div class="cell value" style="--heat:.66"><b>66.0%</b></div><div class="cell value" style="--heat:.67"><b>67.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.69"><b>69.0%</b><small>(+2.0%p)</small></div><div class="cell value" style="--heat:.73"><b>73.0%</b><small>(+4.0%p)</small></div><div class="cell value" style="--heat:.72"><b>72.0%</b><small class="neg">(-1.0%p)</small></div><div class="cell value" style="--heat:.75"><b>75.0%</b><small>(+3.0%p)</small></div></div><div class="grid-row"><div class="cell entity"></div><div class="cell metric"><span>로스율</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,0 20,5 42,5 62,18 84,12 104,28"/></svg></div><div class="cell value" style="--heat:.14"><b>14.0%</b></div><div class="cell value" style="--heat:.13"><b>13.0%</b><small class="neg">(-1.0%p)</small></div><div class="cell value" style="--heat:.13"><b>13.0%</b><small>(0.0%p)</small></div><div class="cell value" style="--heat:.11"><b>11.0%</b><small class="neg">(-2.0%p)</small></div><div class="cell value" style="--heat:.12"><b>12.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.10"><b>10.0%</b><small class="neg">(-2.0%p)</small></div></div></div></div></div></section>
+  </main>
+  <button class="ai-toggle">AI</button><aside class="ai"><div class="ai-head"><div><h3>Kevin AI</h3><p>현재 조회 조건 기반 요약</p></div><button class="outline">닫기</button></div><div class="ai-body"><div class="ai-card"><strong>요약</strong><p>경기 지역은 매치 수와 진행률이 함께 상승했습니다. 고양시는 매칭률이 가장 안정적입니다.</p></div><div class="reco"><button>로스율 높은 지역 보기</button><button>월별 매칭률 비교</button></div></div><div class="chat"><input placeholder="Kevin에게 질문"><button>전송</button></div></aside>
+  <aside class="picker"><div class="picker-head"><h3>지표 선택</h3><button>닫기</button></div><div class="picker-filters"><select><option>분류 전체</option></select><select><option>담당 전체</option></select></div><div class="picker-search"><input placeholder="지표명/ID/설명 검색"></div><div class="picker-body"><section class="category"><h4>공급</h4><button class="metric-item selected"><strong>전체 매치 수</strong><span>total_match_cnt</span><p>공개 혹은 취소 상태를 포함한 전체 매치 수입니다.</p><em>쿼리 복사</em></button></section><section class="category"><h4>전환</h4><button class="metric-item selected"><strong>진행률</strong><span>progress_match_rate</span><p>전체 매치 중 정상 진행된 매치의 비율입니다.</p><em>쿼리 복사</em></button><button class="metric-item selected"><strong>매칭률</strong><span>matching_rate</span><p>오픈된 매치 중 충분한 인원이 모인 비율입니다.</p><em>쿼리 복사</em></button></section><section class="category"><h4>품질</h4><button class="metric-item selected"><strong>로스율</strong><span>match_loss_rate</span><p>세팅 이후 숨김 또는 취소로 이어진 매치 비율입니다.</p><em>쿼리 복사</em></button></section></div><div class="picker-foot"><button>선택 초기화</button><button>선택완료</button></div></aside>
+</body>
+</html>
