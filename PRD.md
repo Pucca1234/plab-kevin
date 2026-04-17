@@ -493,6 +493,26 @@
     - 스파크라인 컬럼: 중앙
     - 기간 값 컬럼: 우측
   - 엔티티 테이블 `측정단위` 헤더의 보조 정렬 아이콘은 제거하고 텍스트 위주로 단순화
+- 2026-04-17 디자인 시스템 프로토타입:
+  - 기존 운영 화면에 바로 적용하지 않고 `/prototype` 하위 별도 라우트에서 UI 후보를 비교한다.
+  - 공통 컨셉은 흰색 바탕과 맨체스터 시티 블루 계열 포인트 컬러다.
+  - 후보:
+    - `/prototype/design-a`: Dense Operations
+    - `/prototype/design-b`: Modern SaaS Analytics
+    - `/prototype/design-c`: Command Center
+  - 프로토타입은 실제 API/DB 연결 없이 더미데이터로 구성한다.
+  - 포함 기능 표면:
+    - 기간/측정단위 2줄 필터
+    - 템플릿 탭
+    - 지표 선택 패널
+    - 다중 선택 드롭다운
+    - KPI 요약
+    - heatmap 테이블
+    - sparkline
+    - 엔티티 드릴다운
+    - Kevin AI 패널
+  - 운영 화면과 전역 스타일을 변경하지 않도록 `app/prototype/` 하위와 CSS Module로 격리한다.
+  - 후보 폐기 시 `app/prototype/` 및 `DESIGN_SYSTEM_RESEARCH.md` 제거만으로 되돌릴 수 있어야 한다.
 - 운영 검증:
   - 원격 DB 수동 재생성 성공
   - 재생성 완료 시간 약 19분, 현재 workflow `timeout-minutes: 30` 내에서 수용 가능
