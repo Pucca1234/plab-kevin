@@ -1,0 +1,929 @@
+.prototypeShell {
+  --bg: #f4f8fb;
+  --card: #ffffff;
+  --ink: #172435;
+  --muted: #68798d;
+  --border: #d5e1eb;
+  --border-soft: rgba(213, 225, 235, 0.62);
+  --primary: #6cabdd;
+  --primary-hover: #2d8dcc;
+  --primary-deep: #0d3b66;
+  --primary-soft: rgba(108, 171, 221, 0.13);
+  --primary-heat: 108, 171, 221;
+  --danger: #b93848;
+  --success: #168765;
+  --shadow: none;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--ink);
+  background: var(--bg);
+  font-family: var(--font-body, "Inter", "Pretendard Variable", -apple-system, sans-serif);
+  letter-spacing: 0;
+}
+
+.prototypeShell * {
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+
+.prototypeShell button,
+.prototypeShell input,
+.prototypeShell select {
+  font: inherit;
+}
+
+.operations {
+  --bg: #f3f6f8;
+  --border: #ccd9e3;
+  --shadow: none;
+}
+
+.saas {
+  --bg: #f7fbfe;
+  --border: #dbe8f1;
+  --shadow: 0 10px 24px rgba(25, 73, 112, 0.07);
+}
+
+.command {
+  --bg: #f4f7fa;
+  --primary: #78b8e6;
+  --primary-hover: #2491d0;
+  --primary-deep: #083653;
+  --shadow: none;
+}
+
+.chatOpen {
+  margin-right: 400px;
+}
+
+.appHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  margin: 10px 15px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand h1,
+.brand p {
+  margin: 0;
+}
+
+.brand h1 {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.brand a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.headerMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.logoutButton {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  background: var(--card);
+  text-decoration: none;
+}
+
+.topControlsWrap {
+  margin: 0;
+}
+
+.controlBarWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.templateTabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  margin: 0 15px;
+  background: #e9f1f7;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.templateTab {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.templateTab.active {
+  color: var(--primary-deep);
+  background: var(--card);
+  font-weight: 800;
+}
+
+.addTab {
+  font-size: 15px;
+  padding: 0 9px;
+}
+
+.templateSpacer {
+  flex: 1;
+}
+
+.searchPanel {
+  display: grid;
+  gap: 4px;
+  margin: 0 15px;
+  padding: 15px 15px 7px;
+  border: 1px solid var(--border);
+  border-radius: 0 0 4px 4px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.metricRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.secondaryButton,
+.selectBox,
+.iconButton,
+.primaryButton {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.metricPickerButton {
+  width: 160px;
+  height: 32px;
+  color: var(--primary-deep);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metricChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.metricChip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 170px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 7px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.searchRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  padding-bottom: 2px;
+}
+
+.secondaryRow {
+  align-items: center;
+  padding-top: 0;
+}
+
+.selectBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 150px;
+  height: 32px;
+  padding: 0 9px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.selectBox span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.primarySelect {
+  border-color: var(--primary);
+  color: var(--primary-deep);
+  background: var(--primary-soft);
+}
+
+.dropdownWrap {
+  position: relative;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 40;
+  width: 250px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 12px 28px rgba(18, 57, 92, 0.16);
+}
+
+.dropdownMenu button,
+.dropdownMenu label {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  padding: 0 6px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.dropdownMenu button {
+  display: block;
+  color: var(--primary-deep);
+  font-weight: 700;
+}
+
+.dropdownMenu label:hover,
+.dropdownMenu button:hover {
+  background: var(--primary-soft);
+}
+
+.dropdownMenu input {
+  accent-color: var(--primary-hover);
+}
+
+.dropdownMenu span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdownMenu small {
+  color: var(--primary-hover);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.dropdownMenu label:hover small {
+  opacity: 1;
+}
+
+.searchActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.iconButton,
+.primaryButton {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.primaryButton {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+  color: white;
+}
+
+.icon {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mainPanel {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.resultStack {
+  display: grid;
+  gap: 6px;
+}
+
+.tableCard {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 15px 15px 20px;
+  border: 0;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.tableHeadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 26px;
+}
+
+.drilldownPath {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.drilldownPath button {
+  border: 0;
+  background: transparent;
+  color: var(--primary-hover);
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.drilldownPath strong {
+  color: var(--ink);
+}
+
+.tableToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tableToggle input {
+  accent-color: var(--primary-hover);
+}
+
+.tableScroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 6px;
+}
+
+.dataGrid {
+  min-width: 1120px;
+}
+
+.dataRow {
+  display: grid;
+  grid-template-columns: 140px 210px 90px repeat(6, 124px);
+  min-height: 36px;
+}
+
+.dataHeader {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.dataCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 1px solid var(--border-soft);
+  border-right: 1px solid var(--border-soft);
+  background: var(--card);
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.dataHeader .dataCell {
+  background: #eef5fa;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.entityHeader,
+.metricHeader {
+  justify-content: flex-start;
+}
+
+.sparkHeader {
+  justify-content: center;
+}
+
+.weekHeader {
+  justify-content: flex-end;
+}
+
+.entityCell {
+  color: var(--primary-deep);
+  font-weight: 800;
+  overflow: visible;
+}
+
+.entityWrap {
+  position: relative;
+  width: 100%;
+}
+
+.entityWrap > button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.drilldownMenu {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 35;
+  display: grid;
+  gap: 3px;
+  width: 210px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 14px 28px rgba(18, 57, 92, 0.16);
+}
+
+.drilldownMenu button {
+  height: 29px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.drilldownMenu button:hover {
+  background: var(--primary-soft);
+  color: var(--primary-deep);
+}
+
+.metricCell {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.metricCell span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.colorDot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  cursor: pointer;
+}
+
+.sparkCell {
+  justify-content: center;
+  color: var(--ink);
+}
+
+.sparkline {
+  display: block;
+  width: 104px;
+  height: 28px;
+  color: currentColor;
+}
+
+.valueCell {
+  justify-content: flex-end;
+  gap: 4px;
+  background: rgba(var(--primary-heat), calc(0.08 + var(--heat) * 0.42));
+  font-variant-numeric: tabular-nums;
+}
+
+.valueCell span {
+  font-weight: 700;
+}
+
+.valueCell small {
+  color: var(--success);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.valueCell small.negative {
+  color: var(--danger);
+}
+
+.aiToggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 130;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary-hover);
+  color: white;
+  box-shadow: 0 10px 24px rgba(13, 59, 102, 0.22);
+  cursor: pointer;
+}
+
+.aiPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 125;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 400px;
+  height: 100vh;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: -12px 0 28px rgba(18, 57, 92, 0.12);
+}
+
+.aiHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.aiHeader h3,
+.aiHeader p,
+.aiMessage p {
+  margin: 0;
+}
+
+.aiHeader h3 {
+  font-size: 15px;
+}
+
+.aiHeader p,
+.aiMessage p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.aiBody {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.aiMessage {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.recoChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.recoChips button {
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--primary-deep);
+  padding: 0 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.chatInput {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.chatInput input {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 10px;
+}
+
+.chatInput button {
+  height: 34px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--primary-hover);
+  color: white;
+  padding: 0 12px;
+}
+
+.metricPickerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(12, 27, 43, 0.22);
+}
+
+.metricPickerPanel {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  width: 460px;
+  max-width: 100%;
+  height: 100vh;
+  background: var(--card);
+  box-shadow: -16px 0 34px rgba(18, 57, 92, 0.18);
+}
+
+.metricPickerHeader,
+.metricPickerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.metricPickerFooter {
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.metricPickerHeader h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.metricPickerHeader button,
+.metricPickerFooter button {
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--card);
+  color: var(--ink);
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.metricPickerFooter button:last-child {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+  color: white;
+  font-weight: 800;
+}
+
+.metricPickerFilters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px 14px;
+}
+
+.metricPickerFilters select,
+.metricPickerSearch input {
+  width: 100%;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--card);
+  color: var(--ink);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.metricPickerSearch {
+  padding: 0 14px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.metricPickerBody {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.metricCategory {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.metricCategory:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.metricCategory h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metricPickItem {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-height: 92px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+  padding: 10px 92px 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.metricPickItem.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.metricPickItem span,
+.metricPickItem p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.metricPickItem em {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--muted);
+  padding: 0 8px;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.saas .templateTabs,
+.saas .searchPanel,
+.saas .dropdownMenu,
+.saas .drilldownMenu,
+.saas .aiMessage,
+.saas .metricPickItem {
+  border-radius: 8px;
+}
+
+.saas .searchPanel {
+  padding: 17px 17px 10px;
+}
+
+.command .appHeader {
+  color: white;
+  background: var(--primary-deep);
+  margin: 0 0 10px;
+  padding: 10px 15px;
+}
+
+.command .brand p,
+.command .headerMeta,
+.command .logoutButton {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.command .logoutButton {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.command .dataHeader .dataCell {
+  color: white;
+  background: var(--primary-deep);
+}
+
+@media (max-width: 900px) {
+  .chatOpen {
+    margin-right: 0;
+  }
+
+  .appHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .headerMeta {
+    flex-wrap: wrap;
+  }
+
+  .metricRow {
+    grid-template-columns: 1fr;
+  }
+
+  .metricPickerButton,
+  .selectBox {
+    width: 100%;
+  }
+
+  .searchActions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .primaryButton {
+    flex: 1;
+  }
+
+  .aiPanel {
+    width: 100%;
+  }
+}

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kevin Prototype - Linear Blue</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --panel-subtle: #f3f7fb;
+      --ink: #111827;
+      --muted: #667085;
+      --line: #d9e4ee;
+      --line-soft: #edf2f7;
+      --city: #6cabdd;
+      --city-strong: #2388c9;
+      --city-deep: #0e426a;
+      --city-soft: rgba(108, 171, 221, 0.12);
+      --green: #12805c;
+      --red: #c83f4d;
+      --shadow: 0 16px 40px rgba(30, 65, 95, 0.08);
+      font-family: Inter, "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; letter-spacing: 0; }
+    body { margin: 0; color: var(--ink); background: var(--bg); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .app-shell { min-height: 100vh; margin-right: 390px; }
+    .app-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      min-height: 48px; margin: 10px 15px;
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand h1 { margin: 0; font-size: 17px; font-weight: 760; }
+    .brand span { color: var(--muted); font-size: 12px; }
+    .header-meta { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+    .header-meta strong { color: var(--city-deep); font-weight: 720; }
+    .ghost-btn {
+      height: 26px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+      color: var(--muted); padding: 0 10px; font-size: 12px;
+    }
+
+    .template-tabs {
+      display: flex; align-items: center; margin: 0 15px; height: 32px;
+      border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0;
+      background: #eef5fa; overflow: hidden;
+    }
+    .template-tab {
+      height: 32px; border: 0; border-right: 1px solid var(--line); background: transparent;
+      color: var(--muted); padding: 0 14px; font-size: 11px; font-weight: 650;
+    }
+    .template-tab.is-active { background: var(--panel); color: var(--city-deep); }
+    .template-tab.add { padding: 0 10px; font-size: 16px; }
+
+    .search-panel {
+      display: grid; gap: 7px; margin: 0 15px; padding: 14px 14px 9px;
+      border: 1px solid var(--line); border-radius: 0 0 8px 8px;
+      background: rgba(255, 255, 255, 0.92); box-shadow: var(--shadow);
+    }
+    .metric-line { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 8px; align-items: center; }
+    .metric-picker {
+      height: 33px; border: 1px solid rgba(108,171,221,.7); border-radius: 6px;
+      background: var(--city-soft); color: var(--city-deep); font-size: 12px; font-weight: 760;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+    .chip {
+      display: inline-flex; align-items: center; height: 23px; max-width: 170px; border: 1px solid var(--line);
+      border-radius: 6px; background: #f7fafc; color: #26384b; padding: 0 8px; font-size: 10px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .select {
+      display: inline-flex; align-items: center; justify-content: space-between; width: 150px; height: 33px;
+      border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: #1f2f42;
+      padding: 0 10px; font-size: 12px;
+    }
+    .select svg, .icon-btn svg, .search-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .actions { margin-left: auto; display: flex; align-items: center; gap: 3px; }
+    .icon-btn, .search-btn {
+      display: inline-grid; place-items: center; width: 33px; height: 33px; border-radius: 6px;
+      border: 1px solid var(--line); background: var(--panel); color: #344054;
+    }
+    .search-btn { border-color: var(--city-strong); background: var(--city-strong); color: #fff; }
+
+    .dropdown-sample {
+      position: absolute; top: 154px; left: 314px; z-index: 8; width: 254px; padding: 7px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 20px 42px rgba(15, 53, 82, 0.16);
+    }
+    .dropdown-sample button, .dropdown-sample label {
+      display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: center; gap: 7px;
+      width: 100%; min-height: 30px; border: 0; border-radius: 6px; background: transparent;
+      padding: 0 7px; color: var(--ink); font-size: 12px; text-align: left;
+    }
+    .dropdown-sample button { display: block; color: var(--city-deep); font-weight: 720; }
+    .dropdown-sample label:hover, .dropdown-sample button:hover { background: var(--city-soft); }
+    .dropdown-sample input { accent-color: var(--city-strong); }
+    .dropdown-sample small { color: var(--city-strong); opacity: 0; }
+    .dropdown-sample label:hover small { opacity: 1; }
+
+    .main-panel { display: grid; width: 100%; margin: 0; padding: 0; }
+    .table-card { margin: 0; padding: 14px 15px 20px; background: transparent; }
+    .table-head {
+      display: flex; justify-content: space-between; align-items: center; min-height: 28px; gap: 12px;
+    }
+    .path { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
+    .path a { color: var(--city-strong); font-weight: 650; text-decoration: underline; }
+    .path strong { color: var(--ink); }
+    .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 650; }
+    .toggle input { accent-color: var(--city-strong); }
+
+    .table-scroll { overflow: auto; padding-bottom: 8px; }
+    .grid { min-width: 1140px; border: 1px solid var(--line); border-radius: 8px; overflow: visible; background: var(--panel); box-shadow: var(--shadow); }
+    .row { display: grid; grid-template-columns: 140px 210px 96px repeat(6, 124px); min-height: 37px; }
+    .cell {
+      display: flex; align-items: center; min-width: 0; padding: 0 9px;
+      border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+      background: var(--panel); font-size: 12px;
+    }
+    .head .cell { background: #f2f7fb; color: #667085; font-size: 11px; font-weight: 760; }
+    .head .period, .value { justify-content: flex-end; }
+    .spark { justify-content: center; color: #1f2937; }
+    .entity { color: var(--city-deep); font-weight: 780; overflow: visible; }
+    .entity .anchor { position: relative; width: 100%; }
+    .entity button { border: 0; background: transparent; color: inherit; padding: 0; font-weight: inherit; }
+    .metric { justify-content: space-between; gap: 8px; }
+    .metric span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dot { width: 10px; height: 10px; border: 0; border-radius: 99px; background: var(--city); }
+    .value {
+      gap: 4px; font-variant-numeric: tabular-nums;
+      background: rgba(var(--heat-rgb, 108,171,221), calc(.08 + var(--heat) * .42));
+    }
+    .value b { font-size: 12px; }
+    .value small { color: var(--green); font-size: 10px; font-weight: 720; }
+    .value small.neg { color: var(--red); }
+    .sparkline { width: 104px; height: 28px; color: #111827; }
+    .sparkline polyline { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .drill {
+      position: absolute; top: 27px; left: 0; z-index: 20; display: grid; gap: 3px; width: 208px; padding: 7px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 20px 42px rgba(15, 53, 82, 0.16);
+    }
+    .drill button { height: 29px; border-radius: 6px; color: var(--ink); text-align: left; padding: 0 8px; }
+    .drill button:hover { background: var(--city-soft); color: var(--city-deep); }
+
+    .ai-toggle {
+      position: fixed; right: 18px; bottom: 18px; z-index: 40; width: 42px; height: 42px; border: 0; border-radius: 99px;
+      background: var(--city-strong); color: white; box-shadow: 0 16px 34px rgba(35,136,201,.28);
+    }
+    .ai-panel {
+      position: fixed; top: 0; right: 0; z-index: 35; display: grid; grid-template-rows: auto 1fr auto;
+      width: 390px; height: 100vh; border-left: 1px solid var(--line); background: var(--panel); box-shadow: -16px 0 44px rgba(30,65,95,.12);
+    }
+    .ai-head { display: flex; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--line); }
+    .ai-head h3, .ai-head p, .ai-card p { margin: 0; }
+    .ai-head h3 { font-size: 15px; }
+    .ai-head p, .ai-card p { color: var(--muted); font-size: 12px; }
+    .ai-body { display: grid; align-content: start; gap: 10px; padding: 14px; }
+    .ai-card { display: grid; gap: 7px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-subtle); padding: 12px; }
+    .reco { display: flex; flex-wrap: wrap; gap: 6px; }
+    .reco button { height: 28px; border: 1px solid var(--line); border-radius: 99px; background: white; color: var(--city-deep); padding: 0 10px; font-size: 11px; }
+    .chat { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
+    .chat input { min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; }
+    .chat button { height: 34px; border: 0; border-radius: 6px; background: var(--city-strong); color: #fff; padding: 0 12px; }
+
+    .metric-panel {
+      position: fixed; inset: 0 0 0 auto; z-index: 60; display: grid; grid-template-rows: auto auto auto 1fr auto;
+      width: 460px; height: 100vh; background: var(--panel); box-shadow: -18px 0 48px rgba(30,65,95,.18);
+    }
+    .metric-panel::before { content: ""; position: fixed; inset: 0 460px 0 0; background: rgba(15, 23, 42, .18); }
+    .mp-head, .mp-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .mp-head h3 { margin: 0; font-size: 15px; }
+    .mp-head button, .mp-foot button { height: 32px; border: 1px solid var(--line); border-radius: 6px; background: white; padding: 0 12px; }
+    .mp-foot { border-top: 1px solid var(--line); border-bottom: 0; }
+    .mp-foot button:last-child { border-color: var(--city-strong); background: var(--city-strong); color: white; font-weight: 760; }
+    .mp-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 14px; }
+    .mp-filters select, .mp-search input { height: 33px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: white; }
+    .mp-search { padding: 0 14px 12px; border-bottom: 1px solid var(--line); }
+    .mp-search input { width: 100%; }
+    .mp-body { display: grid; align-content: start; gap: 14px; overflow: auto; padding: 14px; }
+    .group { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .group:first-child { border-top: 0; padding-top: 0; }
+    .group h4 { margin: 0; color: var(--muted); font-size: 12px; }
+    .metric-item {
+      position: relative; display: grid; gap: 5px; min-height: 92px; border: 1px solid var(--line); border-radius: 8px;
+      background: white; padding: 10px 94px 10px 12px; text-align: left;
+    }
+    .metric-item.is-selected { border-color: var(--city); background: var(--city-soft); }
+    .metric-item strong { font-size: 13px; }
+    .metric-item span, .metric-item p { margin: 0; color: var(--muted); font-size: 11px; }
+    .metric-item em {
+      position: absolute; top: 10px; right: 10px; height: 26px; display: inline-flex; align-items: center;
+      border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--muted); padding: 0 8px; font-size: 11px; font-style: normal;
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div class="brand"><h1>Kevin</h1><span>Linear-inspired blue system</span></div>
+      <div class="header-meta"><span>Prototype HTML</span><strong>layout locked</strong><button class="ghost-btn">운영 화면</button></div>
+    </header>
+
+    <section>
+      <div class="template-tabs">
+        <button class="template-tab is-active">템플릿</button><button class="template-tab">템플릿2</button><button class="template-tab">템플릿3</button><button class="template-tab add">+</button>
+      </div>
+      <div class="search-panel">
+        <div class="metric-line">
+          <button class="metric-picker">지표 선택</button>
+          <div class="chips"><span class="chip">전체 매치 수</span><span class="chip">진행률</span><span class="chip">매칭률</span><span class="chip">로스율</span><span class="chip">활성 유저당 신청</span></div>
+        </div>
+        <div class="filter-row">
+          <button class="select">기간단위 : 월 <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button class="select">기간범위 : 최근 6개월 <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button class="select">연 (1) <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button class="select">월 (3) <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+        </div>
+        <div class="filter-row">
+          <button class="select">측정단위 : 지역 <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button class="select">지역그룹 (2) <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+          <button class="select">지역 (3) <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></button>
+          <div class="actions">
+            <button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8"/><path d="M4 4v4h4"/></svg></button>
+            <button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8"/><path d="M8 20v-6h8v6"/></svg></button>
+            <button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/></svg></button>
+            <button class="search-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-sample">
+        <button>전체 선택</button><button>전체 해제</button>
+        <label><input type="checkbox" checked><span>서울</span><small>지정된 값만 보기</small></label>
+        <label><input type="checkbox" checked><span>경기</span><small>지정된 값만 보기</small></label>
+        <label><input type="checkbox"><span>인천</span><small>지정된 값만 보기</small></label>
+      </div>
+    </section>
+
+    <section class="main-panel">
+      <div class="table-card">
+        <div class="table-head"><div class="path"><a>지역그룹(전체)</a><span>&gt;</span><strong>지역(경기)</strong></div><label class="toggle"><input type="checkbox" checked>증감 노출</label></div>
+        <div class="table-scroll">
+          <div class="grid">
+            <div class="row head"><div class="cell">측정단위</div><div class="cell">지표명</div><div class="cell spark">추이</div><div class="cell period">26.01</div><div class="cell period">26.02</div><div class="cell period">26.03</div><div class="cell period">26.04</div><div class="cell period">26.05</div><div class="cell period">26.06</div></div>
+            <div class="row"><div class="cell entity"><div class="anchor"><button>고양시</button><div class="drill"><button>구장</button><button>면</button><button>지역 타임</button><button>구장 타임</button></div></div></div><div class="cell metric"><span>전체 매치 수</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,28 20,25 42,19 62,11 84,9 104,0"/></svg></div><div class="cell value" style="--heat:.54"><b>244</b></div><div class="cell value" style="--heat:.56"><b>251</b><small>(+7)</small></div><div class="cell value" style="--heat:.59"><b>266</b><small>(+15)</small></div><div class="cell value" style="--heat:.64"><b>288</b><small>(+22)</small></div><div class="cell value" style="--heat:.66"><b>295</b><small>(+7)</small></div><div class="cell value" style="--heat:.71"><b>319</b><small>(+24)</small></div></div>
+            <div class="row"><div class="cell entity"></div><div class="cell metric"><span>진행률</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,28 20,24 42,14 62,10 84,15 104,0"/></svg></div><div class="cell value" style="--heat:.71"><b>71.0%</b></div><div class="cell value" style="--heat:.72"><b>72.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.76"><b>76.0%</b><small>(+4.0%p)</small></div><div class="cell value" style="--heat:.77"><b>77.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.75"><b>75.0%</b><small class="neg">(-2.0%p)</small></div><div class="cell value" style="--heat:.79"><b>79.0%</b><small>(+4.0%p)</small></div></div>
+            <div class="row"><div class="cell entity"></div><div class="cell metric"><span>매칭률</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,28 20,25 42,21 62,11 84,14 104,0"/></svg></div><div class="cell value" style="--heat:.66"><b>66.0%</b></div><div class="cell value" style="--heat:.67"><b>67.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.69"><b>69.0%</b><small>(+2.0%p)</small></div><div class="cell value" style="--heat:.73"><b>73.0%</b><small>(+4.0%p)</small></div><div class="cell value" style="--heat:.72"><b>72.0%</b><small class="neg">(-1.0%p)</small></div><div class="cell value" style="--heat:.75"><b>75.0%</b><small>(+3.0%p)</small></div></div>
+            <div class="row"><div class="cell entity"></div><div class="cell metric"><span>로스율</span><button class="dot"></button></div><div class="cell spark"><svg class="sparkline" viewBox="0 0 104 28"><polyline points="0,0 20,5 42,5 62,18 84,12 104,28"/></svg></div><div class="cell value" style="--heat:.14"><b>14.0%</b></div><div class="cell value" style="--heat:.13"><b>13.0%</b><small class="neg">(-1.0%p)</small></div><div class="cell value" style="--heat:.13"><b>13.0%</b><small>(0.0%p)</small></div><div class="cell value" style="--heat:.11"><b>11.0%</b><small class="neg">(-2.0%p)</small></div><div class="cell value" style="--heat:.12"><b>12.0%</b><small>(+1.0%p)</small></div><div class="cell value" style="--heat:.10"><b>10.0%</b><small class="neg">(-2.0%p)</small></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <button class="ai-toggle">✦</button>
+  <aside class="ai-panel"><div class="ai-head"><div><h3>Kevin AI</h3><p>현재 조회 조건 기반 요약</p></div><button class="ghost-btn">닫기</button></div><div class="ai-body"><div class="ai-card"><strong>요약</strong><p>경기 지역은 매치 수와 진행률이 함께 상승했습니다. 고양시는 매칭률이 가장 안정적입니다.</p></div><div class="reco"><button>로스율 높은 지역 보기</button><button>월별 매칭률 비교</button></div></div><div class="chat"><input placeholder="Kevin에게 질문"><button>전송</button></div></aside>
+  <aside class="metric-panel"><div class="mp-head"><h3>지표 선택</h3><button>닫기</button></div><div class="mp-filters"><select><option>분류 전체</option></select><select><option>담당 전체</option></select></div><div class="mp-search"><input placeholder="지표명/ID/설명 검색"></div><div class="mp-body"><section class="group"><h4>공급</h4><button class="metric-item is-selected"><strong>전체 매치 수</strong><span>total_match_cnt</span><p>공개 혹은 취소 상태를 포함한 전체 매치 수입니다.</p><em>쿼리 복사</em></button></section><section class="group"><h4>전환</h4><button class="metric-item is-selected"><strong>진행률</strong><span>progress_match_rate</span><p>전체 매치 중 정상 진행된 매치의 비율입니다.</p><em>쿼리 복사</em></button><button class="metric-item is-selected"><strong>매칭률</strong><span>matching_rate</span><p>오픈된 매치 중 충분한 인원이 모인 비율입니다.</p><em>쿼리 복사</em></button></section><section class="group"><h4>품질</h4><button class="metric-item is-selected"><strong>로스율</strong><span>match_loss_rate</span><p>세팅 이후 숨김 또는 취소로 이어진 매치 비율입니다.</p><em>쿼리 복사</em></button></section></div><div class="mp-foot"><button>선택 초기화</button><button>선택완료</button></div></aside>
+</body>
+</html>

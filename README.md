@@ -319,6 +319,26 @@
   - 드릴다운 메뉴를 테이블 내부 absolute 요소가 아니라 `document.body` 포털 레이어로 렌더링하도록 변경
   - 클릭한 엔티티 셀의 viewport 좌표를 기준으로 `position: fixed` 배치하고, 스크롤/리사이즈 시 위치를 재계산하도록 수정
 
+## 2026-04-17 디자인 시스템 프로토타입
+- 목적:
+  - 운영 대시보드 UI를 즉시 교체하지 않고, 별도 라우트에서 디자인 시스템 후보를 비교 검증
+  - 흰색 바탕과 맨체스터 시티 블루 계열 포인트 컬러를 유지
+- 추가 라우트:
+  - `/prototype`
+  - `/prototype/design-a`: Dense Operations
+  - `/prototype/design-b`: Modern SaaS Analytics
+  - `/prototype/design-c`: Command Center
+- 구현 범위:
+  - 실제 API/DB 연결 없이 더미데이터 사용
+  - 실제 운영 화면의 UI 구성은 유지
+  - 템플릿 탭, 지표 선택 row, 기간/측정단위 2줄 필터, 지표 선택 패널, 다중 선택 드롭다운, heatmap 테이블, sparkline, 엔티티 드릴다운, Kevin AI 패널 표면을 샘플로 구성
+  - A/B/C 후보 차이는 레이아웃 변경이 아니라 맨체스터 시티 블루 기반 색상, border, radius, density, emphasis 차이로 제한
+- 격리 원칙:
+  - 기존 운영 페이지(`/`)와 전역 스타일은 변경하지 않음
+  - 프로토타입 코드는 `app/prototype/` 하위와 `DESIGN_SYSTEM_RESEARCH.md`에 한정
+  - `/prototype` 하위 라우트는 디자인 검토용이므로 앱 Supabase 로그인 미들웨어에서 제외
+  - 후보가 마음에 들지 않으면 `app/prototype/` 및 `DESIGN_SYSTEM_RESEARCH.md` 제거로 쉽게 되돌릴 수 있음
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`
