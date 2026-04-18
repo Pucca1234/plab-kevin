@@ -513,6 +513,15 @@
   - 다른 지원 측정단위의 source 관계 대비 후보 맵 추가 누락은 발견하지 않음
   - 프론트 드릴다운 후보 맵에 `yoil_group -> yoil`, `yoil_group -> time`을 추가
   - `parentUnit=yoil_group`, `measureUnit=yoil|time` 조회 시 source `dimension_type='yoil'|'time'` 경로를 사용하도록 쿼리 단위 해석을 보정
+  - 누락 원인:
+    - 측정단위 등록(`UNIT_CONFIG_BY_UNIT`)과 결과 테이블 드릴다운 후보 맵(`drilldownCandidateMap`)이 자동 연결되지 않음
+    - 서버 쿼리 단위 해석은 부모/자식 컬럼을 모두 포함하는 복합 단위를 우선 탐색하는데, `yoil_group -> yoil`, `yoil_group -> time`은 별도 복합 단위 없이 child `dimension_type` row가 parent 컬럼을 포함하는 패턴이라 기존 자동 추론에서 빠짐
+    - 기존 룰 설계가 지역/구장/타임 복합 단위 중심이라 요일그룹 계층 관계를 명시적으로 포함하지 못함
+  - 근본 개선 TODO:
+    - 측정단위 추가 시 `UNIT_CONFIG_BY_UNIT`, 검색 옵션 노출, 드릴다운 후보, 서버 쿼리 라우팅을 각각 수동 보정해야 하는 현재 구조를 개선
+    - 드릴다운 관계를 단일 설정으로 정의하고 프론트 후보 노출과 서버 queryUnit 해석이 같은 설정을 참조하도록 통합
+    - BigQuery source의 실제 `dimension_type`별 보유 컬럼을 진단해 설정 누락을 감지하는 검증 스크립트 또는 테스트 추가
+    - 신규 측정단위/계층 추가 PR에는 source 관계 진단 결과와 드릴다운 후보/결과 검증을 필수 체크리스트로 포함
 
 ### 7.14 2026-04-01 BigQuery 전환 프로젝트(`plab-kevin`)
 - 새 프로젝트 구성:
