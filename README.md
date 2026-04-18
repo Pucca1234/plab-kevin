@@ -319,6 +319,20 @@
   - 드릴다운 메뉴를 테이블 내부 absolute 요소가 아니라 `document.body` 포털 레이어로 렌더링하도록 변경
   - 클릭한 엔티티 셀의 viewport 좌표를 기준으로 `position: fixed` 배치하고, 스크롤/리사이즈 시 위치를 재계산하도록 수정
 
+## 2026-04-18 요일그룹 드릴다운 보정
+- 증상:
+  - `측정단위=요일그룹` 조회 후 결과 엔티티를 클릭해도 `요일` 드릴다운 옵션이 노출되지 않음
+  - 동일 유형 점검에서 `요일그룹 -> 타임`도 원천에는 관계가 있으나 후보 맵/쿼리 단위 해석에서 빠져 있음을 확인
+- 확인:
+  - BigQuery source의 주 단위 `dimension_type='yoil'` row는 `yoil_group`과 `yoil` 값을 함께 보유
+  - `dimension_type='time'` row도 `yoil_group`과 `time` 값을 함께 보유
+  - 예: `평일 -> A월, B화, C수, D목, E금`, `주말 -> F토, G일`
+  - 따라서 데이터 부재가 아니라 앱 드릴다운 후보/쿼리 단위 해석 누락으로 판단
+  - 다른 지원 측정단위의 실제 parent-child source 관계와 현재 후보 맵을 비교했을 때 추가 누락은 발견하지 않음
+- 조치:
+  - 프론트 드릴다운 후보 맵에 `yoil_group -> yoil`, `yoil_group -> time` 추가
+  - `parentUnit=yoil_group`, `measureUnit=yoil|time` 조회 시 source `dimension_type='yoil'|'time'` 경로를 사용하도록 보정
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`

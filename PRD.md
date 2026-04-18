@@ -506,6 +506,13 @@
     - `getWeeksData()`는 `measure_unit='all'`, `filter_value='전체'`, `metric_id='total_match_cnt'` 기준 1 row per week만 읽도록 수정
   - 결과:
     - `/api/weeks`는 최신 주차를 안정적으로 반환하며, Airbyte 반영 후 최신 8/12/24주 노출 누락을 줄임
+- 2026-04-18 요일그룹 드릴다운 보정:
+  - `측정단위=요일그룹` 조회 후 결과 엔티티 클릭 시 `요일` 드릴다운 옵션이 노출되지 않는 문제를 확인
+  - BigQuery source 기준 주 단위 `dimension_type='yoil'` row는 `yoil_group`과 `yoil` 값을 함께 보유하므로 데이터 부재가 아님
+  - 전체 측정단위 parent-child 관계 점검에서 `dimension_type='time'` row도 `yoil_group`과 `time` 값을 함께 보유해 `요일그룹 -> 타임` 누락을 추가 확인
+  - 다른 지원 측정단위의 source 관계 대비 후보 맵 추가 누락은 발견하지 않음
+  - 프론트 드릴다운 후보 맵에 `yoil_group -> yoil`, `yoil_group -> time`을 추가
+  - `parentUnit=yoil_group`, `measureUnit=yoil|time` 조회 시 source `dimension_type='yoil'|'time'` 경로를 사용하도록 쿼리 단위 해석을 보정
 
 ### 7.14 2026-04-01 BigQuery 전환 프로젝트(`plab-kevin`)
 - 새 프로젝트 구성:
