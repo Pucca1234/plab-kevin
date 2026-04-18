@@ -206,6 +206,8 @@ const drilldownCandidateMap: Record<string, string[]> = {
   stadium_and_time: [],
   time: ["area_group", "area", "area_group_and_time", "area_and_time", "stadium_group", "stadium", "stadium_group_and_time", "stadium_and_time"],
   hour: ["yoil_and_hour", "yoil_group_and_hour"],
+  yoil_group: ["yoil", "time"],
+  yoil: [],
   yoil_group_and_hour: ["yoil_and_hour"],
   yoil_and_hour: []
 };

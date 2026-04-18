@@ -266,6 +266,8 @@ const resolveQueryUnitForDrilldown = (
   parentUnit?: QueryDrilldownUnit | null
 ) => {
   if (!parentUnit) return measureUnit;
+  if (parentUnit === "yoil_group" && measureUnit === "yoil") return "yoil";
+  if (parentUnit === "yoil_group" && measureUnit === "time") return "time";
 
   const targetColumns = getEntityColumnsForUnit(measureUnit);
   const parentColumns = getEntityColumnsForUnit(parentUnit);
@@ -286,6 +288,8 @@ const resolveQueryUnitForDrilldownStrict = (
   parentUnit?: QueryDrilldownUnit | null
 ) => {
   if (!parentUnit) return measureUnit;
+  if (parentUnit === "yoil_group" && measureUnit === "yoil") return "yoil";
+  if (parentUnit === "yoil_group" && measureUnit === "time") return "time";
 
   const targetColumns = getEntityColumnsForUnit(measureUnit);
   const parentColumns = getEntityColumnsForUnit(parentUnit);
