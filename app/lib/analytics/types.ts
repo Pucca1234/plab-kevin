@@ -28,6 +28,7 @@ export type AnalyticsProvider = {
     limit?: number;
     order?: "asc" | "desc";
     periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+    includeFuture?: boolean;
   }): Promise<WeekEntry[]>;
   getWeeks(limit?: number, periodUnit?: "year" | "quarter" | "month" | "week" | "day"): Promise<string[]>;
   getLatestWeek(periodUnit?: "year" | "quarter" | "month" | "week" | "day"): Promise<string | null>;

@@ -1,7 +1,7 @@
-﻿import type { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { Metric } from "../types";
 import { getAnomalyIndices, getZScores } from "../lib/anomaly";
-import { formatValue } from "../lib/format";
+import { formatDelta, formatValue } from "../lib/format";
 import { InfoPayload } from "./InfoBar";
 import MetricTooltip from "./MetricTooltip";
 
@@ -67,8 +67,9 @@ export default function HeatmapMatrix({ title, weeks, metrics, series, onInfoCha
               {values.map((value, index) => {
                 const isAnomaly = anomalies.includes(index);
                 const score = zscores[index];
+                const previousValue = index > 0 ? values[index - 1] : undefined;
                 const detail = `주차: ${weeks[index]} · 증감: ${
-                  index > 0 ? formatValue(value - values[index - 1], metric) : "-"
+                  index > 0 ? formatDelta(metric, value, previousValue) : "-"
                 }`;
                 return (
                   <div

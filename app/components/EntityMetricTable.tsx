@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { createPortal } from "react-dom";
 import { Entity, FilterOption, MeasurementUnitOption, Metric } from "../types";
 import Sparkline from "./Sparkline";
-import { formatValue } from "../lib/format";
+import { formatDelta, formatValue } from "../lib/format";
 import { measureMetricLabelColumnMinWidth } from "../lib/tableSizing";
 
 type EntityMetricTableProps = {
@@ -26,16 +26,6 @@ type EntityMetricTableProps = {
   onDrilldownSelect?: (value: string) => void;
   onDrilldownClose?: () => void;
   partialIndices?: Set<number>;
-};
-
-const formatDelta = (metric: Metric, delta: number | null) => {
-  if (delta === null) return "-";
-  if (metric.format === "percent") {
-    const sign = delta >= 0 ? "+" : "";
-    return `${sign}${(delta * 100).toFixed(1)}%p`;
-  }
-  const sign = delta >= 0 ? "+" : "";
-  return `${sign}${delta.toLocaleString("ko-KR")}`;
 };
 
 const METRIC_HEAT_COLORS: [number, number, number][] = [
@@ -619,8 +609,9 @@ export default function EntityMetricTable({
                   </div>
                   {values.map((value, indexValue) => {
                     const isPartial = partialIndices.has(indexValue);
-                    const delta = indexValue > 0 ? value - values[indexValue - 1] : null;
-                    const deltaLabel = formatDelta(metric, delta);
+                    const previousValue = indexValue > 0 ? values[indexValue - 1] : null;
+                    const delta = previousValue !== null ? value - previousValue : null;
+                    const deltaLabel = formatDelta(metric, value, previousValue);
                     const { min, max } = globalMinMax[metric.id] ?? { min: 0, max: 0 };
                     const activeColor = getActiveColorIndex(metric.id, index);
                     const bgColor = activeColor === null || isPartial

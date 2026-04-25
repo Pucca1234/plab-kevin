@@ -15,6 +15,8 @@ export async function GET(request: Request) {
   const periodUnit = normalizePeriodUnit(searchParams.get("periodUnit"));
   const includeStartDate =
     searchParams.get("includeStartDate") === "1" || searchParams.get("includeStartDate") === "true";
+  const includeFuture =
+    searchParams.get("includeFuture") === "1" || searchParams.get("includeFuture") === "true";
 
   let limit: number | undefined;
   if (nParam !== null) {
@@ -30,18 +32,18 @@ export async function GET(request: Request) {
   try {
     if (includeStartDate) {
       const order = range === "latest" ? "desc" : "asc";
-      const weeks = await getWeeksData({ limit, order, periodUnit });
+      const weeks = await getWeeksData({ limit, order, periodUnit, includeFuture });
       console.log("[weeks] unit=%s n=%s count=%s", periodUnit, limit ?? "all", weeks.length);
       return NextResponse.json({ weeks });
     }
 
     if (range === "latest") {
-      const weeks = await getWeeksData({ limit, order: "desc", periodUnit });
+      const weeks = await getWeeksData({ limit, order: "desc", periodUnit, includeFuture });
       console.log("[weeks] unit=%s n=%s count=%s", periodUnit, limit ?? "all", weeks.length);
       return NextResponse.json({ weeks: weeks.map((entry) => entry.week) });
     }
 
-    const weeks = await getWeeksData({ limit, order: "asc", periodUnit });
+    const weeks = await getWeeksData({ limit, order: "asc", periodUnit, includeFuture });
     console.log("[weeks] unit=%s n=%s count=%s", periodUnit, limit ?? "all", weeks.length);
     return NextResponse.json({ weeks: weeks.map((entry) => entry.week) });
   } catch (error) {

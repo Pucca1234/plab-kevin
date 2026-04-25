@@ -1,5 +1,5 @@
-﻿import { Metric } from "../types";
-import { formatValue } from "../lib/format";
+import { Metric } from "../types";
+import { formatDelta, formatValue } from "../lib/format";
 
 export type InfoPayload = {
   metric: Metric | null;
@@ -21,7 +21,7 @@ export default function InfoBar({ info }: InfoBarProps) {
 
   const { metric, value, delta, zscore, isAnomaly, week } = info;
   const deltaLabel =
-    delta === undefined ? "-" : `${delta >= 0 ? "+" : ""}${formatValue(delta, metric)}`;
+    delta === undefined || value === undefined ? "-" : formatDelta(metric, value, value - delta);
   const valueLabel = value === undefined ? "-" : formatValue(value, metric);
 
   return (

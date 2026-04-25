@@ -157,7 +157,8 @@ const buildPeriodStartDateExpression = (periodUnit: SupportedPeriodUnit, qualifi
   return `parse_date('%Y.%m.%d', concat('20', substr(cast(${prefix}week as string), 1, 8)))`;
 };
 
-const buildPeriodVisibilityClause = (periodUnit: SupportedPeriodUnit, periodStartDateExpr: string) => {
+const buildPeriodVisibilityClause = (periodUnit: SupportedPeriodUnit, periodStartDateExpr: string, includeFuture: boolean) => {
+  if (includeFuture) return "";
   return ` and ${periodStartDateExpr} <= current_date('Asia/Seoul')`;
 };
 
@@ -391,7 +392,8 @@ const buildMetricStructs = (metricIds: string[]) =>
 const getPeriodsDataFromSource = async (
   periodUnit: SupportedPeriodUnit,
   limit: number | undefined,
-  order: "asc" | "desc"
+  order: "asc" | "desc",
+  includeFuture: boolean
 ) => {
   const periodValueExpr = buildPeriodValueExpression(periodUnit);
   const periodStartDateExpr = buildPeriodStartDateExpression(periodUnit);
@@ -404,7 +406,7 @@ const getPeriodsDataFromSource = async (
         from ${sourceTable}
         where period_type = '${periodUnit}'
           and ${periodValueExpr} is not null
-          ${buildPeriodVisibilityClause(periodUnit, periodStartDateExpr)}
+          ${buildPeriodVisibilityClause(periodUnit, periodStartDateExpr, includeFuture)}
       )
       select week, cast(week_start_date as string) as week_start_date
       from periods
@@ -639,8 +641,9 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     const limit = typeof options?.limit === "number" && options.limit > 0 ? options.limit : undefined;
     const order = options?.order ?? "asc";
     const periodUnit = normalizePeriodUnit(options?.periodUnit);
-    if (periodUnit !== "week") {
-      return getPeriodsDataFromSource(periodUnit, limit, order);
+    const includeFuture = options?.includeFuture === true;
+    if (periodUnit !== "week" || includeFuture) {
+      return getPeriodsDataFromSource(periodUnit, limit, order, includeFuture);
     }
     const rows = await runQuery<BigQueryWeekRow>(
       `

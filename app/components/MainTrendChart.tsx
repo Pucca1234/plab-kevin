@@ -1,5 +1,5 @@
 import { Metric } from "../types";
-import { formatValue } from "../lib/format";
+import { formatDelta, formatValue } from "../lib/format";
 import MetricTooltip from "./MetricTooltip";
 
 type MainTrendChartProps = {
@@ -35,22 +35,21 @@ export default function MainTrendChart({ metric, weeks, values }: MainTrendChart
   const path = buildPath(values, 520, 120);
   const latest = values[values.length - 1];
   const previous = values[values.length - 2];
-  const delta = latest !== undefined && previous !== undefined ? latest - previous : 0;
+  const deltaLabel = latest !== undefined ? formatDelta(metric, latest, previous) : "-";
 
   return (
     <div className="panel main-chart">
       <div className="panel-title">
-        {/* 메인 그래프 지표명도 metric_store_native 설명을 tooltip으로 연결 */}
         <MetricTooltip
           label={metric.name}
           title={metric.name}
           description={metric.description}
-          detail="기준시점: 주간"
+          detail="기준 시점: 주간"
         />
       </div>
       <div className="chart-meta">
         <span>최근 값: {latest !== undefined ? formatValue(latest, metric) : "-"}</span>
-        <span>전주 대비: {delta >= 0 ? "+" : ""}{formatValue(delta, metric)}</span>
+        <span>전주 대비: {deltaLabel}</span>
         <span>기간: {weeks[0]} ~ {weeks[weeks.length - 1]}</span>
       </div>
       <svg viewBox="0 0 520 120" className="chart-svg" role="img" aria-label={metric.name}>

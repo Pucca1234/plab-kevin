@@ -7,6 +7,7 @@ export async function getWeeksData(options?: {
   limit?: number;
   order?: "asc" | "desc";
   periodUnit?: "year" | "quarter" | "month" | "week" | "day";
+  includeFuture?: boolean;
 }) {
   return getAnalyticsProvider().getWeeksData(options);
 }

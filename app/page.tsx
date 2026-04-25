@@ -339,6 +339,9 @@ const buildPeriodsApiUrl = (periodUnit: PeriodUnit, periodRangeValue: string) =>
   if (typeof size === "number" && size > 0) {
     params.set("n", String(size));
   }
+  if (periodRangeValue === "all") {
+    params.set("includeFuture", "1");
+  }
   return `/api/weeks?${params.toString()}`;
 };
 
@@ -1196,6 +1199,11 @@ export default function Home() {
 
   const handlePeriodRangeChange = (value: string) => {
     setPeriodRangeValue(value);
+    setFilterSelectionsByUnit((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
+      )
+    );
   };
 
   const handlePeriodUnitChange = (value: PeriodUnit) => {

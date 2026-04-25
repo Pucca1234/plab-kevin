@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Metric } from "../types";
-import { formatValue } from "../lib/format";
+import { formatDelta, formatValue } from "../lib/format";
 import { measureMetricLabelColumnMinWidth } from "../lib/tableSizing";
 import Sparkline from "./Sparkline";
 
@@ -21,16 +21,6 @@ type MetricTableProps = {
   hiddenDeltaMetrics?: Set<string>;
   onToggleDeltaMetric?: (metricId: string) => void;
   partialIndices?: Set<number>;
-};
-
-const formatDelta = (metric: Metric, delta: number | null) => {
-  if (delta === null) return "-";
-  if (metric.format === "percent") {
-    const sign = delta >= 0 ? "+" : "";
-    return `${sign}${(delta * 100).toFixed(1)}%p`;
-  }
-  const sign = delta >= 0 ? "+" : "";
-  return `${sign}${delta.toLocaleString("ko-KR")}`;
 };
 
 const METRIC_HEAT_COLORS: [number, number, number][] = [
@@ -401,8 +391,9 @@ export default function MetricTable({
             </div>
             {values.map((value, index) => {
               const isPartial = partialIndices.has(index);
-              const delta = index > 0 ? value - values[index - 1] : null;
-              const deltaLabel = formatDelta(metric, delta);
+              const previousValue = index > 0 ? values[index - 1] : null;
+              const delta = previousValue !== null ? value - previousValue : null;
+              const deltaLabel = formatDelta(metric, value, previousValue);
               const activeColor = getActiveColorIndex(metric.id, metricIndex);
               const bgColor = activeColor === null || isPartial
                 ? undefined
