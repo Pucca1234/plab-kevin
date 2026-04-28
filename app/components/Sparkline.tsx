@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type SparklineProps = {
   values: (number | null)[];
@@ -22,6 +23,7 @@ export default function Sparkline({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mounted, setMounted] = useState(false);
 
   const completeValues = useMemo(
     () => values.filter((v): v is number => v !== null),
@@ -52,7 +54,7 @@ export default function Sparkline({
     if (completeValues.length < 2) return { path: "", slope: 0 };
     const indexed = values
       .map((v, i) => ({ v, i }))
-      .filter((e): e is { v: number; i: number } => e.v !== null);
+      .filter((entry): entry is { v: number; i: number } => entry.v !== null);
     const n = indexed.length;
     let sumX = 0;
     let sumY = 0;
@@ -77,7 +79,7 @@ export default function Sparkline({
     const max = Math.max(...completeValues);
     const flat = max === min;
     const range = flat ? 1 : max - min;
-    const mapY = (v: number) => flat ? height / 2 : height - ((v - min) / range) * height;
+    const mapY = (v: number) => (flat ? height / 2 : height - ((v - min) / range) * height);
 
     const x0 = values.length === 1 ? width / 2 : (firstIdx / (values.length - 1)) * width;
     const xN = values.length === 1 ? width / 2 : (lastIdx / (values.length - 1)) * width;
@@ -89,6 +91,10 @@ export default function Sparkline({
   const trendColor = trend.slope < 0 ? "#C0392B" : "#333333";
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     setHoverIndex(null);
   }, [values]);
 
@@ -98,7 +104,7 @@ export default function Sparkline({
     const x = event.clientX - rect.left;
     const index = Math.max(0, Math.min(points.length - 1, Math.round((x / rect.width) * (points.length - 1))));
     setHoverIndex(index);
-    setTooltipPos({ x, y: event.clientY - rect.top });
+    setTooltipPos({ x: event.clientX, y: event.clientY });
   };
 
   const handleLeave = () => setHoverIndex(null);
@@ -128,12 +134,15 @@ export default function Sparkline({
           <circle cx={points[hoverIndex]!.x} cy={points[hoverIndex]!.y} r="3.5" fill={stroke} />
         )}
       </svg>
-      {tooltipContent && (
-        <div className="sparkline-tooltip" style={{ left: tooltipPos.x, top: tooltipPos.y }}>
-          <div className="sparkline-tooltip-label">{tooltipContent.label}</div>
-          <div className="sparkline-tooltip-value">{tooltipContent.value}</div>
-        </div>
-      )}
+      {mounted && tooltipContent
+        ? createPortal(
+            <div className="sparkline-tooltip" style={{ left: tooltipPos.x, top: tooltipPos.y }}>
+              <div className="sparkline-tooltip-label">{tooltipContent.label}</div>
+              <div className="sparkline-tooltip-value">{tooltipContent.value}</div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

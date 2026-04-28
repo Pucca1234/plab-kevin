@@ -2547,7 +2547,7 @@ main {
 }
 
 .sparkline-tooltip {
-  position: absolute;
+  position: fixed;
   transform: translate(-50%, -120%);
   background: var(--ink);
   color: var(--card);

@@ -84,29 +84,37 @@ export default function MultiSelectDropdown({
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((option) => draftSelectedValues.includes(option.value));
 
+  const applySelection = (values: string[]) => {
+    const normalized = normalizeValues(values);
+    setDraftSelectedValues(normalized);
+    if (!arraysEqual(normalized, appliedValues)) {
+      onChange(normalized);
+    }
+  };
+
   const toggleFiltered = () => {
     if (allFilteredSelected) {
       const filteredSet = new Set(filtered.map((option) => option.value));
-      setDraftSelectedValues(draftSelectedValues.filter((value) => !filteredSet.has(value)));
+      applySelection(draftSelectedValues.filter((value) => !filteredSet.has(value)));
       return;
     }
 
     const next = new Set(draftSelectedValues);
     filtered.forEach((option) => next.add(option.value));
-    setDraftSelectedValues(normalizeValues(Array.from(next)));
+    applySelection(Array.from(next));
   };
 
   const toggleValue = (value: string) => {
     if (draftSelectedValues.includes(value)) {
       if (draftSelectedValues.length === 1) {
-        setDraftSelectedValues(optionValues);
+        applySelection(optionValues);
         return;
       }
-      setDraftSelectedValues(draftSelectedValues.filter((candidate) => candidate !== value));
+      applySelection(draftSelectedValues.filter((candidate) => candidate !== value));
       return;
     }
 
-    setDraftSelectedValues(normalizeValues([...draftSelectedValues, value]));
+    applySelection([...draftSelectedValues, value]);
   };
 
   const applyOnlyValue = (value: string) => {
