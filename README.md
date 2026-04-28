@@ -377,6 +377,21 @@
   - 실제 기간 필터 선택값을 기준으로 `weeksResponse.weeks`를 다시 잘라 `nextWeeks`로 사용하도록 보정
   - 이로써 기간 필터에서 선택한 기간만 결과 컬럼에 노출되도록 수정
 
+## 2026-04-29 운영 메모: 조회 UX 롤백 기준
+- 오늘 반영된 내용은 크게 2갈래입니다.
+  - 툴팁 레이어 보정: `32a26ba fix: show sparkline tooltip above table layers`
+  - 결과 이후 자동 재조회 + 기간 필터 컬럼 축 동기화:
+    - `8b20894 fix: auto refresh results after filter changes`
+    - `015769a fix: sync visible periods with selected filters`
+- 만약 사용 중 자동 재조회 UX만 롤백해야 하면:
+  - `32a26ba`는 유지
+  - `8b20894`, `015769a` 두 커밋만 `git revert` 대상으로 본다
+- 권장 롤백 순서:
+  - 최신 커밋부터 역순으로 `015769a` -> `8b20894`
+  - 이렇게 하면 툴팁 보정은 남기고, 조회 버튼 기반 기존 UX로만 복귀 가능
+- 참고:
+  - 오늘 `015769a`는 Git 반영 후 Vercel 자동 Production 배포가 누락되어, Vercel CLI로 수동 `--prod` 배포해 운영 반영함
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`
