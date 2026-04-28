@@ -274,7 +274,10 @@ export default function MetricTable({
     <div className="data-grid" ref={gridRef}>
       {showHeader && (
         <div className="data-row data-header" style={{ gridTemplateColumns } as CSSProperties}>
-          <div className="data-cell data-name is-resizable">
+          <div
+            className="data-cell data-name is-resizable is-sticky-col is-sticky-last"
+            style={{ left: 0 }}
+          >
             지표
             <button
               type="button"
@@ -334,7 +337,10 @@ export default function MetricTable({
             className={`data-row ${metric.id === primaryMetricId ? "is-primary" : ""}`}
             style={{ gridTemplateColumns } as CSSProperties}
           >
-            <div className="data-cell data-name">
+            <div
+              className="data-cell data-name is-sticky-col is-sticky-last"
+              style={{ left: 0 }}
+            >
               <span className="name-title">{metric.name}</span>
               <div className="heatmap-color-picker-wrap">
                 <button

@@ -331,6 +331,11 @@ export default function EntityMetricTable({
     [columnWidths]
   );
 
+  const stickyMetricLeft = useMemo(
+    () => Math.round(columnWidths[0] ?? 0),
+    [columnWidths]
+  );
+
   const sortedEntities = useMemo(() => {
     let result = entities;
     if (entitySortOrder) {
@@ -410,7 +415,10 @@ export default function EntityMetricTable({
       <div className="table-scroll">
         <div className="data-grid entity-grid" ref={gridRef}>
           <div className="data-row data-header" style={{ gridTemplateColumns } as CSSProperties}>
-            <div className="data-cell data-entity is-resizable entity-header-cell">
+            <div
+              className="data-cell data-entity is-resizable entity-header-cell is-sticky-col"
+              style={{ left: 0 }}
+            >
               <button
                 type="button"
                 className="entity-sort-trigger"
@@ -425,7 +433,10 @@ export default function EntityMetricTable({
                 onMouseDown={(event) => startResize(0, event.clientX)}
               />
             </div>
-            <div className="data-cell data-metric is-resizable">
+            <div
+              className="data-cell data-metric is-resizable is-sticky-col is-sticky-last"
+              style={{ left: stickyMetricLeft }}
+            >
               지표
               <button
                 type="button"
@@ -504,7 +515,8 @@ export default function EntityMetricTable({
               return (
                 <div key={`${entity.id}-${metric.id}`} className="data-row" style={{ gridTemplateColumns } as CSSProperties}>
                   <div
-                    className={`data-cell data-entity ${isFirst ? "is-clickable" : "is-empty"} ${isExpanded ? "is-expanded" : ""}`}
+                    className={`data-cell data-entity is-sticky-col ${isFirst ? "is-clickable" : "is-empty"} ${isExpanded ? "is-expanded" : ""}`}
+                    style={{ left: 0 }}
                     onClick={isFirst && onEntitySelect ? () => onEntitySelect(entity.name) : undefined}
                     role={isFirst && onEntitySelect ? "button" : undefined}
                     tabIndex={isFirst && onEntitySelect ? 0 : undefined}
@@ -552,7 +564,10 @@ export default function EntityMetricTable({
                       <span className="name-title">{entity.name}</span>
                     )}
                   </div>
-                  <div className="data-cell data-metric">
+                  <div
+                    className="data-cell data-metric is-sticky-col is-sticky-last"
+                    style={{ left: stickyMetricLeft }}
+                  >
                     <span className="name-title">{metric.name}</span>
                     <div className="heatmap-color-picker-wrap">
                       <button
