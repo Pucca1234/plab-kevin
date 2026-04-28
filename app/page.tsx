@@ -283,6 +283,32 @@ const sortFilterOptionValues = (unit: string, values: string[]) => {
   return [...values].sort((left, right) => right.localeCompare(left, "ko", { numeric: true }));
 };
 
+const getVisiblePeriodsForSearch = ({
+  basePeriods,
+  periodUnit,
+  selections,
+  optionsByUnit
+}: {
+  basePeriods: string[];
+  periodUnit: PeriodUnit;
+  selections: FilterSelectionMap;
+  optionsByUnit: Record<string, FilterOption[]>;
+}) => {
+  const options = optionsByUnit[periodUnit] ?? [];
+  if (options.length === 0) return basePeriods;
+
+  const hasSelection = Object.prototype.hasOwnProperty.call(selections, periodUnit);
+  const selectedValues = hasSelection
+    ? (selections[periodUnit] ?? []).filter((value) => options.some((option) => option.value === value))
+    : options.map((option) => option.value);
+
+  if (selectedValues.length === 0) return [];
+  if (selectedValues.length >= options.length) return basePeriods;
+
+  const selectedSet = new Set(selectedValues);
+  return basePeriods.filter((period) => selectedSet.has(period));
+};
+
 const serializeSearchState = (params: {
   periodUnit: PeriodUnit;
   periodRangeValue: string;
@@ -1088,7 +1114,12 @@ export default function Home() {
         signal: controller.signal
         }
       );
-      const nextWeeks = weeksResponse.weeks ?? [];
+      const nextWeeks = getVisiblePeriodsForSearch({
+        basePeriods: weeksResponse.weeks ?? [],
+        periodUnit: targetPeriodUnit,
+        selections: targetFilterSelections,
+        optionsByUnit: filterOptionsByUnit
+      });
       if (!nextWeeks.length) {
         setErrorMessage("조건에 맞는 기간 데이터가 없습니다.");
         pushError("조건에 맞는 기간 데이터가 없습니다.");
