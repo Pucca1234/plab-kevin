@@ -1204,27 +1204,33 @@ main {
 .data-cell.is-sticky-col {
   position: sticky;
   z-index: 5;
-  background-color: var(--card);
+  background: var(--card);
+  background-image: none;
 }
 
 .data-row.data-header .data-cell.is-sticky-col {
   z-index: 13;
+  background: var(--bg-deep);
+  background-image: none;
 }
 
 .data-grid > .data-row:not(.data-header):nth-child(even) .data-cell.is-sticky-col {
-  background-image: linear-gradient(rgba(241, 245, 249, 0.5), rgba(241, 245, 249, 0.5));
+  background: color-mix(in srgb, rgb(241, 245, 249) 50%, var(--card));
+  background-image: none;
 }
 
 .data-grid > .data-row:not(.data-header):hover .data-cell.is-sticky-col {
-  background-image: linear-gradient(rgba(78, 121, 167, 0.05), rgba(78, 121, 167, 0.05));
+  background: color-mix(in srgb, var(--primary) 5%, var(--card));
+  background-image: none;
 }
 
 .data-cell.data-entity.is-sticky-col.is-clickable:hover {
-  background-image: linear-gradient(var(--primary-soft), var(--primary-soft));
+  background: color-mix(in srgb, var(--primary) 8%, var(--card));
+  background-image: none;
 }
 
 .data-cell.is-sticky-col.is-sticky-last {
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
 }
 
 .col-resizer {
