@@ -2556,8 +2556,37 @@ main {
   border-radius: var(--radius-sm);
   pointer-events: none;
   white-space: nowrap;
-  z-index: 30;
+  z-index: 1000;
   box-shadow: var(--shadow-md);
+}
+
+.tooltip-portal {
+  position: fixed;
+  transform: translateY(0);
+  background: var(--ink);
+  color: var(--card);
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+}
+
+.tooltip-portal strong,
+.tooltip-portal span {
+  display: block;
+}
+
+.tooltip-portal strong {
+  color: var(--disabled-bg);
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.tooltip-portal .tooltip-detail {
+  margin-top: 2px;
 }
 
 .sparkline-tooltip-label {

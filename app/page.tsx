@@ -283,6 +283,29 @@ const sortFilterOptionValues = (unit: string, values: string[]) => {
   return [...values].sort((left, right) => right.localeCompare(left, "ko", { numeric: true }));
 };
 
+const serializeSearchState = (params: {
+  periodUnit: PeriodUnit;
+  periodRangeValue: string;
+  measurementUnit: MeasurementUnit;
+  filterSelectionsByUnit: FilterSelectionMap;
+  selectedMetricIds: string[];
+  drilldownParent: DrilldownParent;
+  entityFilterValue: string;
+}) =>
+  JSON.stringify({
+    periodUnit: params.periodUnit,
+    periodRangeValue: params.periodRangeValue,
+    measurementUnit: params.measurementUnit,
+    filterSelectionsByUnit: Object.fromEntries(
+      Object.entries(params.filterSelectionsByUnit)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([unit, values]) => [unit, [...values]])
+    ),
+    selectedMetricIds: [...params.selectedMetricIds],
+    drilldownParent: params.drilldownParent,
+    entityFilterValue: params.entityFilterValue
+  });
+
 
 const fetchJson = async <T,>(input: RequestInfo, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, init);
@@ -586,9 +609,12 @@ export default function Home() {
   }, [defaultTabConfig]);
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
+  const [autoRefreshToken, setAutoRefreshToken] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [appliedPeriodUnit, setAppliedPeriodUnit] = useState<PeriodUnit>("week");
   const [appliedPeriodRangeValue, setAppliedPeriodRangeValue] = useState<string>("recent_8");
+  const lastAppliedSearchSignatureRef = useRef("");
+  const autoRefreshTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     drilldownOptionsCacheRef.current.clear();
@@ -648,6 +674,18 @@ export default function Home() {
     () => buildActiveFilters(filterSelectionsByUnit, filterOptionsByUnit),
     [filterOptionsByUnit, filterSelectionsByUnit]
   );
+
+  const requestAutoRefresh = () => {
+    if (!showResults) return;
+    setAutoRefreshToken((current) => current + 1);
+  };
+
+  const cancelAutoRefresh = () => {
+    if (autoRefreshTimerRef.current !== null) {
+      window.clearTimeout(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+  };
 
   const pushError = (message: string, detail?: string) => {
     setErrorLogs((prev) => {
@@ -1002,7 +1040,7 @@ export default function Home() {
       overrides && "drilldownParent" in overrides
         ? (overrides.drilldownParent ?? null)
         : drilldownParent;
-    const targetDrilldownHistory =
+      const targetDrilldownHistory =
       overrides && "drilldownHistory" in overrides && overrides.drilldownHistory !== undefined
         ? overrides.drilldownHistory
         : [
@@ -1017,6 +1055,15 @@ export default function Home() {
               parent: targetDrilldownParent
             }
           ];
+    const searchSignature = serializeSearchState({
+      periodUnit: targetPeriodUnit,
+      periodRangeValue: effectivePeriodRangeValue,
+      measurementUnit: targetMeasurementUnit,
+      filterSelectionsByUnit: targetFilterSelections,
+      selectedMetricIds: selectedMetricIds,
+      drilldownParent: targetDrilldownParent,
+      entityFilterValue: ALL_VALUE
+    });
 
     if (!selectedMetricIds.length) {
       setErrorMessage("지표를 최소 1개 선택해주세요.");
@@ -1089,7 +1136,7 @@ export default function Home() {
       setShowResults(true);
       setPendingDrilldown(null);
       setEntityFilterValue(ALL_VALUE);
-
+      lastAppliedSearchSignatureRef.current = searchSignature;
     } catch (error) {
       if ((error as Error).name === "AbortError") {
         pushError("Request canceled");
@@ -1144,6 +1191,49 @@ export default function Home() {
     handleSearch();
   }, [autoSearchPending]);
 
+  useEffect(() => {
+    if (!showResults || isLoadingFilter) return;
+
+    const nextSignature = serializeSearchState({
+      periodUnit,
+      periodRangeValue: effectivePeriodRangeValue,
+      measurementUnit,
+      filterSelectionsByUnit,
+      selectedMetricIds,
+      drilldownParent,
+      entityFilterValue
+    });
+
+    if (nextSignature === lastAppliedSearchSignatureRef.current) return;
+
+    if (autoRefreshTimerRef.current !== null) {
+      window.clearTimeout(autoRefreshTimerRef.current);
+    }
+
+    autoRefreshTimerRef.current = window.setTimeout(() => {
+      void handleSearch();
+    }, 180);
+
+    return () => {
+      if (autoRefreshTimerRef.current !== null) {
+        window.clearTimeout(autoRefreshTimerRef.current);
+        autoRefreshTimerRef.current = null;
+      }
+    };
+  }, [
+    autoRefreshToken,
+    showResults,
+    isLoadingFilter,
+    periodUnit,
+    effectivePeriodRangeValue,
+    measurementUnit,
+    JSON.stringify(filterSelectionsByUnit),
+    JSON.stringify(selectedMetricIds),
+    drilldownParent?.unit,
+    drilldownParent?.value,
+    entityFilterValue
+  ]);
+
   // Build available options for AI chat
   const aiAvailableOptions: AiChatAvailableOptions = useMemo(() => ({
     periodUnits: periodUnitOptions,
@@ -1154,6 +1244,7 @@ export default function Home() {
   }), [filterOptionsByUnit, metrics, measurementUnitOptions, periodRangeOptions]);
 
   const handleSearch = async () => {
+    cancelAutoRefresh();
     await runSearch({
       periodUnit,
       measurementUnit,
@@ -1185,6 +1276,7 @@ export default function Home() {
     setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
     setPendingDrilldown(null);
+    requestAutoRefresh();
   };
 
   const handleFilterChange = (unit: MeasurementUnit, values: string[]) => {
@@ -1195,6 +1287,7 @@ export default function Home() {
     setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
     setPendingDrilldown(null);
+    requestAutoRefresh();
   };
 
   const handlePeriodRangeChange = (value: string) => {
@@ -1204,6 +1297,7 @@ export default function Home() {
         Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
       )
     );
+    requestAutoRefresh();
   };
 
   const handlePeriodUnitChange = (value: PeriodUnit) => {
@@ -1221,6 +1315,7 @@ export default function Home() {
     );
     setDrilldownParent(null);
     setPendingDrilldown(null);
+    requestAutoRefresh();
   };
 
   const handleEntityClick = (entityName: string) => {
@@ -1301,6 +1396,7 @@ export default function Home() {
   };
 
   const handleEntityFilterSelect = (nextValue: string) => {
+    cancelAutoRefresh();
     setEntityFilterValue(nextValue);
     void runSearch({
       periodUnit: appliedPeriodUnit,
@@ -1396,10 +1492,12 @@ export default function Home() {
 
   const handleRemoveSelectedMetric = (metricId: string) => {
     setSelectedMetricIds((prev) => prev.filter((id) => id !== metricId));
+    requestAutoRefresh();
   };
 
   const handleClearSelectedMetrics = () => {
     setSelectedMetricIds([]);
+    requestAutoRefresh();
   };
 
   const openMetricPicker = () => {
@@ -1422,6 +1520,7 @@ export default function Home() {
     if (metricDraftIds.length === 0) return;
     setSelectedMetricIds(metricDraftIds.slice());
     setIsMetricPickerOpen(false);
+    requestAutoRefresh();
   };
 
   const copyMetricQuery = async (metric: Metric) => {
@@ -1551,6 +1650,7 @@ export default function Home() {
   }, []);
 
   const applyTemplateConfig = (template: FilterTemplate) => {
+    cancelAutoRefresh();
     const config = template.config as FilterTemplateConfig;
     const nextPeriodUnit = config.periodUnit ?? "week";
     const nextMeasurementUnit = config.measurementUnit ?? "all";
@@ -1883,6 +1983,7 @@ export default function Home() {
           onRenameTemplate={handleRenameTemplate}
           onSetDefaultTemplate={handleSetDefaultTemplate}
           onResetFilters={() => {
+            cancelAutoRefresh();
             setPeriodUnit("week");
             setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
             setMeasurementUnit("all");
@@ -1900,6 +2001,7 @@ export default function Home() {
           onExport={downloadExcel}
           isExporting={isExporting}
           onApplyDefault={() => {
+            cancelAutoRefresh();
             if (defaultTabConfig) {
               const nextPeriodUnit = defaultTabConfig.periodUnit ?? "week";
               const nextMeasurementUnit = defaultTabConfig.measurementUnit ?? "all";
