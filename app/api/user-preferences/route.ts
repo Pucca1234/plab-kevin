@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabaseServer
     .from("user_preferences")
-    .select("default_tab_config, updated_at")
+    .select("default_tab_config, default_tab_name, updated_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -27,7 +27,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { default_tab_config?: unknown };
+  let body: { default_tab_config?: unknown; default_tab_name?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -38,16 +38,26 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "default_tab_config must be an object or null." }, { status: 400 });
   }
 
+  if (body.default_tab_name !== undefined && body.default_tab_name !== null && typeof body.default_tab_name !== "string") {
+    return NextResponse.json({ error: "default_tab_name must be a string or null." }, { status: 400 });
+  }
+
+  const upsertPayload: {
+    user_id: string;
+    default_tab_config?: unknown;
+    default_tab_name?: string | null;
+  } = { user_id: user.id };
+  if (body.default_tab_config !== undefined) {
+    upsertPayload.default_tab_config = body.default_tab_config;
+  }
+  if (body.default_tab_name !== undefined) {
+    upsertPayload.default_tab_name = body.default_tab_name as string | null;
+  }
+
   const { data, error } = await supabaseServer
     .from("user_preferences")
-    .upsert(
-      {
-        user_id: user.id,
-        default_tab_config: body.default_tab_config ?? null,
-      },
-      { onConflict: "user_id" }
-    )
-    .select("default_tab_config, updated_at")
+    .upsert(upsertPayload, { onConflict: "user_id" })
+    .select("default_tab_config, default_tab_name, updated_at")
     .single();
 
   if (error) {

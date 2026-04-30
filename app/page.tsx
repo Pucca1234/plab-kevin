@@ -623,6 +623,7 @@ export default function Home() {
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(null);
+  const [defaultTabName, setDefaultTabName] = useState<string>("템플릿");
   const [userName, setUserName] = useState<string | null>(null);
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
@@ -1639,12 +1640,20 @@ export default function Home() {
 
   const loadUserPreferences = async (): Promise<FilterTemplateConfig | null> => {
     try {
-      const response = await fetchJson<{ preferences: { default_tab_config: FilterTemplateConfig | null } | null }>(
+      const response = await fetchJson<{
+        preferences: {
+          default_tab_config: FilterTemplateConfig | null;
+          default_tab_name: string | null;
+        } | null;
+      }>(
         "/api/user-preferences",
         { headers: await getSupabaseAuthHeaders() }
       );
       const cfg = response.preferences?.default_tab_config ?? null;
       setDefaultTabConfig(cfg);
+      if (response.preferences?.default_tab_name) {
+        setDefaultTabName(response.preferences.default_tab_name);
+      }
       return cfg;
     } catch (error) {
       const msg = (error as Error).message;
@@ -1652,6 +1661,21 @@ export default function Home() {
         pushError("사용자 환경설정 불러오기 실패", msg);
       }
       return null;
+    }
+  };
+
+  const handleRenameDefaultTab = async (name: string) => {
+    const trimmed = name.trim() || "템플릿";
+    setDefaultTabName(trimmed);
+    try {
+      const authHeaders = await getSupabaseAuthHeaders();
+      await fetchJson("/api/user-preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ default_tab_name: trimmed })
+      });
+    } catch (error) {
+      pushError("기본 탭 이름 저장 실패", (error as Error).message);
     }
   };
 
@@ -2065,6 +2089,8 @@ export default function Home() {
             setActiveTemplateId(null);
           }}
           onSaveDefaultConfig={handleSaveDefaultConfig}
+          defaultTabName={defaultTabName}
+          onRenameDefaultTab={handleRenameDefaultTab}
           onExport={downloadExcel}
           isExporting={isExporting}
           onApplyDefault={() => {
