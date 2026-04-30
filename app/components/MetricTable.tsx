@@ -6,6 +6,11 @@ import { Metric } from "../types";
 import { formatDelta, formatValue } from "../lib/format";
 import { measureMetricLabelColumnMinWidth } from "../lib/tableSizing";
 import Sparkline from "./Sparkline";
+import {
+  METRIC_HEAT_COLORS,
+  DEFAULT_HEATMAP_COLOR_INDEX,
+  getMetricHeatColor,
+} from "../lib/heatmapPalette";
 
 type MetricTableProps = {
   title?: string;
@@ -21,69 +26,6 @@ type MetricTableProps = {
   hiddenDeltaMetrics?: Set<string>;
   onToggleDeltaMetric?: (metricId: string) => void;
   partialIndices?: Set<number>;
-};
-
-const METRIC_HEAT_COLORS: [number, number, number][] = [
-  // — cool blues & teals —
-  [66, 133, 244],  // google blue
-  [56, 114, 181],  // steel blue
-  [41, 98, 166],   // cobalt
-  [0, 150, 199],   // cerulean
-  [0, 172, 193],   // dark cyan
-  [38, 166, 154],  // teal
-  // — greens —
-  [76, 175, 80],   // green
-  [56, 142, 60],   // forest
-  [104, 159, 56],  // olive green
-  [124, 179, 66],  // light green
-  // — warm earth —
-  [175, 137, 80],  // sand
-  [161, 110, 60],  // sienna
-  // — oranges & ambers —
-  [230, 147, 68],  // marigold
-  [211, 124, 48],  // burnt orange
-  [194, 107, 41],  // copper
-  // — reds & roses —
-  [198, 85, 90],   // dusty rose
-  [183, 58, 74],   // berry
-  [168, 56, 56],   // brick
-  // — purples —
-  [126, 87, 194],  // amethyst
-  [103, 58, 183],  // deep purple
-  [136, 71, 152],  // plum
-  [156, 85, 170],  // orchid
-  // — pinks & magentas —
-  [186, 104, 137], // mauve
-  [171, 71, 120],  // raspberry
-  // — neutrals —
-  [120, 130, 150], // cool gray
-  [130, 120, 110], // warm gray
-  [108, 117, 125], // graphite
-  // — unique accents —
-  [78, 150, 120],  // sage
-  [90, 130, 80],   // moss
-  [145, 120, 180], // lavender
-  [180, 140, 100], // camel
-  [100, 140, 160], // slate blue
-  [160, 100, 80],  // clay
-  [80, 145, 145],  // arctic
-  [140, 95, 115],  // mulberry
-  [110, 155, 95],  // fern
-];
-
-const RECOMMENDED_COLOR_ORDER = [0, 18, 6, 16, 12, 27, 3, 20, 9, 23, 14, 24, 29, 5, 22, 10, 30, 17, 1, 28, 7, 19, 13, 25, 31, 4, 21, 8, 15, 26, 32, 2, 11, 33, 34, 35];
-
-const getMetricHeatColor = (
-  metricIndex: number,
-  min: number,
-  max: number,
-  value: number
-) => {
-  const [r, g, b] = METRIC_HEAT_COLORS[metricIndex % METRIC_HEAT_COLORS.length];
-  if (min === max) return `rgba(${r}, ${g}, ${b}, 0.35)`;
-  const ratio = (value - min) / (max - min);
-  const intensity = 0.05 + ratio * 0.65;
-  return `rgba(${r}, ${g}, ${b}, ${intensity})`;
 };
 
 export default function MetricTable({
@@ -128,7 +70,7 @@ export default function MetricTable({
 
   const getActiveColorIndex = (metricId: string, _defaultIndex: number): number | null => {
     if (metricId in heatmapColorMap) return heatmapColorMap[metricId];
-    return 0;
+    return DEFAULT_HEATMAP_COLOR_INDEX;
   };
 
   const selectHeatmapColor = (metricId: string, colorIndex: number | null) => {
@@ -351,7 +293,7 @@ export default function MetricTable({
                   style={{
                     backgroundColor: getActiveColorIndex(metric.id, metricIndex) === null
                       ? "var(--border)"
-                      : `rgb(${METRIC_HEAT_COLORS[(getActiveColorIndex(metric.id, metricIndex) ?? metricIndex) % METRIC_HEAT_COLORS.length].join(",")})`,
+                      : `rgb(${METRIC_HEAT_COLORS[(getActiveColorIndex(metric.id, metricIndex) ?? DEFAULT_HEATMAP_COLOR_INDEX) % METRIC_HEAT_COLORS.length].join(",")})`,
                   }}
                 />
                 {colorPickerOpen === metric.id && pickerPos && createPortal(
