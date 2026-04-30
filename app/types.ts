@@ -43,6 +43,8 @@ export type FilterTemplateConfig = {
   filterValue: string;
   filterSelections?: Record<string, string[]>;
   selectedMetricIds: string[];
+  heatmapColorMap?: Record<string, number | null>;
+  hiddenDeltaMetricIds?: string[];
 };
 
 export type FilterTemplate = {

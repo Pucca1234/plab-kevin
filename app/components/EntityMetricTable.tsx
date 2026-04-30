@@ -19,6 +19,8 @@ type EntityMetricTableProps = {
   seriesByEntity: Record<string, Record<string, number[]>>;
   hiddenDeltaMetrics?: Set<string>;
   onToggleDeltaMetric?: (metricId: string) => void;
+  heatmapColorMap?: Record<string, number | null>;
+  onHeatmapColorChange?: (metricId: string, colorIndex: number | null) => void;
   onEntitySelect?: (entityName: string) => void;
   entityFilterOptions?: FilterOption[];
   entityFilterValue?: string;
@@ -40,6 +42,8 @@ export default function EntityMetricTable({
   seriesByEntity,
   hiddenDeltaMetrics = new Set(),
   onToggleDeltaMetric,
+  heatmapColorMap: heatmapColorMapProp,
+  onHeatmapColorChange,
   onEntitySelect,
   entityFilterOptions = [],
   entityFilterValue,
@@ -56,7 +60,8 @@ export default function EntityMetricTable({
   const weekColumnCount = weeks.length;
   const colCount = 3 + weekColumnCount;
   const [columnWidths, setColumnWidths] = useState<number[]>([140, 200, 90, ...Array(weekColumnCount).fill(120)]);
-  const [heatmapColorMap, setHeatmapColorMap] = useState<Record<string, number | null>>({});
+  const [internalHeatmapColorMap, setInternalHeatmapColorMap] = useState<Record<string, number | null>>({});
+  const heatmapColorMap = heatmapColorMapProp ?? internalHeatmapColorMap;
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -105,7 +110,11 @@ export default function EntityMetricTable({
   }, [metrics, entities, seriesByEntity, partialIndices]);
 
   const selectHeatmapColor = (metricId: string, colorIndex: number | null) => {
-    setHeatmapColorMap((prev) => ({ ...prev, [metricId]: colorIndex }));
+    if (onHeatmapColorChange) {
+      onHeatmapColorChange(metricId, colorIndex);
+    } else {
+      setInternalHeatmapColorMap((prev) => ({ ...prev, [metricId]: colorIndex }));
+    }
     setColorPickerOpen(null);
   };
   const resizeIndexRef = useRef<number | null>(null);
