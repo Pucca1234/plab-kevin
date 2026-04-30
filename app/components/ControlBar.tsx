@@ -54,6 +54,8 @@ type ControlBarProps = {
   onSaveDefaultConfig: () => void | Promise<void>;
   onResetFilters: () => void;
   onApplyDefault: () => void;
+  defaultTabName: string;
+  onRenameDefaultTab: (name: string) => void;
   onExport?: () => void;
   isExporting?: boolean;
 };
@@ -173,13 +175,15 @@ export default function ControlBar({
   onSaveDefaultConfig,
   onResetFilters,
   onApplyDefault,
+  defaultTabName,
+  onRenameDefaultTab,
   onExport,
   isExporting
 }: ControlBarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingDefault, setEditingDefault] = useState(false);
-  const [defaultTabName, setDefaultTabName] = useState("템플릿");
+  const [editingDefaultName, setEditingDefaultName] = useState("");
   const [contextMenuId, setContextMenuId] = useState<string | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [saveToast, setSaveToast] = useState(false);
@@ -212,12 +216,20 @@ export default function ControlBar({
             <input
               type="text"
               className="template-tab-edit-input"
-              value={defaultTabName}
-              onChange={(event) => setDefaultTabName(event.target.value)}
+              value={editingDefaultName}
+              onChange={(event) => setEditingDefaultName(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === "Escape") setEditingDefault(false);
+                if (event.key === "Enter") {
+                  onRenameDefaultTab(editingDefaultName);
+                  setEditingDefault(false);
+                } else if (event.key === "Escape") {
+                  setEditingDefault(false);
+                }
               }}
-              onBlur={() => setEditingDefault(false)}
+              onBlur={() => {
+                onRenameDefaultTab(editingDefaultName);
+                setEditingDefault(false);
+              }}
               autoFocus
             />
           </div>
@@ -226,7 +238,10 @@ export default function ControlBar({
             type="button"
             className={`template-tab template-tab-default ${activeTemplateId === null ? "is-active" : ""}`}
             onClick={onApplyDefault}
-            onDoubleClick={() => setEditingDefault(true)}
+            onDoubleClick={() => {
+              setEditingDefaultName(defaultTabName);
+              setEditingDefault(true);
+            }}
             title="더블클릭: 이름 수정"
           >
             {defaultTabName}
