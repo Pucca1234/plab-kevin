@@ -591,6 +591,11 @@ export default function Home() {
   const [metricCategoryFilter, setMetricCategoryFilter] = useState("");
   const [metricOwnerFilter, setMetricOwnerFilter] = useState("");
   const [hiddenDeltaMetrics, setHiddenDeltaMetrics] = useState<Set<string>>(new Set());
+  const [heatmapColorMap, setHeatmapColorMap] = useState<Record<string, number | null>>({});
+
+  const handleHeatmapColorChange = (metricId: string, colorIndex: number | null) => {
+    setHeatmapColorMap((prev) => ({ ...prev, [metricId]: colorIndex }));
+  };
   const [drilldownParent, setDrilldownParent] = useState<DrilldownParent>(null);
   const [appliedDrilldownHistory, setAppliedDrilldownHistory] = useState<DrilldownHistoryItem[]>([]);
   const [pendingDrilldown, setPendingDrilldown] = useState<PendingDrilldown>(null);
@@ -1677,6 +1682,12 @@ export default function Home() {
         if (cfg.selectedMetricIds?.length) {
           setSelectedMetricIds(cfg.selectedMetricIds);
         }
+        if (cfg.heatmapColorMap) {
+          setHeatmapColorMap(cfg.heatmapColorMap);
+        }
+        if (cfg.hiddenDeltaMetricIds) {
+          setHiddenDeltaMetrics(new Set(cfg.hiddenDeltaMetricIds));
+        }
       }
     };
 
@@ -1704,6 +1715,8 @@ export default function Home() {
     setAppliedDrilldownHistory([]);
     setPendingDrilldown(null);
     setSelectedMetricIds(config.selectedMetricIds ?? []);
+    setHeatmapColorMap(config.heatmapColorMap ?? {});
+    setHiddenDeltaMetrics(new Set(config.hiddenDeltaMetricIds ?? []));
     setActiveTemplateId(template.id);
   };
 
@@ -1719,7 +1732,9 @@ export default function Home() {
       measurementUnit,
       filterValue: ALL_VALUE,
       filterSelections: filterSelectionsByUnit,
-      selectedMetricIds
+      selectedMetricIds,
+      heatmapColorMap,
+      hiddenDeltaMetricIds: Array.from(hiddenDeltaMetrics)
     };
     try {
       const authHeaders = await getSupabaseAuthHeaders();
@@ -1765,7 +1780,9 @@ export default function Home() {
       measurementUnit,
       filterValue: ALL_VALUE,
       filterSelections: filterSelectionsByUnit,
-      selectedMetricIds
+      selectedMetricIds,
+      heatmapColorMap,
+      hiddenDeltaMetricIds: Array.from(hiddenDeltaMetrics)
     };
     setDefaultTabConfig(cfg);
     try {
@@ -1787,7 +1804,9 @@ export default function Home() {
       measurementUnit,
       filterValue: ALL_VALUE,
       filterSelections: filterSelectionsByUnit,
-      selectedMetricIds
+      selectedMetricIds,
+      heatmapColorMap,
+      hiddenDeltaMetricIds: Array.from(hiddenDeltaMetrics)
     };
     try {
       const authHeaders = await getSupabaseAuthHeaders();
@@ -2041,6 +2060,8 @@ export default function Home() {
             setAppliedDrilldownHistory([]);
             setPendingDrilldown(null);
             setSelectedMetricIds([]);
+            setHeatmapColorMap({});
+            setHiddenDeltaMetrics(new Set());
             setActiveTemplateId(null);
           }}
           onSaveDefaultConfig={handleSaveDefaultConfig}
@@ -2069,6 +2090,8 @@ export default function Home() {
               if (defaultTabConfig.selectedMetricIds?.length) {
                 setSelectedMetricIds(defaultTabConfig.selectedMetricIds);
               }
+              setHeatmapColorMap(defaultTabConfig.heatmapColorMap ?? {});
+              setHiddenDeltaMetrics(new Set(defaultTabConfig.hiddenDeltaMetricIds ?? []));
             } else {
               setPeriodUnit("week");
               setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
@@ -2078,6 +2101,8 @@ export default function Home() {
               setFilterSelectionsByUnit({});
               setEntityFilterValue(ALL_VALUE);
               setSelectedMetricIds([]);
+              setHeatmapColorMap({});
+              setHiddenDeltaMetrics(new Set());
             }
             setDrilldownParent(null);
             setAppliedDrilldownHistory([]);
@@ -2132,6 +2157,8 @@ export default function Home() {
                 series={seriesByEntity[ALL_LABEL] ?? {}}
                 hiddenDeltaMetrics={hiddenDeltaMetrics}
                 onToggleDeltaMetric={(metricId) => setHiddenDeltaMetrics(prev => { const next = new Set(prev); next.has(metricId) ? next.delete(metricId) : next.add(metricId); return next; })}
+                heatmapColorMap={heatmapColorMap}
+                onHeatmapColorChange={handleHeatmapColorChange}
                 partialIndices={partialIndices}
               />
             ) : (
@@ -2142,6 +2169,8 @@ export default function Home() {
                 seriesByEntity={seriesByEntity}
                 hiddenDeltaMetrics={hiddenDeltaMetrics}
                 onToggleDeltaMetric={(metricId) => setHiddenDeltaMetrics(prev => { const next = new Set(prev); next.has(metricId) ? next.delete(metricId) : next.add(metricId); return next; })}
+                heatmapColorMap={heatmapColorMap}
+                onHeatmapColorChange={handleHeatmapColorChange}
               partialIndices={partialIndices}
               onEntitySelect={handleEntityClick}
                 entityFilterOptions={

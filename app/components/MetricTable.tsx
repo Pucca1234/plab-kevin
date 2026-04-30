@@ -25,6 +25,8 @@ type MetricTableProps = {
   embedded?: boolean;
   hiddenDeltaMetrics?: Set<string>;
   onToggleDeltaMetric?: (metricId: string) => void;
+  heatmapColorMap?: Record<string, number | null>;
+  onHeatmapColorChange?: (metricId: string, colorIndex: number | null) => void;
   partialIndices?: Set<number>;
 };
 
@@ -41,12 +43,15 @@ export default function MetricTable({
   embedded = false,
   hiddenDeltaMetrics = new Set(),
   onToggleDeltaMetric,
+  heatmapColorMap: heatmapColorMapProp,
+  onHeatmapColorChange,
   partialIndices = new Set()
 }: MetricTableProps) {
   const weekColumnCount = weeks.length;
   const colCount = 2 + weekColumnCount;
   const [columnWidths, setColumnWidths] = useState<number[]>([180, 100, ...Array(weekColumnCount).fill(120)]);
-  const [heatmapColorMap, setHeatmapColorMap] = useState<Record<string, number | null>>({});
+  const [internalHeatmapColorMap, setInternalHeatmapColorMap] = useState<Record<string, number | null>>({});
+  const heatmapColorMap = heatmapColorMapProp ?? internalHeatmapColorMap;
   const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
   const [pickerPos, setPickerPos] = useState<{ top: number; left: number } | null>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -74,7 +79,11 @@ export default function MetricTable({
   };
 
   const selectHeatmapColor = (metricId: string, colorIndex: number | null) => {
-    setHeatmapColorMap((prev) => ({ ...prev, [metricId]: colorIndex }));
+    if (onHeatmapColorChange) {
+      onHeatmapColorChange(metricId, colorIndex);
+    } else {
+      setInternalHeatmapColorMap((prev) => ({ ...prev, [metricId]: colorIndex }));
+    }
     setColorPickerOpen(null);
   };
   const [periodSort, setPeriodSort] = useState<{ weekIndex: number; order: "asc" | "desc" } | null>(null);
