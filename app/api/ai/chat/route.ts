@@ -7,21 +7,9 @@ const MAX_BYTES = 500_000;
 const MAX_HISTORY = 20;
 
 const SONNET_MODEL = "claude-sonnet-4-5-20250929";
-const OPUS_MODEL = "claude-opus-4-6";
 
-const ANALYSIS_KEYWORDS = [
-  "분석", "비교", "추세", "추이", "원인", "왜", "이상치",
-  "상위", "하위", "순위", "평균", "합계", "인사이트", "시사점",
-  "차트", "그래프", "도식화", "시각화", "요약", "리포트",
-  "증가", "감소", "변동", "패턴", "상관", "영향",
-];
-
-function pickModel(messages: ApiMessage[]): string {
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  if (!lastUser) return SONNET_MODEL;
-  const text = lastUser.content;
-  const needsAnalysis = ANALYSIS_KEYWORDS.some((kw) => text.includes(kw));
-  return needsAnalysis ? OPUS_MODEL : SONNET_MODEL;
+function pickModel(_messages: ApiMessage[]): string {
+  return SONNET_MODEL;
 }
 
 const formatValue = (value: number | null, format: "number" | "percent") => {
