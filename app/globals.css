@@ -1025,10 +1025,6 @@ main {
   z-index: 100;
 }
 
-.heatmap-color-dropdown .heatmap-color-off {
-  grid-column: 10;
-}
-
 .heatmap-color-option {
   width: 14px;
   height: 14px;
