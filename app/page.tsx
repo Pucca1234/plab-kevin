@@ -617,22 +617,8 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null);
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
-  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const saved = localStorage.getItem("kevin_default_tab_config");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (defaultTabConfig) {
-      localStorage.setItem("kevin_default_tab_config", JSON.stringify(defaultTabConfig));
-    }
-  }, [defaultTabConfig]);
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [autoRefreshToken, setAutoRefreshToken] = useState(0);
@@ -1646,17 +1632,35 @@ export default function Home() {
     }
   };
 
+  const loadUserPreferences = async (): Promise<FilterTemplateConfig | null> => {
+    try {
+      const response = await fetchJson<{ preferences: { default_tab_config: FilterTemplateConfig | null } | null }>(
+        "/api/user-preferences",
+        { headers: await getSupabaseAuthHeaders() }
+      );
+      const cfg = response.preferences?.default_tab_config ?? null;
+      setDefaultTabConfig(cfg);
+      return cfg;
+    } catch (error) {
+      const msg = (error as Error).message;
+      if (msg !== "Unauthorized") {
+        pushError("사용자 환경설정 불러오기 실패", msg);
+      }
+      return null;
+    }
+  };
+
   useEffect(() => {
     let canceled = false;
 
     const init = async () => {
-      const loaded = await loadTemplates();
+      const [loaded, prefs] = await Promise.all([loadTemplates(), loadUserPreferences()]);
       if (canceled) return;
       const defaultTemplate = loaded.find((t) => t.is_default);
       if (defaultTemplate) {
         applyTemplateConfig(defaultTemplate);
-      } else if (defaultTabConfig) {
-        const cfg = defaultTabConfig;
+      } else if (prefs) {
+        const cfg = prefs;
         const nextPeriodUnit = cfg.periodUnit ?? "week";
         const nextMeasurementUnit = cfg.measurementUnit ?? "all";
         const legacySelections =
@@ -1754,15 +1758,26 @@ export default function Home() {
     }
   };
 
-  const handleSaveDefaultConfig = () => {
-    setDefaultTabConfig({
+  const handleSaveDefaultConfig = async () => {
+    const cfg: FilterTemplateConfig = {
       periodRangeValue: effectivePeriodRangeValue,
       periodUnit,
       measurementUnit,
       filterValue: ALL_VALUE,
       filterSelections: filterSelectionsByUnit,
       selectedMetricIds
-    });
+    };
+    setDefaultTabConfig(cfg);
+    try {
+      const authHeaders = await getSupabaseAuthHeaders();
+      await fetchJson("/api/user-preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ default_tab_config: cfg })
+      });
+    } catch (error) {
+      pushError("기본 설정 저장 실패", (error as Error).message);
+    }
   };
 
   const handleUpdateTemplateConfig = async (id: string) => {
