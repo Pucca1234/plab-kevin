@@ -533,24 +533,32 @@ export default function EntityMetricTable({
                       />
                       {colorPickerOpen === `${entity.id}-${metric.id}` && pickerPos && createPortal(
                         <div className="heatmap-color-dropdown" ref={colorPickerRef} style={{ top: pickerPos.top, left: pickerPos.left }}>
-                          {METRIC_HEAT_COLORS.map((color, ci) => (
-                            <button
-                              key={ci}
-                              type="button"
-                              className={`heatmap-color-option${getActiveColorIndex(metric.id, index) === ci ? " is-active" : ""}`}
-                              onClick={() => selectHeatmapColor(metric.id, ci)}
-                              style={{ backgroundColor: `rgb(${color.join(",")})` }}
-                              title={`색상 ${ci + 1}`}
-                            />
-                          ))}
-                          <button
-                            type="button"
-                            className={`heatmap-color-option heatmap-color-off${getActiveColorIndex(metric.id, index) === null ? " is-active" : ""}`}
-                            onClick={() => selectHeatmapColor(metric.id, null)}
-                            title="색상 끄기"
-                          >
-                            ✕
-                          </button>
+                          {METRIC_HEAT_COLORS.map((color, ci) => {
+                            if (ci === 70) return null;
+                            if (ci === 9) {
+                              return (
+                                <button
+                                  key="off"
+                                  type="button"
+                                  className={`heatmap-color-option heatmap-color-off${getActiveColorIndex(metric.id, index) === null ? " is-active" : ""}`}
+                                  onClick={() => selectHeatmapColor(metric.id, null)}
+                                  title="색상 끄기"
+                                >
+                                  ✕
+                                </button>
+                              );
+                            }
+                            return (
+                              <button
+                                key={ci}
+                                type="button"
+                                className={`heatmap-color-option${getActiveColorIndex(metric.id, index) === ci ? " is-active" : ""}`}
+                                onClick={() => selectHeatmapColor(metric.id, ci)}
+                                style={{ backgroundColor: `rgb(${color.join(",")})` }}
+                                title={`색상 ${ci + 1}`}
+                              />
+                            );
+                          })}
                         </div>,
                         document.body
                       )}
