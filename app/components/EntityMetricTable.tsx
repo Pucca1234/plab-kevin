@@ -522,12 +522,12 @@ export default function EntityMetricTable({
                     <div className="heatmap-color-picker-wrap">
                       <button
                         type="button"
-                        className="heatmap-toggle-dot"
+                        className={`heatmap-toggle-dot${getActiveColorIndex(metric.id, index) === null ? " is-off" : ""}`}
                         title="히트맵 색상 선택"
                         onClick={(e) => openColorPicker(`${entity.id}-${metric.id}`, e)}
                         style={{
                           backgroundColor: getActiveColorIndex(metric.id, index) === null
-                            ? "var(--border)"
+                            ? "#ffffff"
                             : `rgb(${METRIC_HEAT_COLORS[(getActiveColorIndex(metric.id, index) ?? DEFAULT_HEATMAP_COLOR_INDEX) % METRIC_HEAT_COLORS.length].join(",")})`,
                         }}
                       />
