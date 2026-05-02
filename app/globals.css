@@ -131,6 +131,7 @@ main {
   margin: 0;
   --sticky-header-height: 0px;
   --sticky-controls-height: 0px;
+  --table-sticky-top: 0px;
 }
 
 .app-shell.chat-open {
@@ -1091,8 +1092,9 @@ main {
 }
 
 .table-scroll {
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: auto;
+  /* viewport - 상단 UI(헤더+컨트롤바) 만큼 빼서 표 영역 안에서 세로 스크롤되게 한다. */
+  max-height: calc(100vh - var(--table-top-offset, 240px));
   padding-left: 0;
   padding-bottom: 6px;
   padding-right: 5px;
