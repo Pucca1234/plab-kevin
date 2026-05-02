@@ -296,12 +296,12 @@ export default function MetricTable({
               <div className="heatmap-color-picker-wrap">
                 <button
                   type="button"
-                  className="heatmap-toggle-dot"
+                  className={`heatmap-toggle-dot${getActiveColorIndex(metric.id, metricIndex) === null ? " is-off" : ""}`}
                   title="히트맵 색상 선택"
                   onClick={(e) => openColorPicker(metric.id, e)}
                   style={{
                     backgroundColor: getActiveColorIndex(metric.id, metricIndex) === null
-                      ? "var(--border)"
+                      ? "#ffffff"
                       : `rgb(${METRIC_HEAT_COLORS[(getActiveColorIndex(metric.id, metricIndex) ?? DEFAULT_HEATMAP_COLOR_INDEX) % METRIC_HEAT_COLORS.length].join(",")})`,
                   }}
                 />

@@ -1012,6 +1012,10 @@ main {
   opacity: 1;
 }
 
+.heatmap-toggle-dot.is-off {
+  border: 1px solid var(--border);
+}
+
 .heatmap-color-dropdown {
   position: fixed;
   transform: translateX(-10px);
