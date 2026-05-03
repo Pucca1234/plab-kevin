@@ -286,6 +286,11 @@ export default function EntityMetricTable({
     [columnWidths]
   );
 
+  const stickySparkLeft = useMemo(
+    () => Math.round((columnWidths[0] ?? 0) + (columnWidths[1] ?? 0)),
+    [columnWidths]
+  );
+
   const sortedEntities = useMemo(() => {
     let result = entities;
     if (entitySortOrder) {
@@ -384,7 +389,7 @@ export default function EntityMetricTable({
               />
             </div>
             <div
-              className="data-cell data-metric is-resizable is-sticky-col is-sticky-last"
+              className="data-cell data-metric is-resizable is-sticky-col"
               style={{ left: stickyMetricLeft }}
             >
               지표
@@ -395,7 +400,10 @@ export default function EntityMetricTable({
                 onMouseDown={(event) => startResize(1, event.clientX)}
               />
             </div>
-            <div className="data-cell data-spark is-resizable">
+            <div
+              className="data-cell data-spark is-resizable is-sticky-col is-sticky-last"
+              style={{ left: stickySparkLeft }}
+            >
               추이
               <button
                 type="button"
@@ -515,7 +523,7 @@ export default function EntityMetricTable({
                     )}
                   </div>
                   <div
-                    className="data-cell data-metric is-sticky-col is-sticky-last"
+                    className="data-cell data-metric is-sticky-col"
                     style={{ left: stickyMetricLeft }}
                   >
                     <span className="name-title">{metric.name}</span>
@@ -577,7 +585,10 @@ export default function EntityMetricTable({
                       </button>
                     )}
                   </div>
-                  <div className="data-cell data-spark">
+                  <div
+                    className="data-cell data-spark is-sticky-col is-sticky-last"
+                    style={{ left: stickySparkLeft }}
+                  >
                     <Sparkline values={values.map((v, i) => partialIndices.has(i) ? null : v)} labels={weeks} formatValue={(value) => formatValue(value, metric)} />
                   </div>
                   {values.map((value, indexValue) => {
