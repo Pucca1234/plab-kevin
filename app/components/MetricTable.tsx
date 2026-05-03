@@ -199,6 +199,11 @@ export default function MetricTable({
     [columnWidths]
   );
 
+  const stickySparkLeft = useMemo(
+    () => Math.round(columnWidths[0] ?? 0),
+    [columnWidths]
+  );
+
   const togglePeriodSort = (weekIndex: number) => {
     if (periodSort && periodSort.weekIndex === weekIndex) {
       if (periodSort.order === "asc") {
@@ -226,7 +231,7 @@ export default function MetricTable({
       {showHeader && (
         <div className="data-row data-header" style={{ gridTemplateColumns } as CSSProperties}>
           <div
-            className="data-cell data-name is-resizable is-sticky-col is-sticky-last"
+            className="data-cell data-name is-resizable is-sticky-col"
             style={{ left: 0 }}
           >
             지표
@@ -237,7 +242,10 @@ export default function MetricTable({
               onMouseDown={(event) => startResize(0, event.clientX)}
             />
           </div>
-          <div className="data-cell data-spark is-resizable">
+          <div
+            className="data-cell data-spark is-resizable is-sticky-col is-sticky-last"
+            style={{ left: stickySparkLeft }}
+          >
             추이
             <button
               type="button"
@@ -289,7 +297,7 @@ export default function MetricTable({
             style={{ gridTemplateColumns } as CSSProperties}
           >
             <div
-              className="data-cell data-name is-sticky-col is-sticky-last"
+              className="data-cell data-name is-sticky-col"
               style={{ left: 0 }}
             >
               <span className="name-title">{metric.name}</span>
@@ -351,7 +359,10 @@ export default function MetricTable({
                 </button>
               )}
             </div>
-            <div className="data-cell data-spark">
+            <div
+              className="data-cell data-spark is-sticky-col is-sticky-last"
+              style={{ left: stickySparkLeft }}
+            >
               <Sparkline values={sparkValues} labels={weeks} formatValue={(value) => formatValue(value, metric)} />
             </div>
             {values.map((value, index) => {
