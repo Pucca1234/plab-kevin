@@ -632,6 +632,7 @@ export default function Home() {
   const [appliedPeriodUnit, setAppliedPeriodUnit] = useState<PeriodUnit>("week");
   const [appliedPeriodRangeValue, setAppliedPeriodRangeValue] = useState<string>("recent_8");
   const lastAppliedSearchSignatureRef = useRef("");
+  const lastHandledAutoRefreshTokenRef = useRef(0);
   const autoRefreshTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -1216,6 +1217,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!showResults || isLoadingFilter) return;
+    if (autoRefreshToken === 0 || autoRefreshToken === lastHandledAutoRefreshTokenRef.current) return;
 
     const nextSignature = serializeSearchState({
       periodUnit,
@@ -1233,6 +1235,7 @@ export default function Home() {
       window.clearTimeout(autoRefreshTimerRef.current);
     }
 
+    lastHandledAutoRefreshTokenRef.current = autoRefreshToken;
     autoRefreshTimerRef.current = window.setTimeout(() => {
       void handleSearch();
     }, 180);
@@ -1246,15 +1249,7 @@ export default function Home() {
   }, [
     autoRefreshToken,
     showResults,
-    isLoadingFilter,
-    periodUnit,
-    effectivePeriodRangeValue,
-    measurementUnit,
-    JSON.stringify(filterSelectionsByUnit),
-    JSON.stringify(selectedMetricIds),
-    drilldownParent?.unit,
-    drilldownParent?.value,
-    entityFilterValue
+    isLoadingFilter
   ]);
 
   // Build available options for AI chat
