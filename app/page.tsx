@@ -1268,18 +1268,39 @@ export default function Home() {
 
   const handleSearch = async () => {
     cancelAutoRefresh();
+    const nextDrilldownHistory =
+      drilldownParent || appliedDrilldownHistory.length > 0
+        ? [
+            ...appliedDrilldownHistory.slice(0, -1),
+            {
+              measurementUnit,
+              filterValue: buildFilterSummary(
+                measurementUnit,
+                filterSelectionsByUnit,
+                filterOptionsByUnit,
+                measurementUnitLabelMap
+              ),
+              parent: drilldownParent
+            }
+          ]
+        : [
+            {
+              measurementUnit,
+              filterValue: buildFilterSummary(
+                measurementUnit,
+                filterSelectionsByUnit,
+                filterOptionsByUnit,
+                measurementUnitLabelMap
+              ),
+              parent: null
+            }
+          ];
     await runSearch({
       periodUnit,
       measurementUnit,
       filterSelections: filterSelectionsByUnit,
-      drilldownParent: null,
-      drilldownHistory: [
-        {
-          measurementUnit,
-          filterValue: buildFilterSummary(measurementUnit, filterSelectionsByUnit, filterOptionsByUnit, measurementUnitLabelMap),
-          parent: null
-        }
-      ]
+      drilldownParent,
+      drilldownHistory: nextDrilldownHistory
     });
   };
 
