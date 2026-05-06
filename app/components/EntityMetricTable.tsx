@@ -451,14 +451,18 @@ export default function EntityMetricTable({
                   onClick={(e) => openPeriodSortMenu(weekIndex, e)}
                   title="기간별 정렬"
                 >
-                  {week}
-                  {periodSort?.weekIndex === weekIndex && (
-                    <svg className="week-sort-icon" width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-                      {periodSort.order === "asc"
-                        ? <polygon points="8 3 14 11 2 11" />
-                        : <polygon points="8 13 2 5 14 5" />}
-                    </svg>
-                  )}
+                    <span className={`period-sort-toggle${periodSort?.weekIndex === weekIndex ? " is-active" : ""}`}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                        <polygon
+                          points="8 2 12 7 4 7"
+                          opacity={periodSort?.weekIndex === weekIndex && periodSort.order === "asc" ? 1 : 0.25}
+                        />
+                        <polygon
+                          points="8 14 4 9 12 9"
+                          opacity={periodSort?.weekIndex === weekIndex && periodSort.order === "desc" ? 1 : 0.25}
+                        />
+                      </svg>
+                    </span>
                 </button>
                 </div>
                 {periodDrilldownOpen === weekIndex && periodDrilldownPos && createPortal(
