@@ -166,6 +166,20 @@ type DrilldownHistoryItem = {
   parent: DrilldownParent;
 };
 type FilterSelectionMap = Record<string, string[]>;
+type PeriodEntry = {
+  week: string;
+  startDate: string | null;
+};
+type PeriodRange = {
+  startDate: string;
+  endDate: string;
+};
+type PeriodDrilldownItem = {
+  parentUnit: PeriodUnit;
+  parentLabel: string;
+  childUnit: PeriodUnit;
+  range: PeriodRange;
+};
 type PendingDrilldown = {
   entityName: string;
   sourceUnit: MeasurementUnit;
@@ -283,6 +297,135 @@ const sortFilterOptionValues = (unit: string, values: string[]) => {
   return [...values].sort((left, right) => right.localeCompare(left, "ko", { numeric: true }));
 };
 
+const PERIOD_DRILLDOWN_OPTIONS: Record<PeriodUnit, { label: string; value: PeriodUnit }[]> = {
+  year: [
+    { label: "분기", value: "quarter" },
+    { label: "월", value: "month" },
+    { label: "주", value: "week" },
+    { label: "일", value: "day" }
+  ],
+  quarter: [
+    { label: "월", value: "month" },
+    { label: "주", value: "week" },
+    { label: "일", value: "day" }
+  ],
+  month: [
+    { label: "주", value: "week" },
+    { label: "일", value: "day" }
+  ],
+  week: [{ label: "일", value: "day" }],
+  day: []
+};
+
+const parseIsoDate = (value: string) => {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getEndOfMonth = (year: number, month: number) => new Date(year, month, 0);
+
+const derivePeriodRange = (
+  periodLabel: string,
+  periodUnit: PeriodUnit,
+  startDate: string | null
+): PeriodRange | null => {
+  if (startDate) {
+    const start = parseIsoDate(startDate);
+    if (!start) return null;
+
+    if (periodUnit === "day") {
+      return { startDate, endDate: startDate };
+    }
+    if (periodUnit === "week") {
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      return { startDate, endDate: formatIsoDate(end) };
+    }
+    if (periodUnit === "month") {
+      return {
+        startDate,
+        endDate: formatIsoDate(getEndOfMonth(start.getFullYear(), start.getMonth() + 1))
+      };
+    }
+    if (periodUnit === "quarter") {
+      return {
+        startDate,
+        endDate: formatIsoDate(getEndOfMonth(start.getFullYear(), start.getMonth() + 3))
+      };
+    }
+    return {
+      startDate,
+      endDate: `${start.getFullYear()}-12-31`
+    };
+  }
+
+  if (periodUnit === "day") {
+    const match = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(periodLabel.trim());
+    if (!match) return null;
+    const iso = `20${match[1]}-${match[2]}-${match[3]}`;
+    return { startDate: iso, endDate: iso };
+  }
+
+  if (periodUnit === "week") {
+    const match = /^(\d{2})\.(\d{2})\.(\d{2})\s*-\s*(\d{2})\.(\d{2})$/.exec(periodLabel.trim());
+    if (!match) return null;
+    const [, year, startMonth, startDay, endMonth, endDay] = match;
+    const baseYear = Number(`20${year}`);
+    const endYear = Number(endMonth) < Number(startMonth) ? baseYear + 1 : baseYear;
+    return {
+      startDate: `${baseYear}-${startMonth}-${startDay}`,
+      endDate: `${endYear}-${endMonth}-${endDay}`
+    };
+  }
+
+  if (periodUnit === "month") {
+    const match = /^(\d{2})\.(\d{2})$/.exec(periodLabel.trim());
+    if (!match) return null;
+    const year = Number(`20${match[1]}`);
+    const month = Number(match[2]);
+    return {
+      startDate: `${year}-${String(month).padStart(2, "0")}-01`,
+      endDate: formatIsoDate(getEndOfMonth(year, month))
+    };
+  }
+
+  if (periodUnit === "quarter") {
+    const match = /^(\d{2})\.(\d)$/.exec(periodLabel.trim());
+    if (!match) return null;
+    const year = Number(`20${match[1]}`);
+    const quarter = Number(match[2]);
+    const startMonth = (quarter - 1) * 3 + 1;
+    return {
+      startDate: `${year}-${String(startMonth).padStart(2, "0")}-01`,
+      endDate: formatIsoDate(getEndOfMonth(year, startMonth + 2))
+    };
+  }
+
+  if (periodUnit === "year") {
+    const match = /^(\d{2})$/.exec(periodLabel.trim());
+    if (!match) return null;
+    const year = Number(`20${match[1]}`);
+    return {
+      startDate: `${year}-01-01`,
+      endDate: `${year}-12-31`
+    };
+  }
+
+  return null;
+};
+
+const isPeriodEntryWithinRange = (entry: PeriodEntry, range: PeriodRange) => {
+  if (!entry.startDate) return false;
+  return entry.startDate >= range.startDate && entry.startDate <= range.endDate;
+};
+
 const getVisiblePeriodsForSearch = ({
   basePeriods,
   periodUnit,
@@ -316,6 +459,7 @@ const serializeSearchState = (params: {
   filterSelectionsByUnit: FilterSelectionMap;
   selectedMetricIds: string[];
   drilldownParent: DrilldownParent;
+  periodDrilldownHistory: PeriodDrilldownItem[];
   entityFilterValue: string;
 }) =>
   JSON.stringify({
@@ -329,6 +473,7 @@ const serializeSearchState = (params: {
     ),
     selectedMetricIds: [...params.selectedMetricIds],
     drilldownParent: params.drilldownParent,
+    periodDrilldownHistory: params.periodDrilldownHistory,
     entityFilterValue: params.entityFilterValue
   });
 
@@ -389,6 +534,26 @@ const buildPeriodsApiUrl = (periodUnit: PeriodUnit, periodRangeValue: string) =>
     params.set("n", String(size));
   }
   if (periodRangeValue === "all") {
+    params.set("includeFuture", "1");
+  }
+  return `/api/weeks?${params.toString()}`;
+};
+
+const buildPeriodEntriesApiUrl = (
+  periodUnit: PeriodUnit,
+  periodRangeValue: string,
+  hasDrilldownContext: boolean
+) => {
+  const params = new URLSearchParams({ periodUnit, includeStartDate: "1" });
+  if (!hasDrilldownContext) {
+    const size = periodRangeSizeMapByUnit[periodUnit][periodRangeValue];
+    if (typeof size === "number" && size > 0) {
+      params.set("n", String(size));
+    }
+    if (periodRangeValue === "all") {
+      params.set("includeFuture", "1");
+    }
+  } else {
     params.set("includeFuture", "1");
   }
   return `/api/weeks?${params.toString()}`;
@@ -598,6 +763,7 @@ export default function Home() {
   };
   const [drilldownParent, setDrilldownParent] = useState<DrilldownParent>(null);
   const [appliedDrilldownHistory, setAppliedDrilldownHistory] = useState<DrilldownHistoryItem[]>([]);
+  const [periodDrilldownHistory, setPeriodDrilldownHistory] = useState<PeriodDrilldownItem[]>([]);
   const [pendingDrilldown, setPendingDrilldown] = useState<PendingDrilldown>(null);
   const pendingDrilldownRequestRef = useRef(0);
   const drilldownOptionsCacheRef = useRef(new Map<string, MeasurementUnitOption[]>());
@@ -649,6 +815,9 @@ export default function Home() {
 
   const periodRangeOptions = periodRangeOptionsByUnit[periodUnit];
   const effectivePeriodRangeValue = periodRangeValue || defaultPeriodRangeValueByUnit[periodUnit];
+  const currentResultPeriodUnit =
+    periodDrilldownHistory[periodDrilldownHistory.length - 1]?.childUnit ?? appliedPeriodUnit;
+  const availablePeriodDrilldownOptions = PERIOD_DRILLDOWN_OPTIONS[currentResultPeriodUnit] ?? [];
   const displayedWeeks = useMemo(
     () => weeks.map((week) => formatPeriodLabel(week, appliedPeriodUnit)),
     [weeks, appliedPeriodUnit]
@@ -720,6 +889,40 @@ export default function Home() {
       return next.slice(0, 50);
     });
   };
+
+  const loadPeriodEntries = useCallback(
+    async (
+      targetRootPeriodUnit: PeriodUnit,
+      targetPeriodRangeValue: string,
+      targetPeriodDrilldownHistory: PeriodDrilldownItem[]
+    ) => {
+      const effectiveUnit =
+        targetPeriodDrilldownHistory[targetPeriodDrilldownHistory.length - 1]?.childUnit ??
+        targetRootPeriodUnit;
+      const response = await fetchJson<{ weeks: PeriodEntry[] }>(
+        buildPeriodEntriesApiUrl(
+          effectiveUnit,
+          targetPeriodRangeValue,
+          targetPeriodDrilldownHistory.length > 0
+        )
+      );
+      const entries = (response.weeks ?? []).filter((entry) => entry.week?.trim().length > 0);
+      if (targetPeriodDrilldownHistory.length === 0) {
+        return { periodUnit: effectiveUnit, entries };
+      }
+
+      const activeRange = targetPeriodDrilldownHistory[targetPeriodDrilldownHistory.length - 1]?.range ?? null;
+      if (!activeRange) {
+        return { periodUnit: effectiveUnit, entries };
+      }
+
+      return {
+        periodUnit: effectiveUnit,
+        entries: entries.filter((entry) => isPeriodEntryWithinRange(entry, activeRange))
+      };
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isSupabaseBrowserEnvConfigured()) {
@@ -848,24 +1051,27 @@ export default function Home() {
       setIsLoadingFilter(true);
       setErrorMessage(null);
       try {
-        const weeksResponse = await fetchJsonWithTimeout<{ weeks: string[] }>(
-          buildPeriodsApiUrl(periodUnit, effectivePeriodRangeValue),
-          6000
+        const { periodUnit: effectiveSearchPeriodUnit, entries } = await loadPeriodEntries(
+          periodUnit,
+          effectivePeriodRangeValue,
+          periodDrilldownHistory
         );
-        const params = new URLSearchParams({ measureUnit: measurementUnit, periodUnit });
-        if (effectivePeriodRangeValue !== "all") {
-          (weeksResponse.weeks ?? []).forEach((week) => {
-            params.append("week", week);
-          });
-        }
+        const effectivePeriods = entries.map((entry) => entry.week);
+        const params = new URLSearchParams({
+          measureUnit: measurementUnit,
+          periodUnit: effectiveSearchPeriodUnit
+        });
+        effectivePeriods.forEach((week) => {
+          params.append("week", week);
+        });
         if (drilldownParent?.unit && drilldownParent?.value) {
           params.set("parentUnit", drilldownParent.unit);
           params.set("parentValue", drilldownParent.value);
         }
         const [periodUnitsResponse, unitsResponse] = await Promise.all([
           fetchJsonWithTimeout<{ options: string[] }>(
-            `/api/period-filter-units?periodUnit=${periodUnit}${effectivePeriodRangeValue !== "all"
-              ? `&${(weeksResponse.weeks ?? []).map((week) => `period=${encodeURIComponent(week)}`).join("&")}`
+            `/api/period-filter-units?periodUnit=${effectiveSearchPeriodUnit}${effectivePeriods.length > 0
+              ? `&${effectivePeriods.map((week) => `period=${encodeURIComponent(week)}`).join("&")}`
               : ""}`,
             15000
           ),
@@ -904,7 +1110,15 @@ export default function Home() {
     return () => {
       canceled = true;
     };
-  }, [measurementUnit, drilldownParent?.unit, drilldownParent?.value, effectivePeriodRangeValue, periodUnit]);
+  }, [
+    measurementUnit,
+    drilldownParent?.unit,
+    drilldownParent?.value,
+    effectivePeriodRangeValue,
+    periodUnit,
+    periodDrilldownHistory,
+    loadPeriodEntries
+  ]);
 
   useEffect(() => {
     let canceled = false;
@@ -921,15 +1135,16 @@ export default function Home() {
       setIsLoadingFilter(true);
       setErrorMessage(null);
       try {
-        const weeksResponse = await fetchJsonWithTimeout<{ weeks: string[] }>(
-          buildPeriodsApiUrl(periodUnit, effectivePeriodRangeValue),
-          6000
+        const { periodUnit: effectiveSearchPeriodUnit, entries } = await loadPeriodEntries(
+          periodUnit,
+          effectivePeriodRangeValue,
+          periodDrilldownHistory
         );
-        const effectiveWeeks = effectivePeriodRangeValue !== "all" ? (weeksResponse.weeks ?? []) : [];
+        const effectiveWeeks = entries.map((entry) => entry.week);
         const currentSelections = normalizeSelections(filterSelectionsByUnit, filterOptionsByUnit);
         const params = new URLSearchParams({
           measureUnit: measurementUnit,
-          periodUnit
+          periodUnit: effectiveSearchPeriodUnit
         });
         effectiveWeeks.forEach((week) => params.append("week", week));
         combinedFilterUnits.forEach((option) => params.append("filterUnit", option.value));
@@ -984,14 +1199,16 @@ export default function Home() {
       canceled = true;
     };
     }, [
-      measurementUnit,
-      periodFilterUnitOptions,
-      filterUnitOptions,
-      JSON.stringify(filterSelectionsByUnit),
+    measurementUnit,
+    periodFilterUnitOptions,
+    filterUnitOptions,
+    JSON.stringify(filterSelectionsByUnit),
     drilldownParent?.unit,
     drilldownParent?.value,
     effectivePeriodRangeValue,
-    periodUnit
+    periodUnit,
+    periodDrilldownHistory,
+    loadPeriodEntries
   ]);
 
   const selectedMetrics = useMemo(() => {
@@ -1042,6 +1259,7 @@ export default function Home() {
     drilldownParent?: DrilldownParent;
     drilldownHistory?: DrilldownHistoryItem[];
     periodUnit?: PeriodUnit;
+    periodDrilldownHistory?: PeriodDrilldownItem[];
   }) => {
     const targetPeriodUnit =
       overrides && "periodUnit" in overrides && overrides.periodUnit !== undefined
@@ -1059,7 +1277,13 @@ export default function Home() {
       overrides && "drilldownParent" in overrides
         ? (overrides.drilldownParent ?? null)
         : drilldownParent;
-      const targetDrilldownHistory =
+    const targetPeriodDrilldownHistory =
+      overrides && "periodDrilldownHistory" in overrides && overrides.periodDrilldownHistory !== undefined
+        ? overrides.periodDrilldownHistory
+        : periodDrilldownHistory;
+    const effectiveSearchPeriodUnit =
+      targetPeriodDrilldownHistory[targetPeriodDrilldownHistory.length - 1]?.childUnit ?? targetPeriodUnit;
+    const targetDrilldownHistory =
       overrides && "drilldownHistory" in overrides && overrides.drilldownHistory !== undefined
         ? overrides.drilldownHistory
         : [
@@ -1081,6 +1305,7 @@ export default function Home() {
       filterSelectionsByUnit: targetFilterSelections,
       selectedMetricIds: selectedMetricIds,
       drilldownParent: targetDrilldownParent,
+      periodDrilldownHistory: targetPeriodDrilldownHistory,
       entityFilterValue: ALL_VALUE
     });
 
@@ -1101,15 +1326,17 @@ export default function Home() {
     setErrorMessage(null);
 
     try {
-      const weeksResponse = await fetchJson<{ weeks: string[] }>(
-        buildPeriodsApiUrl(targetPeriodUnit, effectivePeriodRangeValue),
-        {
-        signal: controller.signal
-        }
+      const { entries } = await loadPeriodEntries(
+        targetPeriodUnit,
+        effectivePeriodRangeValue,
+        targetPeriodDrilldownHistory
       );
+      if (controller.signal.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
       const nextWeeks = getVisiblePeriodsForSearch({
-        basePeriods: weeksResponse.weeks ?? [],
-        periodUnit: targetPeriodUnit,
+        basePeriods: entries.map((entry) => entry.week),
+        periodUnit: effectiveSearchPeriodUnit,
         selections: targetFilterSelections,
         optionsByUnit: filterOptionsByUnit
       });
@@ -1133,7 +1360,7 @@ export default function Home() {
         },
         signal: controller.signal,
         body: JSON.stringify({
-          periodUnit: targetPeriodUnit,
+          periodUnit: effectiveSearchPeriodUnit,
           measureUnit: targetMeasurementUnit,
           filters: buildActiveFilters(targetFilterSelections, filterOptionsByUnit),
           parentUnit: targetDrilldownParent?.unit ?? null,
@@ -1152,7 +1379,7 @@ export default function Home() {
 
       setEntities(nextEntities);
       setSeriesByEntity(nextSeries);
-      setAppliedPeriodUnit(targetPeriodUnit);
+      setAppliedPeriodUnit(effectiveSearchPeriodUnit);
       setAppliedPeriodRangeValue(effectivePeriodRangeValue);
       setAppliedMeasurementUnit(targetMeasurementUnit);
       setAppliedFilterSelectionsByUnit(targetFilterSelections);
@@ -1180,8 +1407,12 @@ export default function Home() {
     if (filters.periodUnit) {
       setPeriodUnit(filters.periodUnit);
       setPeriodRangeValue(defaultPeriodRangeValueByUnit[filters.periodUnit]);
+      setPeriodDrilldownHistory([]);
     }
-    if (filters.periodRangeValue) setPeriodRangeValue(filters.periodRangeValue);
+    if (filters.periodRangeValue) {
+      setPeriodRangeValue(filters.periodRangeValue);
+      setPeriodDrilldownHistory([]);
+    }
     if (filters.measurementUnit) setMeasurementUnit(filters.measurementUnit as MeasurementUnit);
     if (filters.filterSelections) {
       setFilterSelectionsByUnit(filters.filterSelections);
@@ -1226,6 +1457,7 @@ export default function Home() {
       filterSelectionsByUnit,
       selectedMetricIds,
       drilldownParent,
+      periodDrilldownHistory,
       entityFilterValue
     });
 
@@ -1295,7 +1527,8 @@ export default function Home() {
       measurementUnit,
       filterSelections: filterSelectionsByUnit,
       drilldownParent,
-      drilldownHistory: nextDrilldownHistory
+      drilldownHistory: nextDrilldownHistory,
+      periodDrilldownHistory
     });
   };
 
@@ -1331,6 +1564,7 @@ export default function Home() {
 
   const handlePeriodRangeChange = (value: string) => {
     setPeriodRangeValue(value);
+    setPeriodDrilldownHistory([]);
     setFilterSelectionsByUnit((current) =>
       Object.fromEntries(
         Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
@@ -1342,6 +1576,7 @@ export default function Home() {
   const handlePeriodUnitChange = (value: PeriodUnit) => {
     setPeriodUnit(value);
     setPeriodRangeValue(defaultPeriodRangeValueByUnit[value]);
+    setPeriodDrilldownHistory([]);
     setFilterOptionsByUnit((current) =>
       Object.fromEntries(
         Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
@@ -1438,7 +1673,7 @@ export default function Home() {
     cancelAutoRefresh();
     setEntityFilterValue(nextValue);
     void runSearch({
-      periodUnit: appliedPeriodUnit,
+      periodUnit,
       measurementUnit,
       filterSelections:
         nextValue === ALL_VALUE
@@ -1448,6 +1683,7 @@ export default function Home() {
               [measurementUnit]: [nextValue]
             },
       drilldownParent: null,
+      periodDrilldownHistory,
       drilldownHistory: [
         {
           measurementUnit,
@@ -1490,10 +1726,11 @@ export default function Home() {
     setMeasurementUnit(targetUnit);
     setDrilldownParent(parent);
     void runSearch({
-      periodUnit: appliedPeriodUnit,
+      periodUnit,
       measurementUnit: targetUnit,
       filterSelections: filterSelectionsByUnit,
       drilldownParent: parent,
+      periodDrilldownHistory,
       drilldownHistory: nextHistory
     });
   };
@@ -1506,11 +1743,58 @@ export default function Home() {
     setDrilldownParent(target.parent);
     setPendingDrilldown(null);
     void runSearch({
-      periodUnit: appliedPeriodUnit,
+      periodUnit,
       measurementUnit: target.measurementUnit,
       filterSelections: filterSelectionsByUnit,
       drilldownParent: target.parent,
+      periodDrilldownHistory,
       drilldownHistory: nextHistory
+    });
+  };
+
+  const handlePeriodDrilldownSelect = async (periodLabel: string, targetUnit: PeriodUnit) => {
+    const sourceUnit =
+      periodDrilldownHistory[periodDrilldownHistory.length - 1]?.childUnit ?? periodUnit;
+    const sourceEntries = await loadPeriodEntries(periodUnit, effectivePeriodRangeValue, periodDrilldownHistory);
+    const targetEntry = sourceEntries.entries.find((entry) => entry.week === periodLabel);
+    const targetRange = derivePeriodRange(periodLabel, sourceUnit, targetEntry?.startDate ?? null);
+    if (!targetRange) {
+      pushError("기간 드릴다운 실패", `${periodLabel} 범위를 해석하지 못했습니다.`);
+      return;
+    }
+
+    const nextPeriodDrilldownHistory = [
+      ...periodDrilldownHistory,
+      {
+        parentUnit: sourceUnit,
+        parentLabel: periodLabel,
+        childUnit: targetUnit,
+        range: targetRange
+      }
+    ];
+
+    setPeriodDrilldownHistory(nextPeriodDrilldownHistory);
+    await runSearch({
+      periodUnit,
+      measurementUnit,
+      filterSelections: filterSelectionsByUnit,
+      drilldownParent,
+      drilldownHistory: appliedDrilldownHistory,
+      periodDrilldownHistory: nextPeriodDrilldownHistory
+    });
+  };
+
+  const handlePeriodDrilldownNavigate = async (targetLength: number) => {
+    const nextPeriodDrilldownHistory =
+      targetLength <= 0 ? [] : periodDrilldownHistory.slice(0, targetLength);
+    setPeriodDrilldownHistory(nextPeriodDrilldownHistory);
+    await runSearch({
+      periodUnit,
+      measurementUnit,
+      filterSelections: filterSelectionsByUnit,
+      drilldownParent,
+      drilldownHistory: appliedDrilldownHistory,
+      periodDrilldownHistory: nextPeriodDrilldownHistory
     });
   };
 
@@ -1528,6 +1812,21 @@ export default function Home() {
       }),
     [appliedDrilldownHistory, measurementUnitLabelMap]
   );
+
+  const periodDrilldownPathItems = useMemo(() => {
+    if (periodDrilldownHistory.length === 0) return [] as { label: string; targetLength: number; isCurrent: boolean }[];
+    const items = periodDrilldownHistory.map((item, index) => ({
+      label: `${periodFilterLabelMap[item.parentUnit]}(${item.parentLabel})`,
+      targetLength: index,
+      isCurrent: false
+    }));
+    items.push({
+      label: periodFilterLabelMap[periodDrilldownHistory[periodDrilldownHistory.length - 1].childUnit],
+      targetLength: periodDrilldownHistory.length,
+      isCurrent: true
+    });
+    return items;
+  }, [periodDrilldownHistory]);
 
   const handleRemoveSelectedMetric = (metricId: string) => {
     setSelectedMetricIds((prev) => prev.filter((id) => id !== metricId));
@@ -1715,6 +2014,7 @@ export default function Home() {
         setPeriodUnit(nextPeriodUnit);
         setPeriodRangeValue(cfg.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
         setMeasurementUnit(nextMeasurementUnit);
+        setPeriodDrilldownHistory([]);
         setFilterSelectionsByUnit(
           Object.keys(cfg.filterSelections ?? {}).length > 0 ? (cfg.filterSelections ?? {}) : legacySelections
         );
@@ -1747,6 +2047,7 @@ export default function Home() {
     setPeriodUnit(nextPeriodUnit);
     setPeriodRangeValue(config.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
     setMeasurementUnit(nextMeasurementUnit);
+    setPeriodDrilldownHistory([]);
     setFilterSelectionsByUnit(
       Object.keys(config.filterSelections ?? {}).length > 0 ? (config.filterSelections ?? {}) : legacySelections
     );
@@ -2092,6 +2393,7 @@ export default function Home() {
             setPeriodUnit("week");
             setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
             setMeasurementUnit("all");
+            setPeriodDrilldownHistory([]);
             setFilterUnitOptions([]);
             setFilterOptionsByUnit({});
             setFilterSelectionsByUnit({});
@@ -2123,6 +2425,7 @@ export default function Home() {
               setPeriodUnit(nextPeriodUnit);
               setPeriodRangeValue(defaultTabConfig.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
               setMeasurementUnit(nextMeasurementUnit);
+              setPeriodDrilldownHistory([]);
               setFilterSelectionsByUnit(
                 Object.keys(defaultTabConfig.filterSelections ?? {}).length > 0
                   ? (defaultTabConfig.filterSelections ?? {})
@@ -2138,6 +2441,7 @@ export default function Home() {
               setPeriodUnit("week");
               setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
               setMeasurementUnit("all");
+              setPeriodDrilldownHistory([]);
               setFilterUnitOptions([]);
               setFilterOptionsByUnit({});
               setFilterSelectionsByUnit({});
@@ -2191,6 +2495,50 @@ export default function Home() {
           </div>
         ) : !isLoadingHeatmap && showResults ? (
           <div className="result-stack">
+            {periodDrilldownPathItems.length > 0 && (
+              <div className="card subtle">
+                <div className="drilldown-path" aria-label="기간 드릴다운 경로">
+                  {periodDrilldownPathItems.map((item, index) => (
+                    <span key={`${item.label}-${index}`} className="drilldown-path-item">
+                      {item.isCurrent ? (
+                        <span className="drilldown-node is-current">{item.label}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="drilldown-node is-link"
+                          onClick={() => void handlePeriodDrilldownNavigate(item.targetLength)}
+                        >
+                          {item.label}
+                        </button>
+                      )}
+                      {index < periodDrilldownPathItems.length - 1 && (
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                          className="drilldown-sep-icon"
+                        >
+                          <polyline points="9 6 15 12 9 18" />
+                        </svg>
+                      )}
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    className="drilldown-node is-link"
+                    onClick={() => void handlePeriodDrilldownNavigate(0)}
+                  >
+                    기간 드릴다운 해제
+                  </button>
+                </div>
+              </div>
+            )}
             {appliedMeasurementUnit === "all" ? (
               <MetricTable
                 title=""
@@ -2202,6 +2550,8 @@ export default function Home() {
                 heatmapColorMap={heatmapColorMap}
                 onHeatmapColorChange={handleHeatmapColorChange}
                 partialIndices={partialIndices}
+                periodDrilldownOptions={availablePeriodDrilldownOptions}
+                onPeriodDrilldownSelect={handlePeriodDrilldownSelect}
               />
             ) : (
               <EntityMetricTable
@@ -2231,6 +2581,8 @@ export default function Home() {
                 isDrilldownOptionsLoading={pendingDrilldown?.isLoading ?? false}
                 onDrilldownSelect={handlePendingDrilldownSelect}
                 onDrilldownClose={() => setPendingDrilldown(null)}
+                periodDrilldownOptions={availablePeriodDrilldownOptions}
+                onPeriodDrilldownSelect={handlePeriodDrilldownSelect}
               />
             )}
           </div>

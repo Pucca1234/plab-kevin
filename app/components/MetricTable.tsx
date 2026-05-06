@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Metric } from "../types";
+import { Metric, PeriodUnit } from "../types";
 import { formatDelta, formatValue } from "../lib/format";
 import { measureMetricLabelColumnMinWidth } from "../lib/tableSizing";
 import Sparkline from "./Sparkline";
@@ -28,6 +28,8 @@ type MetricTableProps = {
   heatmapColorMap?: Record<string, number | null>;
   onHeatmapColorChange?: (metricId: string, colorIndex: number | null) => void;
   partialIndices?: Set<number>;
+  periodDrilldownOptions?: { label: string; value: PeriodUnit }[];
+  onPeriodDrilldownSelect?: (periodLabel: string, targetUnit: PeriodUnit) => void;
 };
 
 export default function MetricTable({
@@ -45,7 +47,9 @@ export default function MetricTable({
   onToggleDeltaMetric,
   heatmapColorMap: heatmapColorMapProp,
   onHeatmapColorChange,
-  partialIndices = new Set()
+  partialIndices = new Set(),
+  periodDrilldownOptions = [],
+  onPeriodDrilldownSelect
 }: MetricTableProps) {
   const weekColumnCount = weeks.length;
   const colCount = 2 + weekColumnCount;
@@ -87,16 +91,31 @@ export default function MetricTable({
     setColorPickerOpen(null);
   };
   const [periodSort, setPeriodSort] = useState<{ weekIndex: number; order: "asc" | "desc" } | null>(null);
+  const [periodDrilldownOpen, setPeriodDrilldownOpen] = useState<number | null>(null);
+  const [periodDrilldownPos, setPeriodDrilldownPos] = useState<{ top: number; left: number } | null>(null);
   const resizeIndexRef = useRef<number | null>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const manualResized = useRef(new Set<number>());
   const gridRef = useRef<HTMLDivElement>(null);
+  const periodDrilldownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setColumnWidths([180, 100, ...Array(weekColumnCount).fill(120)]);
     manualResized.current.clear();
   }, [weekColumnCount]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (periodDrilldownRef.current && !periodDrilldownRef.current.contains(event.target as Node)) {
+        setPeriodDrilldownOpen(null);
+      }
+    };
+    if (periodDrilldownOpen !== null) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [periodDrilldownOpen]);
 
   useLayoutEffect(() => {
     const grid = gridRef.current;
@@ -216,6 +235,17 @@ export default function MetricTable({
     }
   };
 
+  const openPeriodDrilldownMenu = (weekIndex: number, event: React.MouseEvent) => {
+    if (!periodDrilldownOptions.length || !onPeriodDrilldownSelect) return;
+    if (periodDrilldownOpen === weekIndex) {
+      setPeriodDrilldownOpen(null);
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    setPeriodDrilldownPos({ top: rect.bottom + 4, left: rect.left });
+    setPeriodDrilldownOpen(weekIndex);
+  };
+
   const sortedMetrics = useMemo(() => {
     if (!periodSort) return metrics;
     const { weekIndex, order } = periodSort;
@@ -259,20 +289,52 @@ export default function MetricTable({
             const currentOrder = isActive ? periodSort!.order : null;
             return (
               <div key={week} className={`data-cell data-week is-resizable${isActive ? " is-sorted" : ""}`}>
-                <button
-                  type="button"
-                  className="week-sort-trigger"
-                  onClick={() => togglePeriodSort(weekIndex)}
-                  title="기간별 정렬"
-                >
-                  {week}
-                  <span className={`period-sort-toggle${isActive ? " is-active" : ""}`}>
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-                      <polygon points="8 2 12 7 4 7" opacity={currentOrder === "asc" ? 1 : 0.25} />
-                      <polygon points="8 14 4 9 12 9" opacity={currentOrder === "desc" ? 1 : 0.25} />
-                    </svg>
-                  </span>
-                </button>
+                <div className="period-header-actions">
+                  <button
+                    type="button"
+                    className="period-drilldown-trigger"
+                    onClick={(event) => openPeriodDrilldownMenu(weekIndex, event)}
+                    title={periodDrilldownOptions.length > 0 ? "기간 드릴다운" : undefined}
+                    disabled={!periodDrilldownOptions.length || !onPeriodDrilldownSelect}
+                  >
+                    {week}
+                  </button>
+                  <button
+                    type="button"
+                    className="week-sort-trigger"
+                    onClick={() => togglePeriodSort(weekIndex)}
+                    title="기간별 정렬"
+                  >
+                    <span className={`period-sort-toggle${isActive ? " is-active" : ""}`}>
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                        <polygon points="8 2 12 7 4 7" opacity={currentOrder === "asc" ? 1 : 0.25} />
+                        <polygon points="8 14 4 9 12 9" opacity={currentOrder === "desc" ? 1 : 0.25} />
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+                {periodDrilldownOpen === weekIndex && periodDrilldownPos && createPortal(
+                  <div
+                    className="period-sort-menu"
+                    ref={periodDrilldownRef}
+                    style={{ top: periodDrilldownPos.top, left: periodDrilldownPos.left }}
+                  >
+                    {periodDrilldownOptions.map((option) => (
+                      <button
+                        key={`${week}-${option.value}`}
+                        type="button"
+                        className="period-sort-metric"
+                        onClick={() => {
+                          setPeriodDrilldownOpen(null);
+                          onPeriodDrilldownSelect?.(week, option.value);
+                        }}
+                      >
+                        <span className="period-sort-metric-name">{option.label}</span>
+                      </button>
+                    ))}
+                  </div>,
+                  document.body
+                )}
                 <button
                   type="button"
                   className="col-resizer"

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Entity, FilterOption, MeasurementUnitOption, Metric } from "../types";
+import { Entity, FilterOption, MeasurementUnitOption, Metric, PeriodUnit } from "../types";
 import Sparkline from "./Sparkline";
 import { formatDelta, formatValue } from "../lib/format";
 import { measureMetricLabelColumnMinWidth } from "../lib/tableSizing";
@@ -33,6 +33,8 @@ type EntityMetricTableProps = {
   onDrilldownSelect?: (value: string) => void;
   onDrilldownClose?: () => void;
   partialIndices?: Set<number>;
+  periodDrilldownOptions?: { label: string; value: PeriodUnit }[];
+  onPeriodDrilldownSelect?: (periodLabel: string, targetUnit: PeriodUnit) => void;
 };
 
 export default function EntityMetricTable({
@@ -55,7 +57,9 @@ export default function EntityMetricTable({
   isDrilldownOptionsLoading = false,
   onDrilldownSelect,
   onDrilldownClose,
-  partialIndices = new Set()
+  partialIndices = new Set(),
+  periodDrilldownOptions = [],
+  onPeriodDrilldownSelect
 }: EntityMetricTableProps) {
   const weekColumnCount = weeks.length;
   const colCount = 3 + weekColumnCount;
@@ -126,7 +130,10 @@ export default function EntityMetricTable({
   const [periodSort, setPeriodSort] = useState<{ weekIndex: number; metricId: string; order: "asc" | "desc" } | null>(null);
   const [periodSortOpen, setPeriodSortOpen] = useState<number | null>(null);
   const [periodSortPos, setPeriodSortPos] = useState<{ top: number; left: number } | null>(null);
+  const [periodDrilldownOpen, setPeriodDrilldownOpen] = useState<number | null>(null);
+  const [periodDrilldownPos, setPeriodDrilldownPos] = useState<{ top: number; left: number } | null>(null);
   const periodSortRef = useRef<HTMLDivElement>(null);
+  const periodDrilldownRef = useRef<HTMLDivElement>(null);
   const drilldownMenuRef = useRef<HTMLDivElement | null>(null);
   const drilldownAnchorRef = useRef<HTMLDivElement | null>(null);
   const [drilldownMenuPos, setDrilldownMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -167,11 +174,14 @@ export default function EntityMetricTable({
       if (periodSortRef.current && !periodSortRef.current.contains(event.target as Node)) {
         setPeriodSortOpen(null);
       }
+      if (periodDrilldownRef.current && !periodDrilldownRef.current.contains(event.target as Node)) {
+        setPeriodDrilldownOpen(null);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [expandedEntityName, onDrilldownClose, periodSortOpen]);
+  }, [expandedEntityName, onDrilldownClose, periodSortOpen, periodDrilldownOpen]);
 
   useLayoutEffect(() => {
     if (!expandedEntityName) {
@@ -325,6 +335,17 @@ export default function EntityMetricTable({
     setPeriodSortOpen(weekIndex);
   };
 
+  const openPeriodDrilldownMenu = (weekIndex: number, event: React.MouseEvent) => {
+    if (!periodDrilldownOptions.length || !onPeriodDrilldownSelect) return;
+    if (periodDrilldownOpen === weekIndex) {
+      setPeriodDrilldownOpen(null);
+      return;
+    }
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    setPeriodDrilldownPos({ top: rect.bottom + 4, left: rect.left });
+    setPeriodDrilldownOpen(weekIndex);
+  };
+
   const togglePeriodSort = (weekIndex: number, metricId: string) => {
     if (periodSort && periodSort.weekIndex === weekIndex && periodSort.metricId === metricId) {
       if (periodSort.order === "asc") {
@@ -414,6 +435,16 @@ export default function EntityMetricTable({
             </div>
             {weeks.map((week, weekIndex) => (
               <div key={week} className={`data-cell data-week is-resizable${periodSort?.weekIndex === weekIndex ? " is-sorted" : ""}`}>
+                <div className="period-header-actions">
+                  <button
+                    type="button"
+                    className="period-drilldown-trigger"
+                    onClick={(event) => openPeriodDrilldownMenu(weekIndex, event)}
+                    title={periodDrilldownOptions.length > 0 ? "기간 드릴다운" : undefined}
+                    disabled={!periodDrilldownOptions.length || !onPeriodDrilldownSelect}
+                  >
+                    {week}
+                  </button>
                 <button
                   type="button"
                   className="week-sort-trigger"
@@ -429,6 +460,25 @@ export default function EntityMetricTable({
                     </svg>
                   )}
                 </button>
+                </div>
+                {periodDrilldownOpen === weekIndex && periodDrilldownPos && createPortal(
+                  <div className="period-sort-menu" ref={periodDrilldownRef} style={{ top: periodDrilldownPos.top, left: periodDrilldownPos.left }}>
+                    {periodDrilldownOptions.map((option) => (
+                      <button
+                        key={`${week}-${option.value}`}
+                        type="button"
+                        className="period-sort-metric"
+                        onClick={() => {
+                          setPeriodDrilldownOpen(null);
+                          onPeriodDrilldownSelect?.(week, option.value);
+                        }}
+                      >
+                        <span className="period-sort-metric-name">{option.label}</span>
+                      </button>
+                    ))}
+                  </div>,
+                  document.body
+                )}
                 {periodSortOpen === weekIndex && periodSortPos && createPortal(
                   <div className="period-sort-menu" ref={periodSortRef} style={{ top: periodSortPos.top, left: periodSortPos.left }}>
                     {metrics.map((m) => {

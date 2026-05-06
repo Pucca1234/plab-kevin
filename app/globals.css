@@ -1762,11 +1762,44 @@ main {
   background: var(--primary-soft) !important;
 }
 
+.period-header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.period-drilldown-trigger {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: right;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.period-drilldown-trigger:hover:not(:disabled) {
+  color: var(--primary);
+}
+
+.period-drilldown-trigger:disabled {
+  cursor: default;
+}
+
 /* Period sort trigger (week header button) */
 .week-sort-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1774,7 +1807,11 @@ main {
   font-weight: 700;
   cursor: pointer;
   padding: 0;
-  white-space: nowrap;
+  width: 14px;
+  min-width: 14px;
+  flex: 0 0 14px;
+  overflow: hidden;
+  font-size: 0;
 }
 
 .week-sort-trigger:hover {
