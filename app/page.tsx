@@ -559,6 +559,11 @@ const buildPeriodEntriesApiUrl = (
   return `/api/weeks?${params.toString()}`;
 };
 
+const shouldSendExplicitPeriods = (
+  periodRangeValue: string,
+  periodDrilldownHistory: PeriodDrilldownItem[]
+) => periodRangeValue !== "all" || periodDrilldownHistory.length > 0;
+
 const dayOfWeekLabels = ["일", "월", "화", "수", "목", "금", "토"];
 
 const formatPeriodLabel = (period: string, periodUnit: PeriodUnit) => {
@@ -1061,9 +1066,15 @@ export default function Home() {
           measureUnit: measurementUnit,
           periodUnit: effectiveSearchPeriodUnit
         });
-        effectivePeriods.forEach((week) => {
-          params.append("week", week);
-        });
+        const includeExplicitPeriods = shouldSendExplicitPeriods(
+          effectivePeriodRangeValue,
+          periodDrilldownHistory
+        );
+        if (includeExplicitPeriods) {
+          effectivePeriods.forEach((week) => {
+            params.append("week", week);
+          });
+        }
         if (drilldownParent?.unit && drilldownParent?.value) {
           params.set("parentUnit", drilldownParent.unit);
           params.set("parentValue", drilldownParent.value);
@@ -1071,6 +1082,7 @@ export default function Home() {
         const [periodUnitsResponse, unitsResponse] = await Promise.all([
           fetchJsonWithTimeout<{ options: string[] }>(
             `/api/period-filter-units?periodUnit=${effectiveSearchPeriodUnit}${effectivePeriods.length > 0
+              && includeExplicitPeriods
               ? `&${effectivePeriods.map((week) => `period=${encodeURIComponent(week)}`).join("&")}`
               : ""}`,
             15000
@@ -1146,7 +1158,9 @@ export default function Home() {
           measureUnit: measurementUnit,
           periodUnit: effectiveSearchPeriodUnit
         });
-        effectiveWeeks.forEach((week) => params.append("week", week));
+        if (shouldSendExplicitPeriods(effectivePeriodRangeValue, periodDrilldownHistory)) {
+          effectiveWeeks.forEach((week) => params.append("week", week));
+        }
         combinedFilterUnits.forEach((option) => params.append("filterUnit", option.value));
         if (drilldownParent?.unit && drilldownParent?.value) {
           params.set("parentUnit", drilldownParent.unit);
@@ -1756,7 +1770,9 @@ export default function Home() {
     const sourceUnit =
       periodDrilldownHistory[periodDrilldownHistory.length - 1]?.childUnit ?? periodUnit;
     const sourceEntries = await loadPeriodEntries(periodUnit, effectivePeriodRangeValue, periodDrilldownHistory);
-    const targetEntry = sourceEntries.entries.find((entry) => entry.week === periodLabel);
+    const targetEntry = sourceEntries.entries.find(
+      (entry) => entry.week === periodLabel || formatPeriodLabel(entry.week, sourceUnit) === periodLabel
+    );
     const targetRange = derivePeriodRange(periodLabel, sourceUnit, targetEntry?.startDate ?? null);
     if (!targetRange) {
       pushError("기간 드릴다운 실패", `${periodLabel} 범위를 해석하지 못했습니다.`);

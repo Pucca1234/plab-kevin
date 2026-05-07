@@ -1495,7 +1495,7 @@ main {
 
 .ms-option:hover .ms-option-main,
 .ms-option:focus-within .ms-option-main {
-  padding-right: 92px;
+  padding-right: 118px;
 }
 
 .ms-option:hover .ms-option-label,
@@ -1520,9 +1520,9 @@ main {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
-  max-width: 86px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 

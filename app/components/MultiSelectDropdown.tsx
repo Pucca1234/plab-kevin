@@ -118,10 +118,7 @@ export default function MultiSelectDropdown({
   };
 
   const applyOnlyValue = (value: string) => {
-    setDraftSelectedValues([value]);
-    setIsOpen(false);
-    setSearch("");
-    onChange([value]);
+    applySelection([value]);
   };
 
   return (
