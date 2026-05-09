@@ -426,30 +426,54 @@ const isPeriodEntryWithinRange = (entry: PeriodEntry, range: PeriodRange) => {
   return entry.startDate >= range.startDate && entry.startDate <= range.endDate;
 };
 
+const getPeriodEntryStartDate = (entry: PeriodEntry, periodUnit: PeriodUnit) =>
+  entry.startDate ?? derivePeriodRange(entry.week, periodUnit, null)?.startDate ?? null;
+
 const getVisiblePeriodsForSearch = ({
-  basePeriods,
+  entries,
   periodUnit,
   selections,
   optionsByUnit
 }: {
-  basePeriods: string[];
+  entries: PeriodEntry[];
   periodUnit: PeriodUnit;
   selections: FilterSelectionMap;
   optionsByUnit: Record<string, FilterOption[]>;
 }) => {
-  const options = optionsByUnit[periodUnit] ?? [];
-  if (options.length === 0) return basePeriods;
+  let visibleEntries = entries;
 
-  const hasSelection = Object.prototype.hasOwnProperty.call(selections, periodUnit);
-  const selectedValues = hasSelection
-    ? (selections[periodUnit] ?? []).filter((value) => options.some((option) => option.value === value))
-    : options.map((option) => option.value);
+  for (const filterUnit of PERIOD_FILTER_UNIT_VALUES) {
+    const options = optionsByUnit[filterUnit] ?? [];
+    if (options.length === 0) continue;
 
-  if (selectedValues.length === 0) return [];
-  if (selectedValues.length >= options.length) return basePeriods;
+    const allowedValues = new Set(options.map((option) => option.value));
+    const hasSelection = Object.prototype.hasOwnProperty.call(selections, filterUnit);
+    const selectedValues = hasSelection
+      ? (selections[filterUnit] ?? []).filter((value) => allowedValues.has(value))
+      : options.map((option) => option.value);
 
-  const selectedSet = new Set(selectedValues);
-  return basePeriods.filter((period) => selectedSet.has(period));
+    if (selectedValues.length === 0) return [];
+
+    if (filterUnit === periodUnit) {
+      const selectedSet = new Set(selectedValues);
+      visibleEntries = visibleEntries.filter((entry) => selectedSet.has(entry.week));
+      continue;
+    }
+
+    const selectedRanges = selectedValues
+      .map((value) => derivePeriodRange(value, filterUnit, null))
+      .filter((range): range is PeriodRange => Boolean(range));
+    if (selectedRanges.length === 0) continue;
+
+    visibleEntries = visibleEntries.filter((entry) => {
+      const startDate = getPeriodEntryStartDate(entry, periodUnit);
+      return startDate
+        ? selectedRanges.some((range) => startDate >= range.startDate && startDate <= range.endDate)
+        : true;
+    });
+  }
+
+  return visibleEntries.map((entry) => entry.week);
 };
 
 const serializeSearchState = (params: {
@@ -1349,7 +1373,7 @@ export default function Home() {
         throw new DOMException("Aborted", "AbortError");
       }
       const nextWeeks = getVisiblePeriodsForSearch({
-        basePeriods: entries.map((entry) => entry.week),
+        entries,
         periodUnit: effectiveSearchPeriodUnit,
         selections: targetFilterSelections,
         optionsByUnit: filterOptionsByUnit
@@ -1481,8 +1505,8 @@ export default function Home() {
       window.clearTimeout(autoRefreshTimerRef.current);
     }
 
-    lastHandledAutoRefreshTokenRef.current = autoRefreshToken;
     autoRefreshTimerRef.current = window.setTimeout(() => {
+      lastHandledAutoRefreshTokenRef.current = autoRefreshToken;
       void handleSearch();
     }, 180);
 
