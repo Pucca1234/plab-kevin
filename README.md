@@ -493,6 +493,28 @@
   - `npm run build`
   - `git diff --check`
 
+## 2026-05-12 디자인 프로토타입 라우트 추가
+- 목적:
+  - 운영 대시보드 로직은 유지한 채, 현재 레이아웃/기능 구조를 기준으로 디자인 스타일만 비교할 수 있는 별도 프로토타입 화면을 추가
+- 구현:
+  - 신규 라우트: `/prototypes`
+  - 신규 파일:
+    - `app/prototypes/page.tsx`
+    - `app/prototypes/prototype.module.css`
+  - 기존 운영 `app/page.tsx`, API route, 실제 데이터 조회 경로는 수정하지 않음
+- 프로토타입 동작 범위:
+  - 목데이터 기반으로 `ControlBar`, `MetricTable`, `EntityMetricTable`를 재사용
+  - 기간단위/기간범위/동적 필터/지표 선택/엔티티 드릴다운/기간 드릴다운이 기본적으로 동작
+  - 테마는 `Classic`, `New` 두 가지로 전환 가능
+- 비교 화면 정책:
+  - 초기 버전의 설명성 UI(상단 소개, 우측 요약 카드, 대형 테마 설명 카드)는 제거
+  - 현재는 기존 대시보드와 직접 비교할 수 있도록 실제 대시보드 골격과 가까운 요소만 남김
+  - 헤더, 필터 영역, 결과 테이블, 드릴다운 breadcrumb, 지표 선택 모달 정도만 유지
+- 롤백 기준:
+  - 이 변경은 `/prototypes` 전용 파일 추가만 포함하므로, 해당 폴더 제거로 쉽게 롤백 가능
+- 검증:
+  - `npm run build`
+
 ## 데이터 집계 규칙
 - `cnt` 계열: `MAX(value)`
 - `rate` 계열: `AVG(value)`

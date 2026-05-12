@@ -1,0 +1,37 @@
+.page { min-height: 100vh; padding: 16px; background: #f5f7fb; }
+.dashboardFrame { overflow: hidden; }
+.prototypeLayout { display: grid; gap: 12px; padding: 0 15px 28px; }
+.themeSwitch { display: inline-flex; gap: 8px; }
+.themeSwitchButton { border: 1px solid var(--border); background: var(--card); color: var(--secondary); border-radius: 999px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.themeSwitchButtonActive { border-color: var(--primary); background: var(--primary); color: var(--on-primary); }
+.resultWrap { display: grid; gap: 12px; }
+.resultMeta span, .breadcrumb, .breadcrumbReset { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); color: var(--secondary); font-size: 12px; font-weight: 600; }
+.breadcrumbRow { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 4px; }
+.breadcrumb, .breadcrumbReset { cursor: pointer; }
+.breadcrumbCurrent { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.modalOverlay { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 24px; background: rgba(15,23,42,.42); backdrop-filter: blur(8px); }
+.metricPanel { width: min(760px,100%); max-height: min(720px,90vh); overflow: hidden; border-radius: 28px; background: #fff; box-shadow: 0 30px 80px rgba(15,23,42,.22); }
+.metricPanelHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 24px 24px 18px; border-bottom: 1px solid rgba(15,23,42,.08); }
+.metricPanelHeader h2 { margin: 6px 0 0; font-size: 24px; }
+.modalClose { border: 0; border-radius: 999px; background: rgba(15,23,42,.06); padding: 10px 14px; cursor: pointer; }
+.metricPanelBody { overflow: auto; padding: 16px 24px 24px; }
+.metricOption { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid rgba(15,23,42,.08); }
+.metricOption strong { display: block; margin-bottom: 6px; }
+.metricOption p { margin: 0; color: #667085; line-height: 1.55; }
+.metricOption input { width: 18px; height: 18px; accent-color: var(--primary); }
+.classic :global(.template-tabs), .modern :global(.template-tabs) { border-radius: 26px; }
+.classic :global(.template-tabs) { padding: 10px 10px 2px; background: rgba(255,255,255,.7); border: 1px solid rgba(17,24,39,.06); }
+.modern :global(.template-tabs) { padding: 14px 14px 4px; background: rgba(255,252,246,.92); border: 1px solid rgba(27,23,18,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.72); }
+.classic :global(.template-tab), .classic :global(.ss-trigger), .classic :global(.ms-trigger), .classic :global(.btn-secondary), .classic :global(.btn-primary), .modern :global(.template-tab), .modern :global(.ss-trigger), .modern :global(.ms-trigger), .modern :global(.btn-secondary), .modern :global(.btn-primary) { min-height: 44px; }
+.classic :global(.template-tab), .classic :global(.ss-trigger), .classic :global(.ms-trigger), .classic :global(.btn-secondary), .classic :global(.btn-primary) { border-radius: 16px; }
+.modern :global(.template-tab), .modern :global(.ss-trigger), .modern :global(.ms-trigger), .modern :global(.btn-secondary), .modern :global(.btn-primary) { border-radius: 18px; font-weight: 600; }
+.classic :global(.control-bar-body) { border-radius: 26px; }
+.modern :global(.control-bar-body) { border-radius: 30px; }
+.classic :global(.selected-metric-chip) { border-radius: 999px; background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(236,243,255,.92)); }
+.modern :global(.selected-metric-chip) { background: rgba(255,143,61,.1); border-color: rgba(255,143,61,.2); }
+.classic :global(.table-card), .modern :global(.table-card) { border-radius: 28px; }
+.modern :global(.table-card) { box-shadow: 0 24px 56px rgba(79,54,31,.12); }
+.classic :global(.data-row.is-header) { background: linear-gradient(180deg, rgba(30,99,255,.06), rgba(255,255,255,.92)); }
+.modern :global(.data-row.is-header) { background: linear-gradient(180deg, rgba(13,143,115,.08), rgba(255,253,248,.96)); }
+.modern :global(.period-sort-menu), .modern :global(.drilldown-menu) { border-radius: 18px; }
+@media (max-width: 880px) { .themeSwitch { width: 100%; overflow: auto; } }
