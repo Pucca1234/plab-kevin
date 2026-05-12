@@ -2375,7 +2375,7 @@ export default function Home() {
           </div>
         </div>
         <div className="header-meta">
-          <span>데이터 소스: Supabase</span>
+          <span>데이터 소스: BigQuery</span>
           {buildCommit && <span>build: {buildCommit.slice(0, 7)}</span>}
           {userName && <span className="user-name">{userName}</span>}
           <button
