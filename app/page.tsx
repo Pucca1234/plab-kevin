@@ -656,7 +656,7 @@ const getPartialIndices = (rawWeeks: string[], periodUnit: PeriodUnit): Set<numb
       }
     }
 
-    if (endDate && endDate > today) {
+    if (endDate && endDate >= today) {
       partial.add(index);
     }
   });
