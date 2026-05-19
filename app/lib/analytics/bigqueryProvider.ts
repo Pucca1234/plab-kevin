@@ -123,6 +123,8 @@ const isPeriodFilterUnit = (value?: string | null): value is SupportedPeriodUnit
   value === "year" || value === "quarter" || value === "month" || value === "week" || value === "day";
 
 const canUseExpandedMvUnit = (value: string) => EXPANDED_MV_UNITS.has(value);
+const needsSourceForFilterUnit = (unit: string) =>
+  !isPeriodFilterUnit(unit) && !LEGACY_MV_UNITS.has(unit) && !canUseExpandedMvUnit(unit);
 
 const buildPeriodValueExpression = (periodUnit: SupportedPeriodUnit, qualifier = "") => {
   const prefix = qualifier ? `${qualifier}.` : "";
@@ -898,13 +900,15 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
     const parentValue = options?.parentValue && options.parentValue.trim().length > 0 ? options.parentValue.trim() : null;
     const weeks = (options?.weeks ?? []).map((week) => week.trim()).filter((week) => week.length > 0);
     const hasPeriodFilters = activeFilters.some((filter) => isPeriodFilterUnit(filter.unit));
+    const hasSourceOnlyFilters = activeFilters.some((filter) => needsSourceForFilterUnit(filter.unit));
 
     const useSourceFilterOptions =
       periodUnit !== "week" ||
       isPeriodFilterUnit(filterUnit) ||
       hasPeriodFilters ||
+      hasSourceOnlyFilters ||
       (!LEGACY_MV_UNITS.has(measureUnit) && !canUseExpandedMvUnit(measureUnit)) ||
-      (!isPeriodFilterUnit(filterUnit) && !LEGACY_MV_UNITS.has(filterUnit) && !canUseExpandedMvUnit(filterUnit)) ||
+      needsSourceForFilterUnit(filterUnit) ||
       Boolean(parentUnit && !LEGACY_MV_UNITS.has(parentUnit) && !canUseExpandedMvUnit(parentUnit));
 
     if (useSourceFilterOptions) {
@@ -1009,7 +1013,7 @@ export const bigqueryAnalyticsProvider: AnalyticsProvider = {
       (!LEGACY_MV_UNITS.has(measureUnit) && !canUseExpandedMvUnit(measureUnit)) ||
       Boolean(parentUnit && !LEGACY_MV_UNITS.has(parentUnit) && !canUseExpandedMvUnit(parentUnit)) ||
       normalizedFilters.some(
-        (filter) => !isPeriodFilterUnit(filter.unit) && !LEGACY_MV_UNITS.has(filter.unit) && !canUseExpandedMvUnit(filter.unit)
+        (filter) => needsSourceForFilterUnit(filter.unit)
       );
 
     if (useSourceHeatmap) {
