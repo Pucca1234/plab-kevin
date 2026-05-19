@@ -78,9 +78,10 @@ export async function GET(request: Request) {
       async () => {
         const entries = await Promise.all(
           normalizedFilterUnits.map(async (filterUnit) => {
+            const filtersForOptionUnit = activeFilters.filter((filter) => filter.unit !== filterUnit);
             const options = await getFilterOptions(measureUnit, {
               filterUnit,
-              activeFilters,
+              activeFilters: filtersForOptionUnit,
               parentUnit: normalizedParentUnit,
               parentValue: normalizedParentValue,
               weeks,

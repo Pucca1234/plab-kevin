@@ -2125,7 +2125,16 @@ export default function Home() {
         body: JSON.stringify({ name, config, is_shared: isShared, is_default: isDefault })
       });
       setActiveTemplateId(response.template.id);
-      await loadTemplates();
+      setTemplates((current) => [
+        ...current
+          .filter((template) => template.id !== response.template.id)
+          .map((template) =>
+            response.template.is_default && template.user_id === response.template.user_id
+              ? { ...template, is_default: false }
+              : template
+          ),
+        response.template
+      ]);
     } catch (error) {
       pushError("템플릿 생성 실패", (error as Error).message);
     }
@@ -2148,7 +2157,10 @@ export default function Home() {
         body: JSON.stringify({ name, config, is_shared: false, is_default: false })
       });
       setActiveTemplateId(response.template.id);
-      await loadTemplates();
+      setTemplates((current) => [
+        ...current.filter((template) => template.id !== response.template.id),
+        response.template
+      ]);
     } catch (error) {
       pushError("템플릿 생성 실패", (error as Error).message);
     }

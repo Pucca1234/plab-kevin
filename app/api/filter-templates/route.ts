@@ -12,8 +12,7 @@ export async function GET(request: Request) {
     .from("filter_templates")
     .select("*")
     .or(`user_id.eq.${user.id},is_shared.eq.true`)
-    .order("is_default", { ascending: false })
-    .order("updated_at", { ascending: false });
+    .order("created_at", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
