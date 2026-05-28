@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { sheet1Data, periodUnit, measureUnit, filterValue, weeks, metrics, parentUnit, parentValue } = body;
+    const { sheet1Data, periodUnit, measureUnit, filterValue, filterSelections, weeks, metrics, parentUnit, parentValue } = body;
 
     const token = await getAccessToken();
 
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
         periodUnit: periodUnit || "week",
         measureUnit,
         filterValue: filterValue || null,
+        filters: Array.isArray(filterSelections) ? filterSelections : undefined,
         periods: weeks,
         metricIds: metrics || [],
         parentUnit: parentUnit || null,

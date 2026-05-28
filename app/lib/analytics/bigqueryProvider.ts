@@ -567,6 +567,7 @@ export const getRawDataFromSource = async ({
   periodUnit,
   measureUnit,
   filterValue,
+  filters,
   periods,
   metricIds,
   parentUnit,
@@ -575,6 +576,7 @@ export const getRawDataFromSource = async ({
   periodUnit: "year" | "quarter" | "month" | "week" | "day";
   measureUnit: string;
   filterValue: string | null;
+  filters?: FilterSelection[];
   periods: string[];
   metricIds?: string[];
   parentUnit?: string | null;
@@ -615,15 +617,23 @@ export const getRawDataFromSource = async ({
 
   let dimensionFilter = "";
   if (measureUnit === "all") {
-    dimensionFilter = "and coalesce(nullif(trim(src.dimension_type), ''), 'all') = 'all'";
+    dimensionFilter = `and coalesce(nullif(trim(src.dimension_type), ''), 'all') = 'all'
+      ${buildSourceFilterSelectionsClause(filters)}
+      ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}`;
   } else {
     const queryUnit = resolveQueryUnitForDrilldownStrict(measureUnit, parentUnit);
     if (!queryUnit) return [];
     const queryUnitConfig = getUnitConfig(queryUnit);
     if (!queryUnitConfig) return [];
+    const activeFilterClause =
+      filters && filters.length > 0
+        ? buildSourceFilterSelectionsClause(filters)
+        : filterValue
+          ? buildSourceEntityFilterClause(measureUnit, filterValue)
+          : "";
     dimensionFilter = `and src.dimension_type = '${queryUnitConfig.dimensionType}'
       ${buildNotNullChecksForUnit(queryUnit)}
-      ${filterValue ? buildSourceEntityFilterClause(measureUnit, filterValue) : ""}
+      ${activeFilterClause}
       ${buildSourceEntityFilterClause(parentUnit ?? "", parentValue ?? null)}`;
   }
 

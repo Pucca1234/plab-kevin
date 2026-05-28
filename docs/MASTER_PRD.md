@@ -57,6 +57,22 @@
 - 분석 백엔드
 - 템플릿 및 사용자 설정
 - AI 어시스턴트
+- 인증 및 접근
+- 내보내기 및 원본 데이터
+
+## 현재 기능-문서 매핑
+- 검색 조건 설정, 동적 필터, 지표 선택: `FILTER_AND_SEARCH_PRD.md`
+- 엔티티 드릴다운, 기간 드릴다운, 재조회 충돌 방지: `DRILLDOWN_PRD.md`
+- BigQuery provider, serving/source query 경로, 운영 시각 기준: `ANALYTICS_BACKEND_PRD.md`
+- 템플릿 저장, 기본 탭, 사용자 설정: `TEMPLATES_AND_PREFERENCES_PRD.md`
+- AI 요약, AI 채팅, filter action: `AI_ASSISTANT_PRD.md`
+- 로그인, OAuth 콜백, canonical URL: `AUTH_AND_ACCESS_PRD.md`
+- Excel/Sheets 내보내기와 원본 데이터 추출: `EXPORT_AND_RAW_DATA_PRD.md`
+
+## 현재 정리 과제
+- 기능별 PRD 1차 최신화는 완료됐고, 다음 점검 대상은 인증 가능한 환경에서 수정된 내보내기 경로의 실제 UI 회귀 검증입니다.
+- AI/chat 및 일부 UI 소스에는 한글 인코딩 깨짐이 남아 있어 별도 정리 전략이 필요합니다.
+- 인증 문서는 현재 로그인 흐름을 담고 있지만, 보호된 화면 접근 정책까지는 아직 별도 정리되지 않았습니다.
 
 ## 현재 문서 전환 원칙
 - 루트 `PRD.md`는 메인 진입 문서로 유지합니다.

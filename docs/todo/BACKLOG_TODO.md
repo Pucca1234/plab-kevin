@@ -13,12 +13,12 @@
 ### DOC-B002
 - Status: `todo`
 - Source: 기존 draft 문서 검토
-- Why: 저장소 차원의 긴 변경 이력이 아직 레거시 `_README.md`, `_PRD.md`에 남아 있어 현재 상태 파악을 방해할 수 있습니다.
+- Why: 저장소 차원의 긴 변경 이력이 아직 레거시 `레거시_README.md`, `레거시_PRD.md`에 남아 있어 현재 상태 파악을 방해할 수 있습니다.
 - Next action: 별도 changelog 도입 여부를 결정하고 장기 이력을 분리할지 판단합니다.
 - References:
   - `CHANGELOG_DRAFT.md`
-  - `_README.md`
-  - `_PRD.md`
+  - `레거시_README.md`
+  - `레거시_PRD.md`
 
 ### DOC-B003
 - Status: `todo`
@@ -28,4 +28,6 @@
 - References:
   - `app/components/ControlBar.tsx`
   - `app/components/EntityMetricTable.tsx`
+  - `app/components/AiChat.tsx`
+  - `app/api/ai/chat/route.ts`
   - `AI_CONTEXT.md`

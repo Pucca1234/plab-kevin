@@ -78,16 +78,29 @@
   - chat 응답은 필터 적용 action과 chart payload를 반환할 수 있음
   - `ANTHROPIC_API_KEY`가 있으면 Anthropic 사용, 없으면 fallback 응답 사용
 
-## 보조 영역
-- 인증:
+### 인증 및 접근
+- 핵심 파일:
   - `app/login/page.tsx`
   - `app/auth/callback/route.ts`
   - `app/lib/supabase/*`
+- 현재 동작:
+  - Google OAuth 기반 로그인
+  - canonical URL 기준 redirect 보정
+  - 브라우저와 서버 양쪽에서 code exchange 지원
+
+### 내보내기 및 원본 데이터
+- 핵심 파일:
+  - `app/page.tsx`
+  - `app/api/raw-data/route.ts`
+  - `app/api/export-sheets/route.ts`
+- 현재 동작:
+  - 운영 UI는 클라이언트 Excel 다운로드를 주 경로로 사용
+  - 원본 데이터 시트를 함께 구성
+  - Google Sheets 생성 API가 별도 경로로 존재
+
+## 보조 영역
 - 프로토타입:
   - `app/prototypes/page.tsx`
-- 내보내기:
-  - `app/api/export-sheets/route.ts`
-  - `app/page.tsx`의 클라이언트 Excel 생성 로직
 
 ## 데이터 흐름
 1. 클라이언트가 지표, 측정단위, 기간, 템플릿, 사용자 상태를 로드합니다.
@@ -100,5 +113,5 @@
 
 ## 현재 문서 공백
 - `ANALYTICS_API_CONTRACT.md`는 인코딩이 깨져 있어 현재 기준 문서로 신뢰하기 어렵습니다.
-- export, auth, prototype 영역은 아직 기능별 PRD로 분리되지 않았습니다.
+- prototype은 운영 기능 PRD 대상이 아니므로 별도 문서화하지 않습니다.
 - 일부 UI 소스의 한글 문자열은 인코딩 문제로 읽기 어려워 별도 정리 계획이 필요합니다.

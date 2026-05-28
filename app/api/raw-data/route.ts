@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { periodUnit, measureUnit, filterValue, weeks, metrics, parentUnit, parentValue } = body;
+    const { periodUnit, measureUnit, filterValue, filterSelections, weeks, metrics, parentUnit, parentValue } = body;
 
     if (!measureUnit || !weeks?.length) {
       return NextResponse.json({ error: "measureUnit and weeks are required" }, { status: 400 });
@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       periodUnit: periodUnit || "week",
       measureUnit,
       filterValue: filterValue || null,
+      filters: Array.isArray(filterSelections) ? filterSelections : undefined,
       periods: weeks,
       metricIds: metrics || [],
       parentUnit: parentUnit || null,

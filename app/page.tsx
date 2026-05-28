@@ -2313,18 +2313,12 @@ export default function Home() {
   };
 
   const rawDataParams = () => {
-    const filterSummary = buildFilterSummary(
-      appliedMeasurementUnit,
-      appliedFilterSelectionsByUnit,
-      filterOptionsByUnit,
-      measurementUnitLabelMap
-    );
     return {
       periodUnit: appliedPeriodUnit,
       measureUnit: appliedMeasurementUnit,
       weeks,
       metrics: selectedMetrics.map((m) => m.id),
-      filterValue: filterSummary === ALL_VALUE ? null : filterSummary,
+      filterSelections: buildActiveFilters(appliedFilterSelectionsByUnit, filterOptionsByUnit),
       parentUnit: drilldownParent?.unit ?? null,
       parentValue: drilldownParent?.value ?? null
     };
