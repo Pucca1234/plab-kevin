@@ -22,23 +22,6 @@
   - `scripts/bigquery/validate-serving-layer.mjs`
   - `docs/feature-prds/ANALYTICS_BACKEND_PRD.md`
 
-### DOC-012
-- Status: `todo`
-- Source: 2026-05-29 필터 UX 구조 재설계 요청
-- Why: 현재 동적 필터는 자동 계산과 상호 영향이 과도해서 사용자가 방금 본 후보 리스트를 다시 신뢰하기 어렵고, 선택한 필터가 뒤쪽 필터를 좁힌 뒤 그 계산 결과가 다시 앞쪽 필터를 흔드는 구조가 예측 불가능성을 키웁니다.
-- Next action: 아래 순서로 정리하고 구현 후보를 확정합니다.
-  1. 현재 필터 연동 흐름과 양방향 재계산 지점을 코드 기준으로 매핑합니다.
-  2. "선택한 필터 -> 아직 선택하지 않은 다음 필터" 단방향 영향 규칙을 PRD 초안으로 고정합니다.
-  3. 각 필터가 처음 열렸을 때 본 후보 리스트를 유지하는 캐시/상태 모델을 설계합니다.
-  4. 필터 반영 중 다른 액션을 잠시 막는 pending UX와 적용 범위를 정의합니다.
-  5. 구현 전후 회귀 시나리오를 TODO와 PRD에 남깁니다.
-- References:
-  - `app/page.tsx`
-  - `app/components/ControlBar.tsx`
-  - `app/lib/analytics/bigqueryShared.ts`
-  - `docs/feature-prds/FILTER_AND_SEARCH_PRD.md`
-  - `docs/feature-prds/DRILLDOWN_PRD.md`
-
 ### DOC-009
 - Status: `todo`
 - Source: `DOC-008` 후속
