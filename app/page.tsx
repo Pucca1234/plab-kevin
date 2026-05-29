@@ -143,6 +143,7 @@ const buildCommit =
   process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
   process.env.VERCEL_GIT_COMMIT_SHA ||
   "";
+const filterUxV2Enabled = process.env.NEXT_PUBLIC_FILTER_UX_V2_ENABLED === "1";
 
 type MetricRow = {
   metric: string;
@@ -186,6 +187,7 @@ type PendingDrilldown = {
   options: MeasurementUnitOption[];
   isLoading: boolean;
 } | null;
+type FilterOptionSnapshotMap = Record<string, { contextKey: string; options: FilterOption[] }>;
 
 const drilldownCandidateMap: Record<string, string[]> = {
   all: [
@@ -265,6 +267,25 @@ const buildActiveFilters = (
     }
     return [{ unit, values: selected }];
   });
+
+const buildActiveFiltersForOrderedUnits = ({
+  orderedUnits,
+  targetUnit,
+  selections,
+  optionsByUnit
+}: {
+  orderedUnits: string[];
+  targetUnit: string;
+  selections: FilterSelectionMap;
+  optionsByUnit: Record<string, FilterOption[]>;
+}) => {
+  const targetIndex = orderedUnits.indexOf(targetUnit);
+  const scopedUnits = targetIndex === -1 ? orderedUnits : orderedUnits.slice(0, targetIndex);
+  const scopedOptionsByUnit = Object.fromEntries(
+    scopedUnits.map((unit) => [unit, optionsByUnit[unit] ?? []])
+  ) as Record<string, FilterOption[]>;
+  return buildActiveFilters(selections, scopedOptionsByUnit);
+};
 
 const buildFilterSummary = (
   measurementUnit: MeasurementUnit,
@@ -829,6 +850,7 @@ export default function Home() {
   const lastAppliedSearchSignatureRef = useRef("");
   const lastHandledAutoRefreshTokenRef = useRef(0);
   const autoRefreshTimerRef = useRef<number | null>(null);
+  const [filterOptionSnapshots, setFilterOptionSnapshots] = useState<FilterOptionSnapshotMap>({});
 
   useEffect(() => {
     drilldownOptionsCacheRef.current.clear();
@@ -865,15 +887,100 @@ export default function Home() {
     [measurementUnitOptions]
   );
 
+  const orderedFilterUnitValues = useMemo(
+    () => [...periodFilterUnitOptions, ...filterUnitOptions].map((option) => option.value),
+    [periodFilterUnitOptions, filterUnitOptions]
+  );
+
+  const periodDrilldownHistoryKey = useMemo(
+    () => JSON.stringify(periodDrilldownHistory),
+    [periodDrilldownHistory]
+  );
+
+  const getFilterContextKey = useCallback(
+    (
+      unit: string,
+      selections: FilterSelectionMap,
+      optionsByUnit: Record<string, FilterOption[]>
+    ) => {
+      const targetIndex = orderedFilterUnitValues.indexOf(unit);
+      const prefixUnits = targetIndex === -1 ? [] : orderedFilterUnitValues.slice(0, targetIndex);
+      const prefixSelections = prefixUnits.map((prefixUnit) => {
+        const options = optionsByUnit[prefixUnit] ?? [];
+        const allowedValues = new Set(options.map((option) => option.value));
+        const hasSelection = Object.prototype.hasOwnProperty.call(selections, prefixUnit);
+        const selectedValues = hasSelection
+          ? (selections[prefixUnit] ?? []).filter((value) => allowedValues.has(value))
+          : options.map((option) => option.value);
+        return [prefixUnit, selectedValues] as const;
+      });
+
+      return JSON.stringify({
+        unit,
+        measurementUnit,
+        periodUnit,
+        periodRangeValue: effectivePeriodRangeValue,
+        drilldownParent,
+        periodDrilldownHistory: periodDrilldownHistoryKey,
+        prefixSelections
+      });
+    },
+    [
+      drilldownParent,
+      effectivePeriodRangeValue,
+      measurementUnit,
+      orderedFilterUnitValues,
+      periodDrilldownHistoryKey,
+      periodUnit
+    ]
+  );
+
+  const getDisplayedFilterOptions = useCallback(
+    (unit: string) => {
+      if (!filterUxV2Enabled) return filterOptionsByUnit[unit] ?? [];
+      const snapshot = filterOptionSnapshots[unit];
+      const contextKey = getFilterContextKey(unit, filterSelectionsByUnit, filterOptionsByUnit);
+      if (snapshot?.contextKey === contextKey) {
+        return snapshot.options;
+      }
+      return filterOptionsByUnit[unit] ?? [];
+    },
+    [filterOptionSnapshots, filterOptionsByUnit, filterSelectionsByUnit, getFilterContextKey]
+  );
+
+  const handleFilterDropdownOpen = useCallback(
+    (unit: string) => {
+      if (!filterUxV2Enabled) return;
+      const nextContextKey = getFilterContextKey(unit, filterSelectionsByUnit, filterOptionsByUnit);
+      const nextOptions = filterOptionsByUnit[unit] ?? [];
+      setFilterOptionSnapshots((current) => {
+        const existing = current[unit];
+        if (existing?.contextKey === nextContextKey) {
+          return current;
+        }
+        return {
+          ...current,
+          [unit]: {
+            contextKey: nextContextKey,
+            options: nextOptions
+          }
+        };
+      });
+    },
+    [filterOptionsByUnit, filterSelectionsByUnit, getFilterContextKey]
+  );
+
+  const isFilterInteractionLocked = filterUxV2Enabled && isLoadingFilter;
+
   const filterGroups = useMemo(
     () =>
       filterUnitOptions.map((option) => ({
         unit: option.value,
         label: option.label,
-        options: filterOptionsByUnit[option.value] ?? [],
+        options: getDisplayedFilterOptions(option.value),
         selectedValues: filterSelectionsByUnit[option.value] ?? []
       })),
-    [filterOptionsByUnit, filterSelectionsByUnit, filterUnitOptions]
+    [filterSelectionsByUnit, filterUnitOptions, getDisplayedFilterOptions]
   );
 
   const periodFilterGroups = useMemo(
@@ -881,10 +988,10 @@ export default function Home() {
       periodFilterUnitOptions.map((option) => ({
         unit: option.value,
         label: option.label,
-        options: filterOptionsByUnit[option.value] ?? [],
+        options: getDisplayedFilterOptions(option.value),
         selectedValues: filterSelectionsByUnit[option.value] ?? []
       })),
-    [filterOptionsByUnit, filterSelectionsByUnit, periodFilterUnitOptions]
+    [filterSelectionsByUnit, periodFilterUnitOptions, getDisplayedFilterOptions]
   );
 
   const activeSearchFilters = useMemo(
@@ -1204,18 +1311,63 @@ export default function Home() {
           });
         }
 
-        const response = await fetchJsonWithTimeout<{ optionsByUnit: Record<string, string[]> }>(
-          `/api/filter-options-batch?${params.toString()}`,
-          15000
-        );
-        if (canceled) return;
+        let nextOptionsByUnit: Record<string, FilterOption[]>;
+        if (filterUxV2Enabled) {
+          const orderedUnits = combinedFilterUnits.map((option) => option.value);
+          const entries = await Promise.all(
+            orderedUnits.map(async (filterUnit) => {
+              const unitParams = new URLSearchParams(params);
+              unitParams.set("filterUnit", filterUnit);
+              unitParams.delete("activeFilterUnit");
+              unitParams.delete("activeFilterValue");
 
-        const nextOptionsByUnit = Object.fromEntries(
-          Object.entries(response.optionsByUnit ?? {}).map(([unit, values]) => [
-            unit,
-            sortFilterOptionValues(unit, values).map((value) => ({ label: value, value }))
-          ])
-        );
+              const directionalActiveFilters = buildActiveFiltersForOrderedUnits({
+                orderedUnits,
+                targetUnit: filterUnit,
+                selections: currentSelections,
+                optionsByUnit: filterOptionsByUnit
+              });
+
+              directionalActiveFilters.forEach((filter) => {
+                if (filter.values.length === 0) {
+                  unitParams.append("activeFilterUnit", filter.unit);
+                  unitParams.append("activeFilterValue", "__NONE__");
+                  return;
+                }
+                filter.values.forEach((value) => {
+                  unitParams.append("activeFilterUnit", filter.unit);
+                  unitParams.append("activeFilterValue", value);
+                });
+              });
+
+              const response = await fetchJsonWithTimeout<{ options: string[] }>(
+                `/api/filter-options?${unitParams.toString()}`,
+                15000
+              );
+              return [
+                filterUnit,
+                sortFilterOptionValues(filterUnit, response.options ?? []).map((value) => ({
+                  label: value,
+                  value
+                }))
+              ] as const;
+            })
+          );
+          if (canceled) return;
+          nextOptionsByUnit = Object.fromEntries(entries);
+        } else {
+          const response = await fetchJsonWithTimeout<{ optionsByUnit: Record<string, string[]> }>(
+            `/api/filter-options-batch?${params.toString()}`,
+            15000
+          );
+          if (canceled) return;
+          nextOptionsByUnit = Object.fromEntries(
+            Object.entries(response.optionsByUnit ?? {}).map(([unit, values]) => [
+              unit,
+              sortFilterOptionValues(unit, values).map((value) => ({ label: value, value }))
+            ])
+          );
+        }
         setFilterOptionsByUnit(nextOptionsByUnit);
         setFilterSelectionsByUnit((current) => normalizeSelections(current, nextOptionsByUnit));
         setEntityFilterValue(ALL_VALUE);
@@ -1571,6 +1723,7 @@ export default function Home() {
   };
 
   const handleMeasurementChange = (value: MeasurementUnit) => {
+    if (isFilterInteractionLocked) return;
     setMeasurementUnit(value);
     setFilterUnitOptions([]);
     setFilterOptionsByUnit((current) =>
@@ -1590,6 +1743,7 @@ export default function Home() {
   };
 
   const handleFilterChange = (unit: MeasurementUnit, values: string[]) => {
+    if (isFilterInteractionLocked) return;
     setFilterSelectionsByUnit((current) => ({
       ...current,
       [unit]: values
@@ -1601,6 +1755,7 @@ export default function Home() {
   };
 
   const handlePeriodRangeChange = (value: string) => {
+    if (isFilterInteractionLocked) return;
     setPeriodRangeValue(value);
     setPeriodDrilldownHistory([]);
     setFilterSelectionsByUnit((current) =>
@@ -1612,6 +1767,7 @@ export default function Home() {
   };
 
   const handlePeriodUnitChange = (value: PeriodUnit) => {
+    if (isFilterInteractionLocked) return;
     setPeriodUnit(value);
     setPeriodRangeValue(defaultPeriodRangeValueByUnit[value]);
     setPeriodDrilldownHistory([]);
@@ -1631,6 +1787,7 @@ export default function Home() {
   };
 
   const handleEntityClick = (entityName: string) => {
+    if (isFilterInteractionLocked) return;
     if (pendingDrilldown?.entityName === entityName) {
       setPendingDrilldown(null);
       return;
@@ -1791,6 +1948,7 @@ export default function Home() {
   };
 
   const handlePeriodDrilldownSelect = async (periodLabel: string, targetUnit: PeriodUnit) => {
+    if (isFilterInteractionLocked) return;
     const sourceUnit =
       periodDrilldownHistory[periodDrilldownHistory.length - 1]?.childUnit ?? periodUnit;
     const sourceEntries = await loadPeriodEntries(periodUnit, effectivePeriodRangeValue, periodDrilldownHistory);
@@ -1825,6 +1983,7 @@ export default function Home() {
   };
 
   const handlePeriodDrilldownNavigate = async (targetLength: number) => {
+    if (isFilterInteractionLocked) return;
     const nextPeriodDrilldownHistory =
       targetLength <= 0 ? [] : periodDrilldownHistory.slice(0, targetLength);
     setPeriodDrilldownHistory(nextPeriodDrilldownHistory);
@@ -2457,6 +2616,8 @@ export default function Home() {
           onRenameDefaultTab={handleRenameDefaultTab}
           onExport={downloadExcel}
           isExporting={isExporting}
+          isInteractionLocked={isFilterInteractionLocked}
+          onFilterDropdownOpen={handleFilterDropdownOpen}
           onApplyDefault={() => {
             cancelAutoRefresh();
             if (defaultTabConfig) {
@@ -2504,6 +2665,9 @@ export default function Home() {
           }}
         />
         {isLoadingFilter && <div className="card subtle">필터 로딩 중...</div>}
+        {isFilterInteractionLocked && (
+          <div className="card subtle">필터 반영 중입니다. 잠시만 기다려주세요.</div>
+        )}
       </section>
 
       <section className="main-panel">

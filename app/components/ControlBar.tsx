@@ -58,18 +58,22 @@ type ControlBarProps = {
   onRenameDefaultTab: (name: string) => void;
   onExport?: () => void;
   isExporting?: boolean;
+  isInteractionLocked?: boolean;
+  onFilterDropdownOpen?: (unit: string) => void;
 };
 
 function SingleSelectDropdown({
   title,
   value,
   options,
-  onChange
+  onChange,
+  disabled = false
 }: {
   title: string;
   value: string;
   options: SingleSelectOption[];
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -92,6 +96,7 @@ function SingleSelectDropdown({
       <button
         type="button"
         className="ss-trigger"
+        disabled={disabled}
         onClick={() => setIsOpen((open) => !open)}
         title={triggerLabel}
       >
@@ -122,9 +127,11 @@ function SingleSelectDropdown({
               type="button"
               className={`ss-option ${option.value === value ? "is-active" : ""}`}
               onClick={() => {
+                if (disabled) return;
                 onChange(option.value);
                 setIsOpen(false);
               }}
+              disabled={disabled}
               title={option.label}
             >
               <span className="ss-option-label">{option.label}</span>
@@ -178,7 +185,9 @@ export default function ControlBar({
   defaultTabName,
   onRenameDefaultTab,
   onExport,
-  isExporting
+  isExporting,
+  isInteractionLocked = false,
+  onFilterDropdownOpen
 }: ControlBarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -237,8 +246,10 @@ export default function ControlBar({
           <button
             type="button"
             className={`template-tab template-tab-default ${activeTemplateId === null ? "is-active" : ""}`}
+            disabled={isInteractionLocked}
             onClick={onApplyDefault}
             onDoubleClick={() => {
+              if (isInteractionLocked) return;
               setEditingDefaultName(defaultTabName);
               setEditingDefault(true);
             }}
@@ -271,12 +282,15 @@ export default function ControlBar({
               <button
                 type="button"
                 className={`template-tab ${template.id === activeTemplateId ? "is-active" : ""}`}
+                disabled={isInteractionLocked}
                 onClick={() => onApplyTemplate(template)}
                 onDoubleClick={() => {
+                  if (isInteractionLocked) return;
                   setEditingId(template.id);
                   setEditingName(template.name);
                 }}
                 onContextMenu={(event) => {
+                  if (isInteractionLocked) return;
                   event.preventDefault();
                   setContextMenuId(template.id);
                 }}
@@ -290,11 +304,13 @@ export default function ControlBar({
                   tabIndex={0}
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (isInteractionLocked) return;
                     onDeleteTemplate(template.id);
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.stopPropagation();
+                      if (isInteractionLocked) return;
                       onDeleteTemplate(template.id);
                     }
                   }}
@@ -346,6 +362,7 @@ export default function ControlBar({
         <button
           type="button"
           className="template-tab template-tab-add"
+          disabled={isInteractionLocked}
           onClick={() => onCreateEmptyTab(`템플릿${templates.length + 2}`)}
           title="새 템플릿 추가"
         >
@@ -356,7 +373,12 @@ export default function ControlBar({
 
       <div className="search-panel card control-bar-body">
         <div className="search-row search-row-metrics">
-          <button type="button" className="btn-secondary search-metric-picker-btn" onClick={onOpenMetricPicker}>
+          <button
+            type="button"
+            className="btn-secondary search-metric-picker-btn"
+            onClick={onOpenMetricPicker}
+            disabled={isInteractionLocked}
+          >
             지표 선택
           </button>
           <div className="selected-metric-chips">
@@ -367,6 +389,7 @@ export default function ControlBar({
                 className="selected-metric-chip is-active"
                 title={`${metric.description || metric.name} (클릭 시 제거)`}
                 onClick={() => onRemoveSelectedMetric(metric.id)}
+                disabled={isInteractionLocked}
                 aria-pressed
               >
                 {metric.name}
@@ -381,6 +404,7 @@ export default function ControlBar({
               title="기간단위"
               value={periodUnit}
               options={periodUnitOptions}
+              disabled={isInteractionLocked}
               onChange={(value) => onPeriodUnitChange(value as PeriodUnit)}
             />
           </div>
@@ -390,6 +414,7 @@ export default function ControlBar({
               title="기간범위"
               value={periodRangeValue}
               options={periodRangeOptions}
+              disabled={isInteractionLocked}
               onChange={onPeriodRangeChange}
             />
           </div>
@@ -400,6 +425,8 @@ export default function ControlBar({
                 options={group.options}
                 selectedValues={group.selectedValues}
                 onChange={(values) => onFilterChange(group.unit, values)}
+                onOpen={() => onFilterDropdownOpen?.(group.unit)}
+                disabled={isInteractionLocked}
                 label={getMultiSelectDisplayLabel(group)}
                 searchPlaceholder={`${group.label} 검색`}
               />
@@ -413,6 +440,7 @@ export default function ControlBar({
               title="측정단위"
               value={measurementUnit}
               options={measurementUnitOptions}
+              disabled={isInteractionLocked}
               onChange={(value) => onMeasurementUnitChange(value as MeasurementUnit)}
             />
           </div>
@@ -423,6 +451,8 @@ export default function ControlBar({
                 options={group.options}
                 selectedValues={group.selectedValues}
                 onChange={(values) => onFilterChange(group.unit, values)}
+                onOpen={() => onFilterDropdownOpen?.(group.unit)}
+                disabled={isInteractionLocked}
                 label={getMultiSelectDisplayLabel(group)}
                 searchPlaceholder={`${group.label} 검색`}
               />
@@ -430,7 +460,7 @@ export default function ControlBar({
           ))}
 
           <div className="search-actions-stack">
-            <button type="button" className="template-save-btn btn-icon" onClick={onResetFilters} title="필터 초기화">
+            <button type="button" className="template-save-btn btn-icon" onClick={onResetFilters} disabled={isInteractionLocked} title="필터 초기화">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </button>
             <div className="save-btn-wrap">
@@ -440,6 +470,7 @@ export default function ControlBar({
               <button
                 type="button"
                 className={`template-save-btn btn-icon${saveToast ? " save-done" : ""}`}
+                disabled={isInteractionLocked}
                 onClick={() => {
                   if (activeTemplateId) {
                     onUpdateTemplateConfig(activeTemplateId);
@@ -456,11 +487,11 @@ export default function ControlBar({
               </button>
             </div>
             {onExport && (
-              <button type="button" className="template-save-btn btn-icon" onClick={onExport} disabled={isExporting} title="내보내기">
+              <button type="button" className="template-save-btn btn-icon" onClick={onExport} disabled={isExporting || isInteractionLocked} title="내보내기">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </button>
             )}
-            <button type="button" className="btn-primary search-submit-btn btn-icon" onClick={onSearch} disabled={isSearchDisabled} title="조회">
+            <button type="button" className="btn-primary search-submit-btn btn-icon" onClick={onSearch} disabled={isSearchDisabled || isInteractionLocked} title="조회">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
           </div>
