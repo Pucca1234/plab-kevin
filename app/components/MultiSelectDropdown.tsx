@@ -11,8 +11,6 @@ type MultiSelectDropdownProps = {
   label: string;
   searchPlaceholder?: string;
   menuHeader?: ReactNode;
-  disabled?: boolean;
-  onOpen?: () => void;
 };
 
 const arraysEqual = (left: string[], right: string[]) =>
@@ -24,9 +22,7 @@ export default function MultiSelectDropdown({
   onChange,
   label,
   searchPlaceholder = "검색...",
-  menuHeader,
-  disabled = false,
-  onOpen
+  menuHeader
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -79,12 +75,6 @@ export default function MultiSelectDropdown({
     return () => document.removeEventListener("mousedown", handle);
   });
 
-  useEffect(() => {
-    if (disabled && isOpen) {
-      closeMenu(false);
-    }
-  }, [disabled, isOpen]);
-
   const filtered = useMemo(() => {
     if (!search.trim()) return options;
     const lower = search.toLowerCase();
@@ -136,15 +126,12 @@ export default function MultiSelectDropdown({
       <button
         type="button"
         className="ms-trigger"
-        disabled={disabled}
         onClick={() => {
-          if (disabled) return;
           if (isOpen) {
             closeMenu(true);
             return;
           }
 
-          onOpen?.();
           setDraftSelectedValues(appliedValues);
           setSearch("");
           setIsOpen(true);
@@ -179,12 +166,11 @@ export default function MultiSelectDropdown({
               className="ms-search"
               placeholder={searchPlaceholder}
               value={search}
-              disabled={disabled}
               onChange={(event) => setSearch(event.target.value)}
               autoFocus
             />
           </div>
-          <button type="button" className="ms-select-all" onClick={toggleFiltered} disabled={disabled}>
+          <button type="button" className="ms-select-all" onClick={toggleFiltered}>
             {allFilteredSelected ? "전체 해제" : "전체 선택"}
           </button>
           <div className="ms-options">
@@ -197,7 +183,6 @@ export default function MultiSelectDropdown({
                     <input
                       type="checkbox"
                       checked={draftSelectedValues.includes(option.value)}
-                      disabled={disabled}
                       onChange={() => toggleValue(option.value)}
                     />
                     <span className="ms-option-label">{option.label}</span>
@@ -205,7 +190,6 @@ export default function MultiSelectDropdown({
                   <button
                     type="button"
                     className="ms-option-only"
-                    disabled={disabled}
                     onClick={() => applyOnlyValue(option.value)}
                   >
                     지정된 값만 보기

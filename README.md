@@ -71,7 +71,6 @@ npm run bq:validate-serving
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `ANTHROPIC_API_KEY`
-- `NEXT_PUBLIC_FILTER_UX_V2_ENABLED`
 
 ## 현재 운영 기준
 - 분석 source of truth는 BigQuery입니다.
@@ -81,7 +80,6 @@ npm run bq:validate-serving
 - source 테이블 갱신 기준은 매일 07:50 KST 전후입니다.
 - serving rebuild 기본 기준은 매일 08:30 KST입니다.
 - 현재 제품 개선 우선순위는 필터 UX 단방향화와 안정적인 후보 리스트 유지이며, 작업 계획은 `docs/todo/ACTIVE_TODO.md`의 `DOC-012`에서 관리합니다.
-- 새 필터 UX는 `NEXT_PUBLIC_FILTER_UX_V2_ENABLED=1`일 때만 켜지며, 배포 후 롤백은 이 값을 `0`으로 내려 기존 동작으로 되돌리는 방식입니다.
 
 ## 주요 운영 워크플로
 - BigQuery serving rebuild: `npm run bq:build-serving`, `npm run bq:validate-serving`
