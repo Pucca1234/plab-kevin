@@ -287,17 +287,6 @@ const buildActiveFiltersForOrderedUnits = ({
   return buildActiveFilters(selections, scopedOptionsByUnit);
 };
 
-const buildEffectiveFilterUnitOrder = (
-  orderedUnits: string[],
-  interactionOrder: string[]
-) => {
-  const interacted = interactionOrder.filter(
-    (unit, index) => orderedUnits.includes(unit) && interactionOrder.indexOf(unit) === index
-  );
-  const untouched = orderedUnits.filter((unit) => !interacted.includes(unit));
-  return [...interacted, ...untouched];
-};
-
 const buildFilterSummary = (
   measurementUnit: MeasurementUnit,
   selections: FilterSelectionMap,
@@ -862,7 +851,6 @@ export default function Home() {
   const lastHandledAutoRefreshTokenRef = useRef(0);
   const autoRefreshTimerRef = useRef<number | null>(null);
   const [filterOptionSnapshots, setFilterOptionSnapshots] = useState<FilterOptionSnapshotMap>({});
-  const [filterInteractionOrder, setFilterInteractionOrder] = useState<string[]>([]);
 
   useEffect(() => {
     drilldownOptionsCacheRef.current.clear();
@@ -904,11 +892,6 @@ export default function Home() {
     [periodFilterUnitOptions, filterUnitOptions]
   );
 
-  const effectiveFilterUnitOrder = useMemo(
-    () => buildEffectiveFilterUnitOrder(orderedFilterUnitValues, filterInteractionOrder),
-    [orderedFilterUnitValues, filterInteractionOrder]
-  );
-
   const periodDrilldownHistoryKey = useMemo(
     () => JSON.stringify(periodDrilldownHistory),
     [periodDrilldownHistory]
@@ -920,8 +903,8 @@ export default function Home() {
       selections: FilterSelectionMap,
       optionsByUnit: Record<string, FilterOption[]>
     ) => {
-      const targetIndex = effectiveFilterUnitOrder.indexOf(unit);
-      const prefixUnits = targetIndex === -1 ? [] : effectiveFilterUnitOrder.slice(0, targetIndex);
+      const targetIndex = orderedFilterUnitValues.indexOf(unit);
+      const prefixUnits = targetIndex === -1 ? [] : orderedFilterUnitValues.slice(0, targetIndex);
       const prefixSelections = prefixUnits.map((prefixUnit) => {
         const options = optionsByUnit[prefixUnit] ?? [];
         const allowedValues = new Set(options.map((option) => option.value));
@@ -944,9 +927,9 @@ export default function Home() {
     },
     [
       drilldownParent,
-      effectiveFilterUnitOrder,
       effectivePeriodRangeValue,
       measurementUnit,
+      orderedFilterUnitValues,
       periodDrilldownHistoryKey,
       periodUnit
     ]
@@ -988,14 +971,6 @@ export default function Home() {
   );
 
   const isFilterInteractionLocked = filterUxV2Enabled && isLoadingFilter;
-
-  useEffect(() => {
-    setFilterInteractionOrder((current) =>
-      current.filter((unit, index) =>
-        orderedFilterUnitValues.includes(unit) && current.indexOf(unit) === index
-      )
-    );
-  }, [orderedFilterUnitValues]);
 
   const filterGroups = useMemo(
     () =>
@@ -1338,10 +1313,7 @@ export default function Home() {
 
         let nextOptionsByUnit: Record<string, FilterOption[]>;
         if (filterUxV2Enabled) {
-          const orderedUnits = buildEffectiveFilterUnitOrder(
-            combinedFilterUnits.map((option) => option.value),
-            filterInteractionOrder
-          );
+          const orderedUnits = combinedFilterUnits.map((option) => option.value);
           const entries = await Promise.all(
             orderedUnits.map(async (filterUnit) => {
               const unitParams = new URLSearchParams(params);
@@ -1424,7 +1396,6 @@ export default function Home() {
     drilldownParent?.unit,
     drilldownParent?.value,
     effectivePeriodRangeValue,
-    filterInteractionOrder,
     periodUnit,
     periodDrilldownHistory,
     loadPeriodEntries
@@ -1623,7 +1594,6 @@ export default function Home() {
 
   // Handle AI filter apply
   const handleAiApplyFilters = useCallback((filters: FilterAction["filters"]) => {
-    setFilterInteractionOrder([]);
     if (filters.periodUnit) {
       setPeriodUnit(filters.periodUnit);
       setPeriodRangeValue(defaultPeriodRangeValueByUnit[filters.periodUnit]);
@@ -1755,7 +1725,6 @@ export default function Home() {
   const handleMeasurementChange = (value: MeasurementUnit) => {
     if (isFilterInteractionLocked) return;
     setMeasurementUnit(value);
-    setFilterInteractionOrder([]);
     setFilterUnitOptions([]);
     setFilterOptionsByUnit((current) =>
       Object.fromEntries(
@@ -1775,9 +1744,6 @@ export default function Home() {
 
   const handleFilterChange = (unit: MeasurementUnit, values: string[]) => {
     if (isFilterInteractionLocked) return;
-    setFilterInteractionOrder((current) =>
-      current.includes(unit) ? current : [...current, unit]
-    );
     setFilterSelectionsByUnit((current) => ({
       ...current,
       [unit]: values
@@ -1792,7 +1758,6 @@ export default function Home() {
     if (isFilterInteractionLocked) return;
     setPeriodRangeValue(value);
     setPeriodDrilldownHistory([]);
-    setFilterInteractionOrder([]);
     setFilterSelectionsByUnit((current) =>
       Object.fromEntries(
         Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
@@ -1806,7 +1771,6 @@ export default function Home() {
     setPeriodUnit(value);
     setPeriodRangeValue(defaultPeriodRangeValueByUnit[value]);
     setPeriodDrilldownHistory([]);
-    setFilterInteractionOrder([]);
     setFilterOptionsByUnit((current) =>
       Object.fromEntries(
         Object.entries(current).filter(([unit]) => !PERIOD_FILTER_UNIT_VALUES.includes(unit as PeriodUnit))
@@ -2249,7 +2213,6 @@ export default function Home() {
         setPeriodUnit(nextPeriodUnit);
         setPeriodRangeValue(cfg.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
         setMeasurementUnit(nextMeasurementUnit);
-        setFilterInteractionOrder([]);
         setPeriodDrilldownHistory([]);
         setFilterSelectionsByUnit(
           Object.keys(cfg.filterSelections ?? {}).length > 0 ? (cfg.filterSelections ?? {}) : legacySelections
@@ -2283,7 +2246,6 @@ export default function Home() {
     setPeriodUnit(nextPeriodUnit);
     setPeriodRangeValue(config.periodRangeValue ?? defaultPeriodRangeValueByUnit[nextPeriodUnit]);
     setMeasurementUnit(nextMeasurementUnit);
-    setFilterInteractionOrder([]);
     setPeriodDrilldownHistory([]);
     setFilterSelectionsByUnit(
       Object.keys(config.filterSelections ?? {}).length > 0 ? (config.filterSelections ?? {}) : legacySelections
@@ -2636,7 +2598,6 @@ export default function Home() {
             setPeriodUnit("week");
             setPeriodRangeValue(defaultPeriodRangeValueByUnit.week);
             setMeasurementUnit("all");
-            setFilterInteractionOrder([]);
             setPeriodDrilldownHistory([]);
             setFilterUnitOptions([]);
             setFilterOptionsByUnit({});
@@ -2659,7 +2620,6 @@ export default function Home() {
           onFilterDropdownOpen={handleFilterDropdownOpen}
           onApplyDefault={() => {
             cancelAutoRefresh();
-            setFilterInteractionOrder([]);
             if (defaultTabConfig) {
               const nextPeriodUnit = defaultTabConfig.periodUnit ?? "week";
               const nextMeasurementUnit = defaultTabConfig.measurementUnit ?? "all";
