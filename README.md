@@ -79,6 +79,7 @@ npm run bq:validate-serving
 - Kevin에서 노출되는 수치 지표는 `metric_store_native` 항목 중 source table의 숫자형 컬럼으로 확인된 항목만 포함합니다.
 - source 테이블 갱신 기준은 매일 07:50 KST 전후입니다.
 - serving rebuild 기본 기준은 매일 08:30 KST입니다.
+- 현재 제품 개선 우선순위는 필터 UX 단방향화와 안정적인 후보 리스트 유지이며, 작업 계획은 `docs/todo/ACTIVE_TODO.md`의 `DOC-012`에서 관리합니다.
 
 ## 주요 운영 워크플로
 - BigQuery serving rebuild: `npm run bq:build-serving`, `npm run bq:validate-serving`
