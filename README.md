@@ -76,6 +76,7 @@ npm run bq:validate-serving
 - 분석 source of truth는 BigQuery입니다.
 - BigQuery source table은 read-only로 취급합니다.
 - 신규/갱신 분석 객체는 `kevin_serving` dataset에 둡니다.
+- Kevin에서 노출되는 수치 지표는 `metric_store_native` 항목 중 source table의 숫자형 컬럼으로 확인된 항목만 포함합니다.
 - source 테이블 갱신 기준은 매일 07:50 KST 전후입니다.
 - serving rebuild 기본 기준은 매일 08:30 KST입니다.
 

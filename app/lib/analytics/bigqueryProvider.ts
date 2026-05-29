@@ -99,7 +99,14 @@ const metricColumnBlacklist = new Set([
   "yoil_group",
   "time",
   "yoil",
-  "hour"
+  "hour",
+  "match_grade",
+  "match_level",
+  "match_player_cnt",
+  "match_sex",
+  "plab_stadium",
+  "plaber_match",
+  "ai_report_match"
 ]);
 
 const parseMetricCategory = (value: unknown) => {

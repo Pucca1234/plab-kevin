@@ -43,6 +43,8 @@
 ## 데이터 규칙
 - count 성격 지표는 `MAX(value)` 사용
 - rate 성격 지표는 `AVG(value)` 사용
+- Kevin 수치 지표 후보는 `metric_store_native`와 source table에 함께 존재하는 컬럼 중 숫자형 source column만 포함합니다.
+- `metric_store_native`에 있더라도 문자열 차원 컬럼은 수치 지표로 승격하지 않습니다.
 - BigQuery SQL에서 metric identifier는 안전하게 escape해야 함
 - 명시적으로 허용하지 않는 한 미래 또는 미완료 기간은 기본 조회에서 제외해야 함
 
@@ -58,9 +60,23 @@
 - source 반영이 지연된 날에는 serving rebuild에 늦은 데이터가 포함되지 않을 수 있으며, 다음 스케줄에서 따라잡는 것을 허용합니다.
 - Vercel 배포 환경에서는 service account JSON 계열 env 사용을 우선합니다.
 
+## 권장 자동화 구조
+- source scheduler 완료 직후 numeric metric candidate와 source 최신 주차를 먼저 검증합니다.
+- 그 다음 serving rebuild를 실행합니다.
+- rebuild 직후 `bq:validate-serving`으로 latest week row와 metric sync를 함께 검증합니다.
+- 검증 실패 시 Kevin 운영 반영으로 간주하지 않고 알림을 보내며, 마지막 성공 상태를 추적할 수 있어야 합니다.
+
+### 권장 일일 순서
+1. source freshness check
+2. numeric metric candidate sync check
+3. `bq:build-serving`
+4. `bq:validate-serving`
+5. 성공/실패 알림 및 로그 적재
+
 ## 검증 항목
 - `npm run build`
 - serving layer 동작 변경 시 `npm run bq:validate-serving`
+- `bq:validate-serving`은 최신 주차 샘플 row뿐 아니라 numeric metric candidate와 serving metric set의 동기화도 검증해야 합니다.
 - representative unit 기준으로 source-only filter 동작과 weekly serving 동작 비교
 
 ## 알려진 리스크
@@ -72,3 +88,4 @@
 - 2026-04-01: provider 분리와 BigQuery serving 전환
 - 2026-04-16: serving coverage가 없는 신규 측정단위를 source query로 라우팅
 - 2026-05-19: source-only filter를 명시적으로 source query 경로로 라우팅
+- 2026-05-28: metric dictionary 내 문자열 차원 컬럼을 수치 지표 후보에서 제외하고, serving metric sync 검증 기준 보강

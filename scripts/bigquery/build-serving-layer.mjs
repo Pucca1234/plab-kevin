@@ -37,8 +37,16 @@ const metricColumnBlacklist = new Set([
   "yoil_group",
   "time",
   "yoil",
-  "hour"
+  "hour",
+  "match_grade",
+  "match_level",
+  "match_player_cnt",
+  "match_sex",
+  "plab_stadium",
+  "plaber_match",
+  "ai_report_match"
 ]);
+const NUMERIC_DATA_TYPES = new Set(["INT64", "FLOAT64", "NUMERIC", "BIGNUMERIC"]);
 
 const parseServiceAccountCredentials = () => {
   const inlineJson = process.env.BIGQUERY_SERVICE_ACCOUNT_JSON?.trim();
@@ -177,7 +185,7 @@ const getMetricColumns = async () => {
       where metric is not null
     ),
     source_columns as (
-      select column_name
+      select column_name, data_type
       from \`${projectId}.${dataMartDataset}.INFORMATION_SCHEMA.COLUMNS\`
       where table_name = 'data_mart_1_social_match'
     )
@@ -188,6 +196,7 @@ const getMetricColumns = async () => {
   `);
 
   return rows
+    .filter((row) => NUMERIC_DATA_TYPES.has(String(row.data_type ?? "").trim().toUpperCase()))
     .map((row) => String(row.metric ?? "").trim())
     .filter((metric) => metric.length > 0 && !metricColumnBlacklist.has(metric));
 };

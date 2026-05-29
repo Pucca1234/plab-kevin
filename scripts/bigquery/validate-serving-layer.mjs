@@ -5,7 +5,42 @@ import { GoogleAuth } from "google-auth-library";
 
 const projectId = process.env.BIGQUERY_PROJECT_ID?.trim() || "plabfootball-51bf5";
 const location = process.env.BIGQUERY_LOCATION?.trim() || "asia-northeast3";
+const dataMartDataset = process.env.BIGQUERY_DATASET_SOURCE_DATA_MART?.trim() || "data_mart";
+const googleSheetsDataset = process.env.BIGQUERY_DATASET_SOURCE_GOOGLESHEETS?.trim() || "googlesheets";
 const servingDataset = process.env.BIGQUERY_DATASET_SERVING?.trim() || "kevin_serving";
+const metricColumnBlacklist = [
+  "_airbyte_raw_id",
+  "_airbyte_extracted_at",
+  "_airbyte_meta",
+  "_airbyte_generation_id",
+  "period_type",
+  "year",
+  "quarter",
+  "month",
+  "week",
+  "day",
+  "dimension_type",
+  "area_group",
+  "area",
+  "stadium_group",
+  "stadium",
+  "area_group_and_time",
+  "area_and_time",
+  "stadium_group_and_time",
+  "stadium_and_time",
+  "yoil_group",
+  "time",
+  "yoil",
+  "hour",
+  "match_grade",
+  "match_level",
+  "match_player_cnt",
+  "match_sex",
+  "plab_stadium",
+  "plaber_match",
+  "ai_report_match"
+];
+const numericDataTypes = ["INT64", "FLOAT64", "NUMERIC", "BIGNUMERIC"];
 
 let cachedServiceAccountToken = null;
 
@@ -182,13 +217,51 @@ const main = async () => {
     "weekly_expanded_agg is missing latest time.manager_match_cnt row"
   );
 
+  const blacklistSql = metricColumnBlacklist.map((metric) => `'${metric}'`).join(", ");
+  const numericTypesSql = numericDataTypes.map((dataType) => `'${dataType}'`).join(", ");
+  const missingMetrics = await runQuery(`
+    with metric_dict as (
+      select distinct trim(metric) as metric
+      from \`${projectId}.${googleSheetsDataset}.metric_store_native\`
+      where metric is not null and trim(metric) != ''
+    ),
+    source_columns as (
+      select column_name as metric, upper(data_type) as data_type
+      from \`${projectId}.${dataMartDataset}.INFORMATION_SCHEMA.COLUMNS\`
+      where table_name = 'data_mart_1_social_match'
+    ),
+    serving_metrics as (
+      select distinct metric_id as metric
+      from \`${projectId}.${servingDataset}.weekly_agg\`
+      union distinct
+      select distinct metric_id as metric
+      from \`${projectId}.${servingDataset}.weekly_expanded_agg\`
+    ),
+    supported_candidates as (
+      select md.metric
+      from metric_dict md
+      join source_columns sc on sc.metric = md.metric
+      where sc.data_type in (${numericTypesSql})
+        and md.metric not in (${blacklistSql})
+    )
+    select metric
+    from supported_candidates
+    where metric not in (select metric from serving_metrics)
+    order by metric
+  `);
+  expect(
+    missingMetrics.length === 0,
+    `serving metric sync mismatch: ${missingMetrics.map((row) => row.metric).join(", ")}`
+  );
+
   console.log(
     JSON.stringify(
       {
         latestWeek,
         tables: tableMap,
         weeklyAggRows: Number(weeklyAggRow.total_rows),
-        weeklyExpandedRows: Number(expandedRow.total_rows)
+        weeklyExpandedRows: Number(expandedRow.total_rows),
+        syncedMetricCandidates: "ok"
       },
       null,
       2

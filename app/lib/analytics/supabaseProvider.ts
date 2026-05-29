@@ -204,7 +204,14 @@ const metricColumnBlacklist = new Set([
   "yoil_group",
   "period_type",
   "stadium_group",
-  "dimension_type"
+  "dimension_type",
+  "match_grade",
+  "match_level",
+  "match_player_cnt",
+  "match_sex",
+  "plab_stadium",
+  "plaber_match",
+  "ai_report_match"
 ]);
 
 const unitConfigByUnit: Record<string, UnitConfig> = {
