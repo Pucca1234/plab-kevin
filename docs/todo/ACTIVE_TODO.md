@@ -99,12 +99,17 @@
 - Status: `todo`
 - Source: `DOC-012` 구현 후속
 - Why: 단방향 필터 UX는 `NEXT_PUBLIC_FILTER_UX_V2_ENABLED=1`일 때만 활성화되도록 넣었고, 배포 전후에 실제 브라우저 회귀와 롤백 경로 확인이 필요합니다.
+- Progress:
+  - 2026-05-29 로컬 `NEXT_PUBLIC_FILTER_UX_V2_ENABLED=1 npm run build` 통과
+  - 2026-05-29 운영 로그인 페이지 `https://plab-kevin.vercel.app/login` 응답 `200` 확인
+  - 2026-05-29 Vercel CLI 원격 env/deploy 확인은 `The specified token is not valid` 오류로 중단
 - Next action:
   1. preview 또는 dev 환경에 `NEXT_PUBLIC_FILTER_UX_V2_ENABLED=1`을 켭니다.
   2. `지역그룹 -> 구장그룹 -> 면` 순서처럼 상위 필터가 하위 필터만 좁히는지 확인합니다.
   3. 필터를 다시 열었을 때 같은 상위 컨텍스트에서는 처음 본 후보 리스트가 유지되는지 확인합니다.
   4. 필터 반영 중 다른 필터, 조회, 드릴다운, 템플릿 클릭이 잠시 막히는지 확인합니다.
   5. 문제 발생 시 `NEXT_PUBLIC_FILTER_UX_V2_ENABLED=0`으로 즉시 롤백 가능한지 배포 경로까지 검증합니다.
+  6. Vercel CLI `vercel login` 또는 유효한 token 복구 후 preview deployment URL과 env 반영 상태를 확인합니다.
 - References:
   - `app/page.tsx`
   - `app/components/ControlBar.tsx`
