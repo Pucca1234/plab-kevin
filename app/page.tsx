@@ -773,6 +773,7 @@ export default function Home() {
   const [filterUnitOptions, setFilterUnitOptions] = useState<MeasurementUnitOption[]>([]);
   const [filterOptionsByUnit, setFilterOptionsByUnit] = useState<Record<string, FilterOption[]>>({});
   const [filterSelectionsByUnit, setFilterSelectionsByUnit] = useState<FilterSelectionMap>({});
+  const [cascadeSnapshotByUnit, setCascadeSnapshotByUnit] = useState<Record<string, string[]>>({});
   const [appliedMeasurementUnit, setAppliedMeasurementUnit] = useState<MeasurementUnit>("all");
   const [appliedFilterSelectionsByUnit, setAppliedFilterSelectionsByUnit] = useState<FilterSelectionMap>({});
 
@@ -1004,6 +1005,7 @@ export default function Home() {
           setFilterUnitOptions([]);
           setFilterOptionsByUnit({});
           setFilterSelectionsByUnit({});
+          setCascadeSnapshotByUnit({});
           setEntityFilterValue(ALL_VALUE);
           setDrilldownParent(null);
           setAppliedDrilldownHistory([]);
@@ -1135,6 +1137,7 @@ export default function Home() {
           setFilterUnitOptions([]);
           setFilterOptionsByUnit({});
           setFilterSelectionsByUnit({});
+          setCascadeSnapshotByUnit({});
           pushError("필터 기준 로딩 실패", message);
         }
       } finally {
@@ -1165,6 +1168,7 @@ export default function Home() {
       if (combinedFilterUnits.length === 0) {
         setFilterOptionsByUnit({});
         setFilterSelectionsByUnit({});
+        setCascadeSnapshotByUnit({});
         setEntityFilterValue(ALL_VALUE);
         return;
       }
@@ -1219,12 +1223,14 @@ export default function Home() {
         );
         setFilterOptionsByUnit(nextOptionsByUnit);
         setFilterSelectionsByUnit((current) => normalizeSelections(current, nextOptionsByUnit));
+        setCascadeSnapshotByUnit({});
         setEntityFilterValue(ALL_VALUE);
       } catch (error) {
         if (!canceled) {
           const message = (error as Error).message;
           setFilterOptionsByUnit({});
           setFilterSelectionsByUnit({});
+          setCascadeSnapshotByUnit({});
           pushError("필터 옵션 로딩 실패, 전체 옵션만 유지합니다.", message);
         }
       } finally {
@@ -1612,8 +1618,6 @@ export default function Home() {
       })
       .filter((x): x is { unit: string; updateOptions: boolean } => x !== null);
 
-    console.log("[cascade] committed:", committedUnit, "| targets:", cascadeTargets);
-
     if (cascadeTargets.length === 0) return;
 
     if (downstreamReloadAbortRef.current) {
@@ -1667,16 +1671,15 @@ export default function Home() {
         });
       }
 
-      console.log("[cascade] API params:", params.toString());
       const response = await fetchJson<{ optionsByUnit: Record<string, string[]> }>(
         `/api/filter-options-batch?${params.toString()}`,
         { signal: controller.signal }
       );
       if (controller.signal.aborted) return;
-      console.log("[cascade] API response:", JSON.stringify(response.optionsByUnit));
 
       const nextOptionsByUnit = { ...filterOptionsByUnit };
       const nextSelections = { ...newSelections };
+      const nextCascadeSnapshotByUnit = { ...cascadeSnapshotByUnit };
 
       for (const { unit, updateOptions } of cascadeTargets) {
         const rawNewOptions = response.optionsByUnit?.[unit] ?? [];
@@ -1688,6 +1691,7 @@ export default function Home() {
 
         if (updateOptions) {
           nextOptionsByUnit[unit] = newOptions;
+          nextCascadeSnapshotByUnit[unit] = newOptionValues;
         }
 
         // 선택값 merge: 옵션 업데이트 여부와 무관하게 API 결과 기준으로 계산
@@ -1701,7 +1705,8 @@ export default function Home() {
             ? newOptionValues
             : currentOptionValues.filter((v) => new Set(newOptionValues).has(v));
         } else {
-          const prevOptionValues = new Set(currentOptionValues);
+          // 신규항목: 이전 cascade 스냅샷 기준. 스냅샷 없으면 [] → 전체가 신규 → downstream 전체선택
+          const prevOptionValues = new Set(cascadeSnapshotByUnit[unit] ?? []);
           const prevSelection =
             newSelections[unit] ?? currentOptionValues;
           const newOptionValueSet = new Set(newOptionValues);
@@ -1725,10 +1730,9 @@ export default function Home() {
         }
       }
 
-      console.log("[cascade] setting options:", Object.fromEntries(Object.entries(nextOptionsByUnit).map(([k, v]) => [k, v.map(o => o.value)])));
-      console.log("[cascade] setting selections:", nextSelections);
       setFilterOptionsByUnit(nextOptionsByUnit);
       setFilterSelectionsByUnit(nextSelections);
+      setCascadeSnapshotByUnit(nextCascadeSnapshotByUnit);
 
       if (showResults) {
         requestAutoRefresh();
@@ -2597,6 +2601,7 @@ export default function Home() {
             setFilterUnitOptions([]);
             setFilterOptionsByUnit({});
             setFilterSelectionsByUnit({});
+            setCascadeSnapshotByUnit({});
             setEntityFilterValue(ALL_VALUE);
             setDrilldownParent(null);
             setAppliedDrilldownHistory([]);
@@ -2645,6 +2650,7 @@ export default function Home() {
               setFilterUnitOptions([]);
               setFilterOptionsByUnit({});
               setFilterSelectionsByUnit({});
+              setCascadeSnapshotByUnit({});
               setEntityFilterValue(ALL_VALUE);
               setSelectedMetricIds([]);
               setHeatmapColorMap({});
