@@ -45,7 +45,9 @@
     - `최종 선택 = 유효한_이전선택 + 신규항목`; [] 이면 전체 선택 fallback
   - "이 값만 조회하기" → downstream 전체 선택 (mode="single-only")
 - Implementation note: downstream 감지는 UI 순서 기반 인덱스(`[...periodFilterUnitOptions, ...filterUnitOptions]`)로 결정. 기간/측정단위 구분 없이 인덱스 기준으로 upstream/downstream 통일 적용. 초기 context 추적 방식(`filterSnapshotContextByUnit`)은 전체 선택 시 empty context 문제로 제거.
-- Bug fix (2026-05-31): `신규항목` 계산 기준이 초기 `filterOptionsByUnit`(전체 옵션)이어서, 초기 로드 이후 최초 cascade 시 항상 신규항목=0 → `cascadeSnapshotByUnit` 상태 추가. 이전 cascade 결과를 스냅샷으로 저장, downstream cascade 시 `신규항목 = 새 결과 - 이전 스냅샷` 기준으로 계산. 스냅샷 없는 최초 cascade는 전체선택(fallback).
+- Bug fix (2026-05-31 v2):
+  - **Issue 1 (기간↔측정단위 cascade 격리)**: `downstreamReloadAbortRef` 단일 ref로 기간/측정단위 cascade가 서로를 abort하던 문제 수정 → `periodCascadeAbortRef` + `entityCascadeAbortRef` 분리
+  - **Issue 2-i (downstream 신규항목 과다 선택)**: `cascadeSnapshotByUnit` 방식 제거. 대신 `addedValues`(committed filter의 이전→새 선택 delta)로 extra API call → downstream에 실제로 추가된 옵션만 신규항목으로 계산. `filterSelectionsByUnit[committedUnit]`(이전 선택) vs `newSelections[committedUnit]`(새 선택) 비교로 delta 산출.
 - References:
   - `app/page.tsx` (reloadDownstreamFilters, handleFilterChange)
   - `app/components/MultiSelectDropdown.tsx` (applyOnlyValue, onChange type)

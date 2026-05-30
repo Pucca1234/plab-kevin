@@ -773,7 +773,6 @@ export default function Home() {
   const [filterUnitOptions, setFilterUnitOptions] = useState<MeasurementUnitOption[]>([]);
   const [filterOptionsByUnit, setFilterOptionsByUnit] = useState<Record<string, FilterOption[]>>({});
   const [filterSelectionsByUnit, setFilterSelectionsByUnit] = useState<FilterSelectionMap>({});
-  const [cascadeSnapshotByUnit, setCascadeSnapshotByUnit] = useState<Record<string, string[]>>({});
   const [appliedMeasurementUnit, setAppliedMeasurementUnit] = useState<MeasurementUnit>("all");
   const [appliedFilterSelectionsByUnit, setAppliedFilterSelectionsByUnit] = useState<FilterSelectionMap>({});
 
@@ -816,7 +815,8 @@ export default function Home() {
   const [isErrorLogOpen, setIsErrorLogOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const downstreamReloadAbortRef = useRef<AbortController | null>(null);
+  const periodCascadeAbortRef = useRef<AbortController | null>(null);
+  const entityCascadeAbortRef = useRef<AbortController | null>(null);
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(null);
@@ -1005,7 +1005,6 @@ export default function Home() {
           setFilterUnitOptions([]);
           setFilterOptionsByUnit({});
           setFilterSelectionsByUnit({});
-          setCascadeSnapshotByUnit({});
           setEntityFilterValue(ALL_VALUE);
           setDrilldownParent(null);
           setAppliedDrilldownHistory([]);
@@ -1137,7 +1136,6 @@ export default function Home() {
           setFilterUnitOptions([]);
           setFilterOptionsByUnit({});
           setFilterSelectionsByUnit({});
-          setCascadeSnapshotByUnit({});
           pushError("필터 기준 로딩 실패", message);
         }
       } finally {
@@ -1168,7 +1166,6 @@ export default function Home() {
       if (combinedFilterUnits.length === 0) {
         setFilterOptionsByUnit({});
         setFilterSelectionsByUnit({});
-        setCascadeSnapshotByUnit({});
         setEntityFilterValue(ALL_VALUE);
         return;
       }
@@ -1223,14 +1220,12 @@ export default function Home() {
         );
         setFilterOptionsByUnit(nextOptionsByUnit);
         setFilterSelectionsByUnit((current) => normalizeSelections(current, nextOptionsByUnit));
-        setCascadeSnapshotByUnit({});
         setEntityFilterValue(ALL_VALUE);
       } catch (error) {
         if (!canceled) {
           const message = (error as Error).message;
           setFilterOptionsByUnit({});
           setFilterSelectionsByUnit({});
-          setCascadeSnapshotByUnit({});
           pushError("필터 옵션 로딩 실패, 전체 옵션만 유지합니다.", message);
         }
       } finally {
@@ -1620,11 +1615,12 @@ export default function Home() {
 
     if (cascadeTargets.length === 0) return;
 
-    if (downstreamReloadAbortRef.current) {
-      downstreamReloadAbortRef.current.abort();
+    const cascadeAbortRef = committedIsPeriod ? periodCascadeAbortRef : entityCascadeAbortRef;
+    if (cascadeAbortRef.current) {
+      cascadeAbortRef.current.abort();
     }
     const controller = new AbortController();
-    downstreamReloadAbortRef.current = controller;
+    cascadeAbortRef.current = controller;
     const timeoutId = window.setTimeout(() => controller.abort(), 15000);
 
     try {
@@ -1636,50 +1632,77 @@ export default function Home() {
       if (controller.signal.aborted) return;
 
       const effectiveWeeks = entries.map((entry) => entry.week);
-      const params = new URLSearchParams({
-        measureUnit: measurementUnit,
-        periodUnit: effectiveSearchPeriodUnit
-      });
-      if (shouldSendExplicitPeriods(effectivePeriodRangeValue, periodDrilldownHistory)) {
-        effectiveWeeks.forEach((week) => params.append("week", week));
-      }
-      cascadeTargets.forEach(({ unit }) => params.append("filterUnit", unit));
-      if (drilldownParent?.unit && drilldownParent?.value) {
-        params.set("parentUnit", drilldownParent.unit);
-        params.set("parentValue", drilldownParent.value);
-      }
       const cascadeTargetUnits = new Set(cascadeTargets.map(({ unit }) => unit));
-      for (const filterUnitOption of allFilterUnits) {
-        // cascade target은 자기 옵션 계산에 자기 선택값이 영향을 주면 안 됨
-        if (cascadeTargetUnits.has(filterUnitOption.value)) continue;
-        // cross-group 필터(기간↔측정단위)는 서로 컨텍스트로 포함하지 않음
-        const filterIsPeriod = PERIOD_FILTER_UNIT_VALUES.includes(filterUnitOption.value as PeriodUnit);
-        if (committedIsPeriod !== filterIsPeriod) continue;
 
-        const values = newSelections[filterUnitOption.value];
-        if (values === undefined) continue;
-        const optionCount = filterOptionsByUnit[filterUnitOption.value]?.length ?? 0;
-        if (values.length === 0) {
-          params.append("activeFilterUnit", filterUnitOption.value);
-          params.append("activeFilterValue", "__NONE__");
-          continue;
-        }
-        if (optionCount > 0 && values.length >= optionCount) continue;
-        values.forEach((value) => {
-          params.append("activeFilterUnit", filterUnitOption.value);
-          params.append("activeFilterValue", value);
+      // active params builder (committedUnit의 active value만 다르게 주입 가능)
+      const buildActiveParams = (committedActiveValues: string[]) => {
+        const p = new URLSearchParams({
+          measureUnit: measurementUnit,
+          periodUnit: effectiveSearchPeriodUnit
         });
-      }
+        if (shouldSendExplicitPeriods(effectivePeriodRangeValue, periodDrilldownHistory)) {
+          effectiveWeeks.forEach((week) => p.append("week", week));
+        }
+        cascadeTargets.forEach(({ unit }) => p.append("filterUnit", unit));
+        if (drilldownParent?.unit && drilldownParent?.value) {
+          p.set("parentUnit", drilldownParent.unit);
+          p.set("parentValue", drilldownParent.value);
+        }
+        for (const filterUnitOption of allFilterUnits) {
+          // cascade target은 자기 옵션 계산에 자기 선택값이 영향을 주면 안 됨
+          if (cascadeTargetUnits.has(filterUnitOption.value)) continue;
+          // cross-group 필터(기간↔측정단위)는 서로 컨텍스트로 포함하지 않음
+          const filterIsPeriod = PERIOD_FILTER_UNIT_VALUES.includes(filterUnitOption.value as PeriodUnit);
+          if (committedIsPeriod !== filterIsPeriod) continue;
 
-      const response = await fetchJson<{ optionsByUnit: Record<string, string[]> }>(
-        `/api/filter-options-batch?${params.toString()}`,
-        { signal: controller.signal }
-      );
+          const values =
+            filterUnitOption.value === committedUnit
+              ? committedActiveValues
+              : newSelections[filterUnitOption.value];
+          if (values === undefined) continue;
+          const optionCount = filterOptionsByUnit[filterUnitOption.value]?.length ?? 0;
+          if (values.length === 0) {
+            p.append("activeFilterUnit", filterUnitOption.value);
+            p.append("activeFilterValue", "__NONE__");
+            continue;
+          }
+          if (optionCount > 0 && values.length >= optionCount) continue;
+          values.forEach((value) => {
+            p.append("activeFilterUnit", filterUnitOption.value);
+            p.append("activeFilterValue", value);
+          });
+        }
+        return p;
+      };
+
+      // 신규항목 = committed filter에 새로 추가된 값으로 인해 생긴 downstream 옵션만 extra API로 산출
+      const committedOldSelection = filterSelectionsByUnit[committedUnit];
+      const committedNewSelection = newSelections[committedUnit] ?? [];
+      const committedOldSet = new Set(committedOldSelection ?? []);
+      const addedValues = committedNewSelection.filter((v) => !committedOldSet.has(v));
+      const hasDownstreamTargets = cascadeTargets.some((t) => t.updateOptions);
+      const needAddedOnlyCall = addedValues.length > 0 && hasDownstreamTargets && mode !== "single-only";
+
+      const mainParams = buildActiveParams(committedNewSelection);
+      const addedOnlyParams = needAddedOnlyCall ? buildActiveParams(addedValues) : null;
+
+      const [response, addedOnlyResponse] = await Promise.all([
+        fetchJson<{ optionsByUnit: Record<string, string[]> }>(
+          `/api/filter-options-batch?${mainParams.toString()}`,
+          { signal: controller.signal }
+        ),
+        addedOnlyParams
+          ? fetchJson<{ optionsByUnit: Record<string, string[]> }>(
+              `/api/filter-options-batch?${addedOnlyParams.toString()}`,
+              { signal: controller.signal }
+            )
+          : Promise.resolve({ optionsByUnit: {} as Record<string, string[]> })
+      ]);
       if (controller.signal.aborted) return;
 
+      const addedOnlyOptionsByUnit = addedOnlyResponse.optionsByUnit ?? {};
       const nextOptionsByUnit = { ...filterOptionsByUnit };
       const nextSelections = { ...newSelections };
-      const nextCascadeSnapshotByUnit = { ...cascadeSnapshotByUnit };
 
       for (const { unit, updateOptions } of cascadeTargets) {
         const rawNewOptions = response.optionsByUnit?.[unit] ?? [];
@@ -1691,7 +1714,6 @@ export default function Home() {
 
         if (updateOptions) {
           nextOptionsByUnit[unit] = newOptions;
-          nextCascadeSnapshotByUnit[unit] = newOptionValues;
         }
 
         // 선택값 merge: 옵션 업데이트 여부와 무관하게 API 결과 기준으로 계산
@@ -1705,13 +1727,13 @@ export default function Home() {
             ? newOptionValues
             : currentOptionValues.filter((v) => new Set(newOptionValues).has(v));
         } else {
-          // 신규항목: 이전 cascade 스냅샷 기준. 스냅샷 없으면 [] → 전체가 신규 → downstream 전체선택
-          const prevOptionValues = new Set(cascadeSnapshotByUnit[unit] ?? []);
-          const prevSelection =
-            newSelections[unit] ?? currentOptionValues;
+          const prevSelection = newSelections[unit] ?? currentOptionValues;
           const newOptionValueSet = new Set(newOptionValues);
 
-          const 신규항목 = newOptionValues.filter((v) => !prevOptionValues.has(v));
+          // 신규항목: addedValues에 의해 새로 생긴 downstream 옵션 (extra API 결과 기준)
+          const 신규항목 = updateOptions
+            ? newOptionValues.filter((v) => new Set(addedOnlyOptionsByUnit[unit] ?? []).has(v))
+            : [];
           const validPrevSelection = prevSelection.filter((v) => newOptionValueSet.has(v));
           const merged = [...validPrevSelection, ...신규항목];
           const mergedSet = new Set(merged);
@@ -1732,7 +1754,6 @@ export default function Home() {
 
       setFilterOptionsByUnit(nextOptionsByUnit);
       setFilterSelectionsByUnit(nextSelections);
-      setCascadeSnapshotByUnit(nextCascadeSnapshotByUnit);
 
       if (showResults) {
         requestAutoRefresh();
@@ -2601,7 +2622,6 @@ export default function Home() {
             setFilterUnitOptions([]);
             setFilterOptionsByUnit({});
             setFilterSelectionsByUnit({});
-            setCascadeSnapshotByUnit({});
             setEntityFilterValue(ALL_VALUE);
             setDrilldownParent(null);
             setAppliedDrilldownHistory([]);
@@ -2650,7 +2670,6 @@ export default function Home() {
               setFilterUnitOptions([]);
               setFilterOptionsByUnit({});
               setFilterSelectionsByUnit({});
-              setCascadeSnapshotByUnit({});
               setEntityFilterValue(ALL_VALUE);
               setSelectedMetricIds([]);
               setHeatmapColorMap({});
