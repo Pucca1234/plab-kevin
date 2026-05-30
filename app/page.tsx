@@ -824,7 +824,7 @@ export default function Home() {
 
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [autoRefreshToken, setAutoRefreshToken] = useState(0);
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [appliedPeriodUnit, setAppliedPeriodUnit] = useState<PeriodUnit>("week");
   const [appliedPeriodRangeValue, setAppliedPeriodRangeValue] = useState<string>("recent_8");
   const lastAppliedSearchSignatureRef = useRef("");
@@ -1612,6 +1612,8 @@ export default function Home() {
       })
       .filter((x): x is { unit: string; updateOptions: boolean } => x !== null);
 
+    console.log("[cascade] committed:", committedUnit, "| targets:", cascadeTargets);
+
     if (cascadeTargets.length === 0) return;
 
     if (downstreamReloadAbortRef.current) {
@@ -1665,11 +1667,13 @@ export default function Home() {
         });
       }
 
+      console.log("[cascade] API params:", params.toString());
       const response = await fetchJson<{ optionsByUnit: Record<string, string[]> }>(
         `/api/filter-options-batch?${params.toString()}`,
         { signal: controller.signal }
       );
       if (controller.signal.aborted) return;
+      console.log("[cascade] API response:", JSON.stringify(response.optionsByUnit));
 
       const nextOptionsByUnit = { ...filterOptionsByUnit };
       const nextSelections = { ...newSelections };
@@ -1721,6 +1725,8 @@ export default function Home() {
         }
       }
 
+      console.log("[cascade] setting options:", Object.fromEntries(Object.entries(nextOptionsByUnit).map(([k, v]) => [k, v.map(o => o.value)])));
+      console.log("[cascade] setting selections:", nextSelections);
       setFilterOptionsByUnit(nextOptionsByUnit);
       setFilterSelectionsByUnit(nextSelections);
 
