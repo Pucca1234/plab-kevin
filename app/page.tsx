@@ -1642,7 +1642,14 @@ export default function Home() {
         params.set("parentUnit", drilldownParent.unit);
         params.set("parentValue", drilldownParent.value);
       }
+      const cascadeTargetUnits = new Set(cascadeTargets.map(({ unit }) => unit));
       for (const filterUnitOption of allFilterUnits) {
+        // cascade target은 자기 옵션 계산에 자기 선택값이 영향을 주면 안 됨
+        if (cascadeTargetUnits.has(filterUnitOption.value)) continue;
+        // cross-group 필터(기간↔측정단위)는 서로 컨텍스트로 포함하지 않음
+        const filterIsPeriod = PERIOD_FILTER_UNIT_VALUES.includes(filterUnitOption.value as PeriodUnit);
+        if (committedIsPeriod !== filterIsPeriod) continue;
+
         const values = newSelections[filterUnitOption.value];
         if (values === undefined) continue;
         const optionCount = filterOptionsByUnit[filterUnitOption.value]?.length ?? 0;
