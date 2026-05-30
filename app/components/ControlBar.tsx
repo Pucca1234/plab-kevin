@@ -35,7 +35,7 @@ type ControlBarProps = {
   measurementUnitOptions: MeasurementUnitOption[];
   onMeasurementUnitChange: (value: MeasurementUnit) => void;
   filterGroups: FilterGroup[];
-  onFilterChange: (unit: MeasurementUnit, values: string[]) => void;
+  onFilterChange: (unit: MeasurementUnit, values: string[], mode?: "single-only") => void;
   selectedMetrics: Metric[];
   onRemoveSelectedMetric: (metricId: string) => void;
   onClearSelectedMetrics: () => void;
@@ -399,7 +399,7 @@ export default function ControlBar({
               <MultiSelectDropdown
                 options={group.options}
                 selectedValues={group.selectedValues}
-                onChange={(values) => onFilterChange(group.unit, values)}
+                onChange={(values, mode) => onFilterChange(group.unit, values, mode)}
                 label={getMultiSelectDisplayLabel(group)}
                 searchPlaceholder={`${group.label} 검색`}
               />
@@ -422,7 +422,7 @@ export default function ControlBar({
               <MultiSelectDropdown
                 options={group.options}
                 selectedValues={group.selectedValues}
-                onChange={(values) => onFilterChange(group.unit, values)}
+                onChange={(values, mode) => onFilterChange(group.unit, values, mode)}
                 label={getMultiSelectDisplayLabel(group)}
                 searchPlaceholder={`${group.label} 검색`}
               />
