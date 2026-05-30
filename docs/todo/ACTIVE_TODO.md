@@ -35,13 +35,16 @@
 - Source: 2026-05-30 필터 UX 개선 작업
 - Why: 현재 양방향 cascade로 인해 이전 필터의 옵션이 이후 필터에 의해 좁혀지며, 원래 목록을 다시 볼 수 없는 문제가 있습니다.
 - Spec:
-  - **단방향 cascade**: upstream 필터 변경 시 downstream 스냅샷만 재계산, 선택값은 병합 알고리즘으로 보존
+  - **기간/측정단위 공통 cascade 규칙**:
+    - 같은 그룹(기간↔기간, 측정단위↔측정단위)끼리만 cascade, cross-group 제외
+    - **downstream** (idx > committedIndex): 옵션+선택값 모두 업데이트
+    - **upstream** (idx < committedIndex): 선택값만 업데이트 (옵션 보존 → 원래 목록 유지)
   - **선택값 병합 알고리즘**:
     - `신규항목 = 새 스냅샷 - 이전 스냅샷` → 자동 선택
     - `유효한_이전선택 = 이전 선택 ∩ 새 스냅샷` → 선택 유지
     - `최종 선택 = 유효한_이전선택 + 신규항목`; [] 이면 전체 선택 fallback
   - "이 값만 조회하기" → downstream 전체 선택 (mode="single-only")
-- Implementation note: downstream 감지는 UI 순서 기반 인덱스(`[...periodFilterUnitOptions, ...filterUnitOptions]`)로 결정. committedUnit 이후에 위치한 필터만 downstream으로 간주 (단방향 보장). 초기 context 추적 방식(`filterSnapshotContextByUnit`)은 전체 선택 시 empty context 문제로 제거.
+- Implementation note: downstream 감지는 UI 순서 기반 인덱스(`[...periodFilterUnitOptions, ...filterUnitOptions]`)로 결정. 기간/측정단위 구분 없이 인덱스 기준으로 upstream/downstream 통일 적용. 초기 context 추적 방식(`filterSnapshotContextByUnit`)은 전체 선택 시 empty context 문제로 제거.
 - References:
   - `app/page.tsx` (reloadDownstreamFilters, handleFilterChange)
   - `app/components/MultiSelectDropdown.tsx` (applyOnlyValue, onChange type)
