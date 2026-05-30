@@ -41,8 +41,9 @@
     - `유효한_이전선택 = 이전 선택 ∩ 새 스냅샷` → 선택 유지
     - `최종 선택 = 유효한_이전선택 + 신규항목`; [] 이면 전체 선택 fallback
   - "이 값만 조회하기" → downstream 전체 선택 (mode="single-only")
+- Implementation note: downstream 감지는 UI 순서 기반 인덱스(`[...periodFilterUnitOptions, ...filterUnitOptions]`)로 결정. committedUnit 이후에 위치한 필터만 downstream으로 간주 (단방향 보장). 초기 context 추적 방식(`filterSnapshotContextByUnit`)은 전체 선택 시 empty context 문제로 제거.
 - References:
-  - `app/page.tsx` (filterSnapshotContextByUnit, reloadDownstreamFilters, handleFilterChange)
+  - `app/page.tsx` (reloadDownstreamFilters, handleFilterChange)
   - `app/components/MultiSelectDropdown.tsx` (applyOnlyValue, onChange type)
   - `app/components/ControlBar.tsx` (onFilterChange type)
 

@@ -815,7 +815,6 @@ export default function Home() {
   const [isErrorLogOpen, setIsErrorLogOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const [filterSnapshotContextByUnit, setFilterSnapshotContextByUnit] = useState<Record<string, { unit: string; values: string[] }[]>>({});
   const downstreamReloadAbortRef = useRef<AbortController | null>(null);
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
@@ -1221,25 +1220,6 @@ export default function Home() {
         setFilterOptionsByUnit(nextOptionsByUnit);
         setFilterSelectionsByUnit((current) => normalizeSelections(current, nextOptionsByUnit));
         setEntityFilterValue(ALL_VALUE);
-
-        // Record which conditions were active when each filter's options were computed (FIL-003)
-        const snapshotConditions: { unit: string; values: string[] }[] = [];
-        for (const [unit, values] of Object.entries(currentSelections)) {
-          const optionCount = filterOptionsByUnit[unit]?.length ?? 0;
-          if (values.length === 0) {
-            snapshotConditions.push({ unit, values: [] });
-            continue;
-          }
-          if (optionCount > 0 && values.length >= optionCount) continue;
-          snapshotConditions.push({ unit, values });
-        }
-        const nextSnapshotContext: Record<string, { unit: string; values: string[] }[]> = {};
-        for (const filterUnitOption of combinedFilterUnits) {
-          nextSnapshotContext[filterUnitOption.value] = snapshotConditions.filter(
-            (c) => c.unit !== filterUnitOption.value
-          );
-        }
-        setFilterSnapshotContextByUnit(nextSnapshotContext);
       } catch (error) {
         if (!canceled) {
           const message = (error as Error).message;
@@ -1615,15 +1595,13 @@ export default function Home() {
     mode?: "single-only"
   ) => {
     const allFilterUnits = [...periodFilterUnitOptions, ...filterUnitOptions];
+    const committedIndex = allFilterUnits.findIndex((opt) => opt.value === committedUnit);
 
-    // Downstream = filters whose snapshot context includes committedUnit
-    const downstreamUnits = allFilterUnits
-      .map((opt) => opt.value)
-      .filter(
-        (unit) =>
-          unit !== committedUnit &&
-          (filterSnapshotContextByUnit[unit] ?? []).some((c) => c.unit === committedUnit)
-      );
+    // Downstream = filters that appear AFTER committedUnit in the UI list (unidirectional cascade)
+    const downstreamUnits =
+      committedIndex >= 0
+        ? allFilterUnits.slice(committedIndex + 1).map((opt) => opt.value)
+        : [];
 
     if (downstreamUnits.length === 0) return;
 
@@ -1679,7 +1657,6 @@ export default function Home() {
 
       const nextOptionsByUnit = { ...filterOptionsByUnit };
       const nextSelections = { ...newSelections };
-      const nextSnapshotContext = { ...filterSnapshotContextByUnit };
 
       for (const unit of downstreamUnits) {
         const rawNewOptions = response.optionsByUnit?.[unit] ?? [];
@@ -1703,7 +1680,6 @@ export default function Home() {
           const 신규항목 = newOptionValues.filter((v) => !prevOptionValues.has(v));
           const validPrevSelection = prevSelection.filter((v) => newOptionValueSet.has(v));
           const merged = [...validPrevSelection, ...신규항목];
-          // Preserve option order and dedupe
           const mergedSet = new Set(merged);
           const finalSelection =
             merged.length === 0
@@ -1711,29 +1687,13 @@ export default function Home() {
               : newOptionValues.filter((v) => mergedSet.has(v));
           nextSelections[unit] = finalSelection;
         }
-
-        // Update snapshot context for this downstream unit
-        const newActiveConditions: { unit: string; values: string[] }[] = [];
-        for (const u of allFilterUnits) {
-          const vals = nextSelections[u.value];
-          if (vals === undefined) continue;
-          const optCount = nextOptionsByUnit[u.value]?.length ?? 0;
-          if (vals.length === 0) {
-            newActiveConditions.push({ unit: u.value, values: [] });
-            continue;
-          }
-          if (optCount > 0 && vals.length >= optCount) continue;
-          newActiveConditions.push({ unit: u.value, values: vals });
-        }
-        nextSnapshotContext[unit] = newActiveConditions.filter((c) => c.unit !== unit);
       }
 
       setFilterOptionsByUnit(nextOptionsByUnit);
       setFilterSelectionsByUnit(nextSelections);
-      setFilterSnapshotContextByUnit(nextSnapshotContext);
 
       if (showResults) {
-        void runSearch({ filterSelections: nextSelections, drilldownParent: null });
+        requestAutoRefresh();
       }
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
