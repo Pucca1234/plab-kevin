@@ -1595,13 +1595,24 @@ export default function Home() {
     mode?: "single-only"
   ) => {
     const allFilterUnits = [...periodFilterUnitOptions, ...filterUnitOptions];
+    const committedIndex = allFilterUnits.findIndex((opt) => opt.value === committedUnit);
+    const committedIsPeriod = PERIOD_FILTER_UNIT_VALUES.includes(committedUnit as PeriodUnit);
 
-    // 모든 필터: 커밋된 필터 외 나머지 전체에 cascade
-    const downstreamUnits = allFilterUnits
-      .map((opt) => opt.value)
-      .filter((unit) => unit !== committedUnit);
+    // cascade 대상과 옵션 업데이트 여부 결정 (기간/측정단위 공통 규칙)
+    // - 같은 그룹(기간↔기간, 측정단위↔측정단위)끼리만 cascade, cross-group 제외
+    // - downstream (idx > committedIndex): 옵션+선택값 모두 업데이트
+    // - upstream   (idx < committedIndex): 선택값만 업데이트 (옵션은 유지해 원래 목록 보존)
+    const cascadeTargets = allFilterUnits
+      .map((opt, idx) => {
+        if (opt.value === committedUnit) return null;
+        const targetIsPeriod = PERIOD_FILTER_UNIT_VALUES.includes(opt.value as PeriodUnit);
+        if (committedIsPeriod !== targetIsPeriod) return null; // 기간↔측정단위 cross-cascade 제외
+        const updateOptions = idx > committedIndex;
+        return { unit: opt.value, updateOptions };
+      })
+      .filter((x): x is { unit: string; updateOptions: boolean } => x !== null);
 
-    if (downstreamUnits.length === 0) return;
+    if (cascadeTargets.length === 0) return;
 
     if (downstreamReloadAbortRef.current) {
       downstreamReloadAbortRef.current.abort();
@@ -1626,7 +1637,7 @@ export default function Home() {
       if (shouldSendExplicitPeriods(effectivePeriodRangeValue, periodDrilldownHistory)) {
         effectiveWeeks.forEach((week) => params.append("week", week));
       }
-      downstreamUnits.forEach((unit) => params.append("filterUnit", unit));
+      cascadeTargets.forEach(({ unit }) => params.append("filterUnit", unit));
       if (drilldownParent?.unit && drilldownParent?.value) {
         params.set("parentUnit", drilldownParent.unit);
         params.set("parentValue", drilldownParent.value);
@@ -1656,34 +1667,50 @@ export default function Home() {
       const nextOptionsByUnit = { ...filterOptionsByUnit };
       const nextSelections = { ...newSelections };
 
-      for (const unit of downstreamUnits) {
+      for (const { unit, updateOptions } of cascadeTargets) {
         const rawNewOptions = response.optionsByUnit?.[unit] ?? [];
         const newOptions = sortFilterOptionValues(unit, rawNewOptions).map((value) => ({
           label: value,
           value
         }));
         const newOptionValues = newOptions.map((o) => o.value);
-        nextOptionsByUnit[unit] = newOptions;
+
+        if (updateOptions) {
+          nextOptionsByUnit[unit] = newOptions;
+        }
+
+        // 선택값 merge: 옵션 업데이트 여부와 무관하게 API 결과 기준으로 계산
+        // 최종 선택값은 기존 옵션 기준 순서로 정렬 (upstream 필터는 기존 옵션 순서 유지)
+        const currentOptions = filterOptionsByUnit[unit] ?? [];
+        const currentOptionValues = currentOptions.map((o) => o.value);
 
         if (mode === "single-only") {
-          nextSelections[unit] = newOptionValues;
+          // single-only: downstream은 새 옵션 전체 선택, upstream은 API 결과로 좁힘
+          nextSelections[unit] = updateOptions
+            ? newOptionValues
+            : currentOptionValues.filter((v) => new Set(newOptionValues).has(v));
         } else {
-          const prevOptionValues = new Set(
-            (filterOptionsByUnit[unit] ?? []).map((o) => o.value)
-          );
+          const prevOptionValues = new Set(currentOptionValues);
           const prevSelection =
-            newSelections[unit] ?? (filterOptionsByUnit[unit] ?? []).map((o) => o.value);
+            newSelections[unit] ?? currentOptionValues;
           const newOptionValueSet = new Set(newOptionValues);
 
           const 신규항목 = newOptionValues.filter((v) => !prevOptionValues.has(v));
           const validPrevSelection = prevSelection.filter((v) => newOptionValueSet.has(v));
           const merged = [...validPrevSelection, ...신규항목];
           const mergedSet = new Set(merged);
-          const finalSelection =
-            merged.length === 0
-              ? newOptionValues
-              : newOptionValues.filter((v) => mergedSet.has(v));
-          nextSelections[unit] = finalSelection;
+
+          if (updateOptions) {
+            // downstream: 새 옵션 순서로 정렬
+            nextSelections[unit] =
+              merged.length === 0
+                ? newOptionValues
+                : newOptionValues.filter((v) => mergedSet.has(v));
+          } else {
+            // upstream: 기존 옵션 순서 유지, API 결과로 좁힌 선택값만 반영
+            const filtered = currentOptionValues.filter((v) => mergedSet.has(v));
+            nextSelections[unit] = filtered.length === 0 ? currentOptionValues : filtered;
+          }
         }
       }
 
