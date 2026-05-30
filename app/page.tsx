@@ -1595,22 +1595,11 @@ export default function Home() {
     mode?: "single-only"
   ) => {
     const allFilterUnits = [...periodFilterUnitOptions, ...filterUnitOptions];
-    const isPeriodUnit = PERIOD_FILTER_UNIT_VALUES.includes(committedUnit as PeriodUnit);
 
-    let downstreamUnits: string[];
-    if (isPeriodUnit) {
-      // 기간 필터: 모든 다른 기간 필터에 cascade (year/quarter/month/week는 같은 시간 축)
-      downstreamUnits = periodFilterUnitOptions
-        .map((opt) => opt.value)
-        .filter((unit) => unit !== committedUnit);
-    } else {
-      // 측정단위(엔티티) 필터: 단방향 — UI 순서 기준 이후 필터만 cascade
-      const committedIndex = allFilterUnits.findIndex((opt) => opt.value === committedUnit);
-      downstreamUnits =
-        committedIndex >= 0
-          ? allFilterUnits.slice(committedIndex + 1).map((opt) => opt.value)
-          : [];
-    }
+    // 모든 필터: 커밋된 필터 외 나머지 전체에 cascade
+    const downstreamUnits = allFilterUnits
+      .map((opt) => opt.value)
+      .filter((unit) => unit !== committedUnit);
 
     if (downstreamUnits.length === 0) return;
 
