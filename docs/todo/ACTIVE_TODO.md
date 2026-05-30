@@ -2,7 +2,14 @@
 
 ## 즉시 처리할 항목
 
-없음
+### FIL-004
+- Status: `pending`
+- Source: 2026-05-31 필터 cascade 버그 수정 중 발견
+- Why: 측정단위 '구장' > 구장그룹 '서울' 선택 후 '부산' 추가 시, 구장 필터에 부산 지역이 해운대구만 노출됨. 코드 레벨 cascade 로직은 정상(activeFilter=stadium_group:[서울,부산]으로 올바르게 요청). 데이터 이슈로 추정.
+- Next action: BigQuery에서 `kevin_serving.weekly_agg`(또는 source 테이블)에서 `stadium_group='부산'`에 해당하는 stadium 값 목록 조회해 실제로 해운대구만 존재하는지 확인.
+- References:
+  - `app/api/filter-options-batch/route.ts` (API 호출 파라미터 검증)
+  - BigQuery: `kevin_serving.weekly_agg` or `data_mart_1_social_match`
 
 ## 이번 작업에서 완료한 항목
 
@@ -32,26 +39,25 @@
 
 ### FIL-003
 - Status: `done`
-- Source: 2026-05-30 필터 UX 개선 작업
-- Why: 현재 양방향 cascade로 인해 이전 필터의 옵션이 이후 필터에 의해 좁혀지며, 원래 목록을 다시 볼 수 없는 문제가 있습니다.
-- Spec:
-  - **기간/측정단위 공통 cascade 규칙**:
-    - 같은 그룹(기간↔기간, 측정단위↔측정단위)끼리만 cascade, cross-group 제외
-    - **downstream** (idx > committedIndex): 옵션+선택값 모두 업데이트
-    - **upstream** (idx < committedIndex): 선택값만 업데이트 (옵션 보존 → 원래 목록 유지)
+- Source: 2026-05-30 필터 UX 개선 작업 (2026-05-31 버그 수정 완료)
+- Why: 양방향 cascade로 인한 필터 옵션 오염 + 기간↔측정단위 필터 cross-influence 문제
+- **최종 구현 스펙 (2026-05-31 기준)**:
+  - 기간 필터 그룹(year/quarter/month/week/day), 측정단위 필터 그룹 각각 독립 cascade
+  - cascade 방향: downstream(idx > committedIndex) = 옵션+선택 모두 업데이트, upstream = 선택만 업데이트
+  - cross-group 격리: `committedIsPeriod !== targetIsPeriod` → cascade 대상 제외, active params 제외
+  - abort 격리: `periodCascadeAbortRef` + `entityCascadeAbortRef` 별도 관리 (기간↔측정단위 cascade가 서로를 abort하지 않음)
   - **선택값 병합 알고리즘**:
-    - `신규항목 = 새 스냅샷 - 이전 스냅샷` → 자동 선택
-    - `유효한_이전선택 = 이전 선택 ∩ 새 스냅샷` → 선택 유지
-    - `최종 선택 = 유효한_이전선택 + 신규항목`; [] 이면 전체 선택 fallback
-  - "이 값만 조회하기" → downstream 전체 선택 (mode="single-only")
-- Implementation note: downstream 감지는 UI 순서 기반 인덱스(`[...periodFilterUnitOptions, ...filterUnitOptions]`)로 결정. 기간/측정단위 구분 없이 인덱스 기준으로 upstream/downstream 통일 적용. 초기 context 추적 방식(`filterSnapshotContextByUnit`)은 전체 선택 시 empty context 문제로 제거.
-- Bug fix (2026-05-31 v2):
-  - **Issue 1 (기간↔측정단위 cascade 격리)**: `downstreamReloadAbortRef` 단일 ref로 기간/측정단위 cascade가 서로를 abort하던 문제 수정 → `periodCascadeAbortRef` + `entityCascadeAbortRef` 분리
-  - **Issue 2-i (downstream 신규항목 과다 선택)**: `cascadeSnapshotByUnit` 방식 제거. 대신 `addedValues`(committed filter의 이전→새 선택 delta)로 extra API call → downstream에 실제로 추가된 옵션만 신규항목으로 계산. `filterSelectionsByUnit[committedUnit]`(이전 선택) vs `newSelections[committedUnit]`(새 선택) 비교로 delta 산출.
+    - `addedValues = newCommittedSelection - filterSelectionsByUnit[committedUnit]` (delta)
+    - `addedValues.length > 0` 이고 downstream 존재 시 → extra API call (병렬) with `activeFilter=committedUnit:[addedValues]`
+    - `신규항목 = extra API 결과 ∩ mainAPI 결과` (실제로 추가된 값으로 인해 생긴 옵션만)
+    - `validPrevSelection = prevSelection ∩ newOptions`
+    - `merged = validPrevSelection + 신규항목`; 빈 경우 전체선택 fallback
+  - "이 값만 조회하기" → downstream 전체선택 (mode="single-only")
+  - 초기 로드: `loadFilters` 1회, cascade는 사용자 commit 이후부터만 동작
 - References:
-  - `app/page.tsx` (reloadDownstreamFilters, handleFilterChange)
-  - `app/components/MultiSelectDropdown.tsx` (applyOnlyValue, onChange type)
-  - `app/components/ControlBar.tsx` (onFilterChange type)
+  - `app/page.tsx` (`reloadDownstreamFilters`, `periodCascadeAbortRef`, `entityCascadeAbortRef`)
+  - `app/components/MultiSelectDropdown.tsx` (staged state, `applyOnlyValue`, `onChange` type)
+  - `app/components/ControlBar.tsx` (`onFilterChange` type)
 
 ### DOC-010
 - Status: `done`
