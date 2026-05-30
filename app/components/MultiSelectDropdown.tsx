@@ -7,7 +7,7 @@ type Option = { label: string; value: string };
 type MultiSelectDropdownProps = {
   options: Option[];
   selectedValues: string[];
-  onChange: (values: string[]) => void;
+  onChange: (values: string[], mode?: "single-only") => void;
   label: string;
   searchPlaceholder?: string;
   menuHeader?: ReactNode;
@@ -38,12 +38,14 @@ export default function MultiSelectDropdown({
 
   const appliedValues = useMemo(() => normalizeValues(selectedValues), [optionValues, selectedValues]);
 
+  // 드롭다운이 닫혀 있을 때 부모 selectedValues가 바뀌면 draft도 동기화
   useEffect(() => {
     if (!isOpen) {
       setDraftSelectedValues(appliedValues);
     }
   }, [appliedValues, isOpen]);
 
+  // 닫힐 때 commit: draft가 0개면 revert, 1개 이상이면 onChange 호출
   const closeMenu = (applyDraft: boolean) => {
     setIsOpen(false);
     setSearch("");
@@ -54,6 +56,7 @@ export default function MultiSelectDropdown({
     }
 
     if (draftSelectedValues.length === 0) {
+      // 전체 해제 상태로 닫으면 revert (API 호출 없음)
       setDraftSelectedValues(appliedValues);
       return;
     }
@@ -70,7 +73,6 @@ export default function MultiSelectDropdown({
         closeMenu(true);
       }
     };
-
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   });
@@ -84,41 +86,41 @@ export default function MultiSelectDropdown({
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((option) => draftSelectedValues.includes(option.value));
 
-  const applySelection = (values: string[]) => {
-    const normalized = normalizeValues(values);
-    setDraftSelectedValues(normalized);
-    if (!arraysEqual(normalized, appliedValues)) {
-      onChange(normalized);
-    }
-  };
-
+  // 전체 선택/해제: draft만 변경 (onChange 없음, 닫을 때 commit)
   const toggleFiltered = () => {
     if (allFilteredSelected) {
       const filteredSet = new Set(filtered.map((option) => option.value));
-      applySelection(draftSelectedValues.filter((value) => !filteredSet.has(value)));
+      setDraftSelectedValues(draftSelectedValues.filter((value) => !filteredSet.has(value)));
       return;
     }
-
     const next = new Set(draftSelectedValues);
     filtered.forEach((option) => next.add(option.value));
-    applySelection(Array.from(next));
+    setDraftSelectedValues(normalizeValues(Array.from(next)));
   };
 
+  // 개별 토글: draft만 변경 (onChange 없음, 닫을 때 commit)
   const toggleValue = (value: string) => {
     if (draftSelectedValues.includes(value)) {
+      // 마지막 항목 해제 시 → 전체 선택으로 전환
       if (draftSelectedValues.length === 1) {
-        applySelection(optionValues);
+        setDraftSelectedValues(optionValues);
         return;
       }
-      applySelection(draftSelectedValues.filter((candidate) => candidate !== value));
+      setDraftSelectedValues(draftSelectedValues.filter((candidate) => candidate !== value));
       return;
     }
-
-    applySelection([...draftSelectedValues, value]);
+    setDraftSelectedValues(normalizeValues([...draftSelectedValues, value]));
   };
 
+  // "이 값만 조회하기": 즉시 commit + 닫기 (명시적 단일 선택)
   const applyOnlyValue = (value: string) => {
-    applySelection([value]);
+    const nextValues = [value];
+    setDraftSelectedValues(nextValues);
+    setIsOpen(false);
+    setSearch("");
+    if (!arraysEqual(nextValues, appliedValues)) {
+      onChange(nextValues, "single-only");
+    }
   };
 
   return (

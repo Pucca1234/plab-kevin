@@ -815,6 +815,8 @@ export default function Home() {
   const [isErrorLogOpen, setIsErrorLogOpen] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [filterSnapshotContextByUnit, setFilterSnapshotContextByUnit] = useState<Record<string, { unit: string; values: string[] }[]>>({});
+  const downstreamReloadAbortRef = useRef<AbortController | null>(null);
   const [templates, setTemplates] = useState<FilterTemplate[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [defaultTabConfig, setDefaultTabConfig] = useState<FilterTemplateConfig | null>(null);
@@ -1219,6 +1221,25 @@ export default function Home() {
         setFilterOptionsByUnit(nextOptionsByUnit);
         setFilterSelectionsByUnit((current) => normalizeSelections(current, nextOptionsByUnit));
         setEntityFilterValue(ALL_VALUE);
+
+        // Record which conditions were active when each filter's options were computed (FIL-003)
+        const snapshotConditions: { unit: string; values: string[] }[] = [];
+        for (const [unit, values] of Object.entries(currentSelections)) {
+          const optionCount = filterOptionsByUnit[unit]?.length ?? 0;
+          if (values.length === 0) {
+            snapshotConditions.push({ unit, values: [] });
+            continue;
+          }
+          if (optionCount > 0 && values.length >= optionCount) continue;
+          snapshotConditions.push({ unit, values });
+        }
+        const nextSnapshotContext: Record<string, { unit: string; values: string[] }[]> = {};
+        for (const filterUnitOption of combinedFilterUnits) {
+          nextSnapshotContext[filterUnitOption.value] = snapshotConditions.filter(
+            (c) => c.unit !== filterUnitOption.value
+          );
+        }
+        setFilterSnapshotContextByUnit(nextSnapshotContext);
       } catch (error) {
         if (!canceled) {
           const message = (error as Error).message;
@@ -1240,7 +1261,6 @@ export default function Home() {
     measurementUnit,
     periodFilterUnitOptions,
     filterUnitOptions,
-    JSON.stringify(filterSelectionsByUnit),
     drilldownParent?.unit,
     drilldownParent?.value,
     effectivePeriodRangeValue,
@@ -1589,15 +1609,151 @@ export default function Home() {
     requestAutoRefresh();
   };
 
-  const handleFilterChange = (unit: MeasurementUnit, values: string[]) => {
-    setFilterSelectionsByUnit((current) => ({
-      ...current,
-      [unit]: values
-    }));
+  const reloadDownstreamFilters = async (
+    committedUnit: string,
+    newSelections: FilterSelectionMap,
+    mode?: "single-only"
+  ) => {
+    const allFilterUnits = [...periodFilterUnitOptions, ...filterUnitOptions];
+
+    // Downstream = filters whose snapshot context includes committedUnit
+    const downstreamUnits = allFilterUnits
+      .map((opt) => opt.value)
+      .filter(
+        (unit) =>
+          unit !== committedUnit &&
+          (filterSnapshotContextByUnit[unit] ?? []).some((c) => c.unit === committedUnit)
+      );
+
+    if (downstreamUnits.length === 0) return;
+
+    if (downstreamReloadAbortRef.current) {
+      downstreamReloadAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    downstreamReloadAbortRef.current = controller;
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const { periodUnit: effectiveSearchPeriodUnit, entries } = await loadPeriodEntries(
+        periodUnit,
+        effectivePeriodRangeValue,
+        periodDrilldownHistory
+      );
+      if (controller.signal.aborted) return;
+
+      const effectiveWeeks = entries.map((entry) => entry.week);
+      const params = new URLSearchParams({
+        measureUnit: measurementUnit,
+        periodUnit: effectiveSearchPeriodUnit
+      });
+      if (shouldSendExplicitPeriods(effectivePeriodRangeValue, periodDrilldownHistory)) {
+        effectiveWeeks.forEach((week) => params.append("week", week));
+      }
+      downstreamUnits.forEach((unit) => params.append("filterUnit", unit));
+      if (drilldownParent?.unit && drilldownParent?.value) {
+        params.set("parentUnit", drilldownParent.unit);
+        params.set("parentValue", drilldownParent.value);
+      }
+      for (const filterUnitOption of allFilterUnits) {
+        const values = newSelections[filterUnitOption.value];
+        if (values === undefined) continue;
+        const optionCount = filterOptionsByUnit[filterUnitOption.value]?.length ?? 0;
+        if (values.length === 0) {
+          params.append("activeFilterUnit", filterUnitOption.value);
+          params.append("activeFilterValue", "__NONE__");
+          continue;
+        }
+        if (optionCount > 0 && values.length >= optionCount) continue;
+        values.forEach((value) => {
+          params.append("activeFilterUnit", filterUnitOption.value);
+          params.append("activeFilterValue", value);
+        });
+      }
+
+      const response = await fetchJson<{ optionsByUnit: Record<string, string[]> }>(
+        `/api/filter-options-batch?${params.toString()}`,
+        { signal: controller.signal }
+      );
+      if (controller.signal.aborted) return;
+
+      const nextOptionsByUnit = { ...filterOptionsByUnit };
+      const nextSelections = { ...newSelections };
+      const nextSnapshotContext = { ...filterSnapshotContextByUnit };
+
+      for (const unit of downstreamUnits) {
+        const rawNewOptions = response.optionsByUnit?.[unit] ?? [];
+        const newOptions = sortFilterOptionValues(unit, rawNewOptions).map((value) => ({
+          label: value,
+          value
+        }));
+        const newOptionValues = newOptions.map((o) => o.value);
+        nextOptionsByUnit[unit] = newOptions;
+
+        if (mode === "single-only") {
+          nextSelections[unit] = newOptionValues;
+        } else {
+          const prevOptionValues = new Set(
+            (filterOptionsByUnit[unit] ?? []).map((o) => o.value)
+          );
+          const prevSelection =
+            newSelections[unit] ?? (filterOptionsByUnit[unit] ?? []).map((o) => o.value);
+          const newOptionValueSet = new Set(newOptionValues);
+
+          const 신규항목 = newOptionValues.filter((v) => !prevOptionValues.has(v));
+          const validPrevSelection = prevSelection.filter((v) => newOptionValueSet.has(v));
+          const merged = [...validPrevSelection, ...신규항목];
+          // Preserve option order and dedupe
+          const mergedSet = new Set(merged);
+          const finalSelection =
+            merged.length === 0
+              ? newOptionValues
+              : newOptionValues.filter((v) => mergedSet.has(v));
+          nextSelections[unit] = finalSelection;
+        }
+
+        // Update snapshot context for this downstream unit
+        const newActiveConditions: { unit: string; values: string[] }[] = [];
+        for (const u of allFilterUnits) {
+          const vals = nextSelections[u.value];
+          if (vals === undefined) continue;
+          const optCount = nextOptionsByUnit[u.value]?.length ?? 0;
+          if (vals.length === 0) {
+            newActiveConditions.push({ unit: u.value, values: [] });
+            continue;
+          }
+          if (optCount > 0 && vals.length >= optCount) continue;
+          newActiveConditions.push({ unit: u.value, values: vals });
+        }
+        nextSnapshotContext[unit] = newActiveConditions.filter((c) => c.unit !== unit);
+      }
+
+      setFilterOptionsByUnit(nextOptionsByUnit);
+      setFilterSelectionsByUnit(nextSelections);
+      setFilterSnapshotContextByUnit(nextSnapshotContext);
+
+      if (showResults) {
+        void runSearch({ filterSelections: nextSelections, drilldownParent: null });
+      }
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") {
+        pushError("하위 필터 옵션 재계산 실패", (error as Error).message);
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
+  const handleFilterChange = (unit: MeasurementUnit, values: string[], mode?: "single-only") => {
+    const nextSelections = { ...filterSelectionsByUnit, [unit]: values };
+    setFilterSelectionsByUnit(nextSelections);
     setEntityFilterValue(ALL_VALUE);
     setDrilldownParent(null);
     setPendingDrilldown(null);
-    requestAutoRefresh();
+    void reloadDownstreamFilters(unit, nextSelections, mode);
+    if (showResults) {
+      void runSearch({ filterSelections: nextSelections, drilldownParent: null });
+    }
   };
 
   const handlePeriodRangeChange = (value: string) => {
