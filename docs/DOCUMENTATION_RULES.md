@@ -58,6 +58,34 @@
 4. 후속 작업이 생겼으면 `docs/todo/ACTIVE_TODO.md`에 추가합니다.
 5. 바로 하지 않을 작업은 `docs/todo/BACKLOG_TODO.md`로 옮깁니다.
 
+## 데이터 파이프라인 안전성 체크
+**데이터에 영향을 줄 수 있는 작업 시 반드시 아래를 점검하고 커밋한다.**
+
+### 영향을 줄 수 있는 변경 유형
+아래 중 하나라도 해당하면 데이터 파이프라인 점검이 필요하다:
+- `scripts/bigquery/build-serving-layer.mjs` 수정
+- `scripts/bigquery/validate-serving-layer.mjs` 수정
+- `googlesheets.metric_store_native` 시트 구조 변경
+- `data_mart.data_mart_1_social_match` 스키마에 영향을 주는 변경
+- serving layer 빌드 쿼리(SQL) 수정
+- `metricColumnBlacklist` 또는 `NUMERIC_DATA_TYPES` 등 metric 필터 로직 수정
+- BigQuery 인증/클라이언트(`bigqueryClient.ts`) 변경
+- `.github/workflows/bigquery-serving-rebuild.yml` 수정
+
+### 점검 체크리스트
+1. **SQL ↔ JS 정합성**: SQL에서 SELECT한 컬럼과 JS 코드가 참조하는 필드가 일치하는지 확인
+   - 특히 CTE에 컬럼을 추가할 때 최종 SELECT절에도 반드시 포함할 것
+2. **로컬 빌드 테스트**: `npm run bq:build-serving` 직접 실행해 에러 없이 완료되는지 확인
+3. **검증 스크립트**: `npm run bq:validate-serving` 실행해 지표 커버리지 이상 없는지 확인
+4. **워크플로우 수동 실행**: GitHub Actions → BigQuery Serving Rebuild → Run workflow로 실제 파이프라인 검증
+
+### 실제 사례 (2026-05-31)
+> `build-serving-layer.mjs`에 `NUMERIC_DATA_TYPES` 필터를 JS에 추가하면서
+> SQL CTE에는 `data_type` 컬럼을 추가했으나 최종 `SELECT`절에서 누락.
+> 결과: `row.data_type = undefined` → 모든 metrics 필터아웃 → 빌드 실패.
+> GitHub Actions daily build 4일간 연속 실패, `weekly_agg`가 5/28 상태로 고정됨.
+> **교훈: SQL 쿼리 수정 시 JS 코드가 읽는 컬럼이 SELECT에 포함되어 있는지 반드시 검토.**
+
 ## TODO 작성 규칙
 모든 TODO 항목은 아래 정보를 포함합니다.
 - ID: 예시 `DOC-001`, `FILTER-003`
