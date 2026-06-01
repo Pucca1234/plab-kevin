@@ -17,6 +17,8 @@ jobs:
       BIGQUERY_DATASET_SOURCE_GOOGLESHEETS: "googlesheets"
       BIGQUERY_DATASET_SERVING: "kevin_serving"
       BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64 }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: "C0B6ZSZPU7R"
 
     steps:
       - name: Checkout
@@ -36,8 +38,97 @@ jobs:
           set -e
           [ -n "${BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64}" ] || (echo "Missing BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64" && exit 1)
 
+      - name: Get KST time
+        id: kst
+        run: echo "time=$(TZ=Asia/Seoul date '+%Y.%m.%d %H:%M')" >> "$GITHUB_OUTPUT"
+
       - name: Rebuild serving layer
         run: npm run bq:build-serving
 
       - name: Validate serving layer
         run: npm run bq:validate-serving
+
+      - name: Notify Slack (success)
+        if: success() && env.SLACK_BOT_TOKEN != ''
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ env.SLACK_CHANNEL_ID }}",
+              "text": "[Kevin 대시보드] 데이터 업데이트 완료 ✅",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*[Kevin 대시보드] 데이터 업데이트 완료 ✅*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*상태*\n✅ 성공" },
+                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": { "type": "plain_text", "text": "워크플로우 상세" },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+
+      - name: Notify Slack (failure)
+        if: failure() && env.SLACK_BOT_TOKEN != ''
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ env.SLACK_CHANNEL_ID }}",
+              "text": "[Kevin 대시보드] 데이터 업데이트 실패 ❌",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*[Kevin 대시보드] 데이터 업데이트 실패 ❌*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*상태*\n❌ 실패" },
+                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "워크플로우 로그를 확인해 주세요."
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": { "type": "plain_text", "text": "워크플로우 확인" },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
