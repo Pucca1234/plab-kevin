@@ -189,10 +189,10 @@ const getMetricColumns = async () => {
       from \`${projectId}.${dataMartDataset}.INFORMATION_SCHEMA.COLUMNS\`
       where table_name = 'data_mart_1_social_match'
     )
-    select metric
+    select metric_dict.metric, source_columns.data_type
     from metric_dict
     join source_columns on source_columns.column_name = metric_dict.metric
-    order by metric
+    order by metric_dict.metric
   `);
 
   return rows
