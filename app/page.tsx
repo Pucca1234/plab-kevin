@@ -823,6 +823,7 @@ export default function Home() {
   const [defaultTabName, setDefaultTabName] = useState<string>("템플릿");
   const [userName, setUserName] = useState<string | null>(null);
 
+  const [dataFreshnessAt, setDataFreshnessAt] = useState<string | null>(null);
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [autoRefreshToken, setAutoRefreshToken] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -969,6 +970,15 @@ export default function Home() {
       .catch((error) => {
         pushError("Auth user load failed", (error as Error).message);
       });
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/data-freshness")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.lastUpdatedAt) setDataFreshnessAt(data.lastUpdatedAt);
+      })
+      .catch(() => {/* 표시 생략 */});
   }, []);
 
   useEffect(() => {
@@ -2561,6 +2571,20 @@ export default function Home() {
         </div>
         <div className="header-meta">
           <span>데이터 소스: BigQuery</span>
+          {dataFreshnessAt && (
+            <span title={`serving layer 마지막 빌드: ${dataFreshnessAt} KST`}>
+              데이터 업데이트:{" "}
+              {(() => {
+                const d = new Date(dataFreshnessAt);
+                const yy = String(d.getFullYear()).slice(2);
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const dd = String(d.getDate()).padStart(2, "0");
+                const hh = String(d.getHours()).padStart(2, "0");
+                const min = String(d.getMinutes()).padStart(2, "0");
+                return `${yy}.${mm}.${dd} ${hh}:${min}`;
+              })()}
+            </span>
+          )}
           {buildCommit && <span>build: {buildCommit.slice(0, 7)}</span>}
           {userName && <span className="user-name">{userName}</span>}
           <button
