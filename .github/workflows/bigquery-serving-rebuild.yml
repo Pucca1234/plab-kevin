@@ -2,8 +2,8 @@ name: BigQuery Serving Rebuild
 
 on:
   schedule:
-    # Daily 08:30 KST = previous day 23:30 UTC
-    - cron: "30 23 * * *"
+    # Daily ~09:00 KST = 22:00 UTC (GitHub Actions ~2h delay 반영)
+    - cron: "0 22 * * *"
   workflow_dispatch:
 
 jobs:
