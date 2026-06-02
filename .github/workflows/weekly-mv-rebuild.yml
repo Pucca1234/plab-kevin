@@ -1,10 +1,25 @@
 name: Weekly MV Rebuild
 
+# 2026-06-02: 트리거 비활성화
+# 분석 백엔드가 BigQuery로 전환(ANALYTICS_BACKEND=bigquery)되어
+# Supabase weekly_agg_mv 갱신의 실효성이 없음.
+# SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_DB_URI 시크릿이
+# GitHub Actions에 미등록 상태로 2026-04-07 첫 실행부터 9회 전부 실패.
+# 재활성화 시: on: 블록 복구 + GitHub Actions에 Supabase 시크릿 3개 등록 필요.
+#
+# on:
+#   schedule:
+#     # Tue 10:00 KST = Tue 01:00 UTC
+#     - cron: "0 1 * * 2"
+#   workflow_dispatch:
+
 on:
-  schedule:
-    # Tue 10:00 KST = Tue 01:00 UTC
-    - cron: "0 1 * * 2"
   workflow_dispatch:
+    inputs:
+      force_run:
+        description: "강제 수동 실행 (Supabase 시크릿 등록 후 사용)"
+        required: true
+        default: "false"
 
 jobs:
   rebuild-and-validate:

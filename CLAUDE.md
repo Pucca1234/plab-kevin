@@ -33,7 +33,7 @@ Next.js API → 대시보드 UI
 | 워크플로우 | cron 설정 | 실제 실행 | 상태 |
 |---|---|---|---|
 | BigQuery Serving Rebuild | `0 22 * * *` | ~09:00 KST (GitHub 2h 지연) | ✅ 활성 |
-| Weekly MV Rebuild | `0 1 * * 2` | ~화 12:00 KST | ✅ 활성 |
+| Weekly MV Rebuild | (비활성화) | — | ⏸ 스케줄 트리거 제거 |
 | Data Validation | (비활성화) | — | ⏸ PR 트리거 제거 |
 
 ### GitHub Actions cron 지연 특성
