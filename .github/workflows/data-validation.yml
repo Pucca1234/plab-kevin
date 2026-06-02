@@ -1,10 +1,25 @@
 name: Data Validation
 
+# 2026-06-02: 트리거 비활성화
+# 현재 분석 백엔드가 BigQuery로 전환(ANALYTICS_BACKEND=bigquery)되어
+# Supabase weekly_agg_mv 검증의 실효성이 없음.
+# 또한 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 시크릿이 미등록 상태로
+# 이 워크플로우는 한 번도 실제 작동한 적 없음.
+# 재활성화 시: on: 블록 복구 + Supabase 시크릿 등록 필요.
+#
+# on:
+#   pull_request:
+#     branches:
+#       - "**"
+#   workflow_dispatch:
+
 on:
-  pull_request:
-    branches:
-      - "**"
   workflow_dispatch:
+    inputs:
+      force_run:
+        description: "강제 수동 실행 (Supabase 시크릿 등록 후 사용)"
+        required: true
+        default: "false"
 
 jobs:
   validate-weekly-agg-mv:
