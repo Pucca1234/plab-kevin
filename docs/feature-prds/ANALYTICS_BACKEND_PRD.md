@@ -56,7 +56,7 @@
 
 ## 운영 기준
 - source BigQuery 테이블 갱신 기준 시각은 매일 07:50 KST 전후입니다.
-- serving rebuild 기본 기준 시각은 매일 08:30 KST입니다.
+- serving rebuild 기본 기준 시각은 매일 09:00 KST 전후입니다. (cron 22:00 UTC + GitHub Actions ~2h 지연)
 - source 반영이 지연된 날에는 serving rebuild에 늦은 데이터가 포함되지 않을 수 있으며, 다음 스케줄에서 따라잡는 것을 허용합니다.
 - Vercel 배포 환경에서는 service account JSON 계열 env 사용을 우선합니다.
 
