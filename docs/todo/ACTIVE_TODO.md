@@ -2,6 +2,14 @@
 
 ## 즉시 처리할 항목
 
+### OPS-001
+- Status: `todo`
+- Source: 2026-06-02 운영 점검
+- Why: `app/lib/analytics/provider.ts`의 기본값이 `supabase`로 설정되어 있습니다. Vercel에 `ANALYTICS_BACKEND=bigquery`가 빠질 경우 Supabase fallback으로 조용히 전환되며 알아채기 어렵습니다.
+- Next action: Vercel 환경변수 목록에서 `ANALYTICS_BACKEND=bigquery` 설정 여부를 확인하고, 미설정 시 등록합니다.
+- References:
+  - `app/lib/analytics/provider.ts`
+
 ### FIL-004
 - Status: `pending`
 - Source: 2026-05-31 필터 cascade 버그 수정 중 발견
@@ -12,6 +20,32 @@
   - BigQuery: `kevin_serving.weekly_agg` or `data_mart_1_social_match`
 
 ## 이번 작업에서 완료한 항목
+
+### OPS-260602-001
+- Status: `done`
+- Source: 2026-06-02 운영 점검
+- Why: GitHub Actions cron `30 23 * * *`(의도 08:30 KST)이 실제로는 ~10:30 KST에 실행됐음. 14일 실행 이력 분석 결과 GitHub Actions 지연이 1h51m~2h07m(편차 16분)으로 안정적임을 확인.
+- What: cron을 `0 22 * * *`으로 변경 → 실제 실행 ~09:00 KST, source 갱신(~07:40 KST) 대비 최소 1h11m 버퍼 확보.
+- References:
+  - `.github/workflows/bigquery-serving-rebuild.yml`
+  - `docs/feature-prds/ANALYTICS_BACKEND_PRD.md`
+
+### OPS-260602-002
+- Status: `done`
+- Source: 2026-06-02 운영 점검
+- Why: Data Validation 워크플로우가 PR마다 실패 메일을 발송했음. `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` 시크릿이 미등록 상태로 한 번도 실제 작동한 적 없음. 분석 백엔드가 BigQuery로 전환된 이후 Supabase MV 검증의 실효성이 없음.
+- What: `.github/workflows/data-validation.yml` PR 자동 트리거 제거. 비활성화 이유 주석 보존. 재활성화 방법 주석에 명시.
+- References:
+  - `.github/workflows/data-validation.yml`
+
+### OPS-260602-003
+- Status: `done`
+- Source: 2026-06-02 신규 지표 반영 요청
+- Why: `metric_store_native`에 신규 지표 12개(등록일 2026-06-01)가 추가됐으나 오늘 아침 자동 빌드에 미반영 상태.
+- What: 수동 `workflow_dispatch`로 즉시 반영. 빌드 지표 수 122개 → 134개(+12) 확인.
+- References:
+  - `scripts/bigquery/build-serving-layer.mjs`
+  - `.github/workflows/bigquery-serving-rebuild.yml`
 
 ### FIL-001
 - Status: `done`

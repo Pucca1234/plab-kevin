@@ -84,8 +84,17 @@
 - 주 외 기간단위 동작은 source query 정확성에 크게 의존합니다.
 - 일부 참고 문서는 인코딩 문제 또는 내용 노후화로 별도 정리가 필요합니다.
 
+## GitHub Actions 워크플로우 현황
+| 워크플로우 | 파일 | 스케줄 | 상태 | 비고 |
+|---|---|---|---|---|
+| BigQuery Serving Rebuild | `bigquery-serving-rebuild.yml` | 매일 `0 22 * * *` (실제 ~09:00 KST) | ✅ 활성 | Slack 알림 포함 |
+| Weekly MV Rebuild | `weekly-mv-rebuild.yml` | 매주 화 `0 1 * * 2` (실제 ~화 12:00 KST) | ✅ 활성 | Supabase MV 유지용 |
+| Data Validation | `data-validation.yml` | PR 트리거 비활성화 | ⏸ 비활성 | BigQuery 전환 후 실효성 없음. 재활성화 시 Supabase 시크릿 등록 필요 |
+
 ## 변경 이력
 - 2026-04-01: provider 분리와 BigQuery serving 전환
 - 2026-04-16: serving coverage가 없는 신규 측정단위를 source query로 라우팅
 - 2026-05-19: source-only filter를 명시적으로 source query 경로로 라우팅
 - 2026-05-28: metric dictionary 내 문자열 차원 컬럼을 수치 지표 후보에서 제외하고, serving metric sync 검증 기준 보강
+- 2026-06-02: serving rebuild cron `30 23 * * *` → `0 22 * * *` (GitHub Actions 실제 지연 반영, 실행 ~09:00 KST)
+- 2026-06-02: Data Validation 워크플로우 PR 트리거 비활성화 (Supabase MV 검증 실효성 없음, 시크릿 미등록)
