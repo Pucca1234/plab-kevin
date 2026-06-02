@@ -33,10 +33,14 @@
 ### OPS-260602-002
 - Status: `done`
 - Source: 2026-06-02 운영 점검
-- Why: Data Validation 워크플로우가 PR마다 실패 메일을 발송했음. `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` 시크릿이 미등록 상태로 한 번도 실제 작동한 적 없음. 분석 백엔드가 BigQuery로 전환된 이후 Supabase MV 검증의 실효성이 없음.
-- What: `.github/workflows/data-validation.yml` PR 자동 트리거 제거. 비활성화 이유 주석 보존. 재활성화 방법 주석에 명시.
+- Why: Data Validation / Weekly MV Rebuild 워크플로우가 실패 메일을 발송했음. Supabase 시크릿 미등록으로 한 번도 실제 작동한 적 없음. 분석 백엔드가 BigQuery로 전환된 이후 Supabase MV 관련 워크플로우의 실효성이 없음 (Vercel 프로덕션 `ANALYTICS_BACKEND=bigquery` 직접 확인).
+- What:
+  - `data-validation.yml` PR 자동 트리거 제거
+  - `weekly-mv-rebuild.yml` 스케줄 트리거 제거 (첫 실행 2026-04-07부터 9회 전부 실패)
+  - 두 파일 모두 비활성화 이유 주석 보존, 재활성화 방법 명시
 - References:
   - `.github/workflows/data-validation.yml`
+  - `.github/workflows/weekly-mv-rebuild.yml`
 
 ### OPS-260602-003
 - Status: `done`
