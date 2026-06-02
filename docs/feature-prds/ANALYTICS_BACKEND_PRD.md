@@ -88,7 +88,7 @@
 | 워크플로우 | 파일 | 스케줄 | 상태 | 비고 |
 |---|---|---|---|---|
 | BigQuery Serving Rebuild | `bigquery-serving-rebuild.yml` | 매일 `0 22 * * *` (실제 ~09:00 KST) | ✅ 활성 | Slack 알림 포함 |
-| Weekly MV Rebuild | `weekly-mv-rebuild.yml` | 매주 화 `0 1 * * 2` (실제 ~화 12:00 KST) | ✅ 활성 | Supabase MV 유지용 |
+| Weekly MV Rebuild | `weekly-mv-rebuild.yml` | 스케줄 트리거 비활성화 | ⏸ 비활성 | BigQuery 전환 후 실효성 없음. 재활성화 시 Supabase 시크릿 3개 등록 필요 |
 | Data Validation | `data-validation.yml` | PR 트리거 비활성화 | ⏸ 비활성 | BigQuery 전환 후 실효성 없음. 재활성화 시 Supabase 시크릿 등록 필요 |
 
 ## 변경 이력
@@ -98,3 +98,4 @@
 - 2026-05-28: metric dictionary 내 문자열 차원 컬럼을 수치 지표 후보에서 제외하고, serving metric sync 검증 기준 보강
 - 2026-06-02: serving rebuild cron `30 23 * * *` → `0 22 * * *` (GitHub Actions 실제 지연 반영, 실행 ~09:00 KST)
 - 2026-06-02: Data Validation 워크플로우 PR 트리거 비활성화 (Supabase MV 검증 실효성 없음, 시크릿 미등록)
+- 2026-06-02: Weekly MV Rebuild 워크플로우 스케줄 트리거 비활성화 (BigQuery 전환 후 실효성 없음, GitHub Actions 시크릿 미등록으로 첫 실행부터 9회 전부 실패)
