@@ -1100,7 +1100,7 @@ main {
   /* viewport - 상단 UI(헤더+컨트롤바) 만큼 빼서 표 영역 안에서 세로 스크롤되게 한다. */
   max-height: calc(100vh - var(--table-top-offset, 240px));
   padding-left: 0;
-  padding-bottom: 6px;
+  padding-bottom: 100px;
   padding-right: 5px;
 }
 
