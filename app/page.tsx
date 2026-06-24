@@ -2345,6 +2345,19 @@ export default function Home() {
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ name, config, is_shared: false, is_default: false })
       });
+      cancelAutoRefresh();
+      setPeriodUnit("week");
+      setPeriodRangeValue("recent_8");
+      setMeasurementUnit("all");
+      setFilterSelectionsByUnit({});
+      setSelectedMetricIds([]);
+      setHeatmapColorMap({});
+      setHiddenDeltaMetrics(new Set());
+      setEntityFilterValue(ALL_VALUE);
+      setDrilldownParent(null);
+      setAppliedDrilldownHistory([]);
+      setPendingDrilldown(null);
+      setPeriodDrilldownHistory([]);
       setActiveTemplateId(response.template.id);
       setTemplates((current) => [
         ...current.filter((template) => template.id !== response.template.id),
@@ -2352,6 +2365,26 @@ export default function Home() {
       ]);
     } catch (error) {
       pushError("템플릿 생성 실패", (error as Error).message);
+    }
+  };
+
+  const handleDuplicateTemplate = async (template: FilterTemplate) => {
+    const name = `${template.name} 복사본`;
+    try {
+      const authHeaders = await getSupabaseAuthHeaders();
+      const response = await fetchJson<{ template: FilterTemplate }>("/api/filter-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ name, config: template.config, is_shared: false, is_default: false })
+      });
+      applyTemplateConfig(response.template);
+      setTemplates((current) => [
+        ...current.filter((t) => t.id !== response.template.id),
+        response.template
+      ]);
+      setAutoSearchPending(true);
+    } catch (error) {
+      pushError("템플릿 복제 실패", (error as Error).message);
     }
   };
 
@@ -2633,6 +2666,7 @@ export default function Home() {
           onApplyTemplate={handleApplyTemplate}
           onSaveTemplate={handleSaveTemplate}
           onCreateEmptyTab={handleCreateEmptyTab}
+          onDuplicateTemplate={handleDuplicateTemplate}
           onUpdateTemplateConfig={handleUpdateTemplateConfig}
           onDeleteTemplate={handleDeleteTemplate}
           onRenameTemplate={handleRenameTemplate}

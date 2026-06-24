@@ -47,6 +47,7 @@ type ControlBarProps = {
   onApplyTemplate: (template: FilterTemplate) => void;
   onSaveTemplate: (name: string, isShared: boolean, isDefault: boolean) => void;
   onCreateEmptyTab: (name: string) => void;
+  onDuplicateTemplate: (template: FilterTemplate) => void;
   onUpdateTemplateConfig: (id: string) => void;
   onDeleteTemplate: (id: string) => void;
   onRenameTemplate: (id: string, name: string) => void;
@@ -168,6 +169,7 @@ export default function ControlBar({
   onApplyTemplate,
   onSaveTemplate,
   onCreateEmptyTab,
+  onDuplicateTemplate,
   onUpdateTemplateConfig,
   onDeleteTemplate,
   onRenameTemplate,
@@ -318,6 +320,15 @@ export default function ControlBar({
                     기본 설정
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDuplicateTemplate(template);
+                    setContextMenuId(null);
+                  }}
+                >
+                  복제
+                </button>
                 <button
                   type="button"
                   onClick={() => {
