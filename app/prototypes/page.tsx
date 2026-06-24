@@ -543,6 +543,7 @@ export default function PrototypePage() {
               }}
               onSaveTemplate={() => undefined}
               onCreateEmptyTab={(name) => setDefaultTabName(name)}
+              onDuplicateTemplate={() => undefined}
               onUpdateTemplateConfig={() => undefined}
               onDeleteTemplate={(id) => {
                 if (activeTemplateId === id) setActiveTemplateId(null);
