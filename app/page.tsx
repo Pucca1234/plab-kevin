@@ -2368,14 +2368,26 @@ export default function Home() {
     }
   };
 
-  const handleDuplicateTemplate = async (template: FilterTemplate) => {
-    const name = `${template.name} 복사본`;
+  const handleDuplicateTemplate = async (template: FilterTemplate | null) => {
+    const name = template ? `${template.name} 복사본` : `${defaultTabName} 복사본`;
+    const config: FilterTemplateConfig = template
+      ? (template.config as FilterTemplateConfig)
+      : {
+          periodRangeValue: effectivePeriodRangeValue,
+          periodUnit,
+          measurementUnit,
+          filterValue: ALL_VALUE,
+          filterSelections: filterSelectionsByUnit,
+          selectedMetricIds,
+          heatmapColorMap,
+          hiddenDeltaMetricIds: Array.from(hiddenDeltaMetrics)
+        };
     try {
       const authHeaders = await getSupabaseAuthHeaders();
       const response = await fetchJson<{ template: FilterTemplate }>("/api/filter-templates", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ name, config: template.config, is_shared: false, is_default: false })
+        body: JSON.stringify({ name, config, is_shared: false, is_default: false })
       });
       applyTemplateConfig(response.template);
       setTemplates((current) => [
