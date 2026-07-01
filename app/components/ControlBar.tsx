@@ -59,6 +59,7 @@ type ControlBarProps = {
   onRenameDefaultTab: (name: string) => void;
   onExport?: () => void;
   isExporting?: boolean;
+  onOpenAiChat: () => void;
 };
 
 function SingleSelectDropdown({
@@ -180,7 +181,8 @@ export default function ControlBar({
   defaultTabName,
   onRenameDefaultTab,
   onExport,
-  isExporting
+  isExporting,
+  onOpenAiChat
 }: ControlBarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -473,6 +475,9 @@ export default function ControlBar({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               </button>
             )}
+            <button type="button" className="template-save-btn btn-icon" onClick={onOpenAiChat} title="Kevin AI 채팅">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </button>
             <button type="button" className="btn-primary search-submit-btn btn-icon" onClick={onSearch} disabled={isSearchDisabled} title="조회">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>

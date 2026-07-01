@@ -827,6 +827,16 @@ export default function Home() {
   const [autoSearchPending, setAutoSearchPending] = useState(false);
   const [autoRefreshToken, setAutoRefreshToken] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.altKey && e.key === "E") {
+        setIsErrorLogOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
   const [appliedPeriodUnit, setAppliedPeriodUnit] = useState<PeriodUnit>("week");
   const [appliedPeriodRangeValue, setAppliedPeriodRangeValue] = useState<string>("recent_8");
   const lastAppliedSearchSignatureRef = useRef("");
@@ -2706,6 +2716,7 @@ export default function Home() {
           onRenameDefaultTab={handleRenameDefaultTab}
           onExport={downloadExcel}
           isExporting={isExporting}
+          onOpenAiChat={() => setIsChatOpen((prev) => !prev)}
           onApplyDefault={() => {
             cancelAutoRefresh();
             if (defaultTabConfig) {

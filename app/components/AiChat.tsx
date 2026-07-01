@@ -252,11 +252,7 @@ export default function AiChat({ onApplyFilters, dashboardContext, availableOpti
   const showInitialSuggestions = messages.length === 0 && !isLoading && dynamicSuggestions.length === 0;
 
   if (!isOpen) {
-    return (
-      <button type="button" className="ai-panel-toggle-btn" onClick={onToggle} aria-label="Kevin AI 채팅 열기">
-        Kevin AI
-      </button>
-    );
+    return null;
   }
 
   return (
