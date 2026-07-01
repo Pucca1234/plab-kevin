@@ -10,16 +10,46 @@
 - References:
   - `app/lib/analytics/provider.ts`
 
-### FIL-004
-- Status: `pending`
-- Source: 2026-05-31 필터 cascade 버그 수정 중 발견
-- Why: 측정단위 '구장' > 구장그룹 '서울' 선택 후 '부산' 추가 시, 구장 필터에 부산 지역이 해운대구만 노출됨. 코드 레벨 cascade 로직은 정상(activeFilter=stadium_group:[서울,부산]으로 올바르게 요청). 데이터 이슈로 추정.
-- Next action: BigQuery에서 `kevin_serving.weekly_agg`(또는 source 테이블)에서 `stadium_group='부산'`에 해당하는 stadium 값 목록 조회해 실제로 해운대구만 존재하는지 확인.
-- References:
-  - `app/api/filter-options-batch/route.ts` (API 호출 파라미터 검증)
-  - BigQuery: `kevin_serving.weekly_agg` or `data_mart_1_social_match`
 
 ## 이번 작업에서 완료한 항목
+
+### UX-260701-001
+- Status: `done`
+- Source: 2026-07-01 사용자 요청
+- Why: 좌우 스크롤 시 하단 fixed 버튼(Error Log 좌하단, Kevin AI 우하단)이 테이블 데이터를 가리는 이슈. 이전 작업(padding-bottom 100px)은 상하 스크롤만 해결.
+- What:
+  - Kevin AI: fixed 토글 버튼 제거 → ControlBar 상단에 채팅 말풍선 버튼으로 이동 (검색 버튼 바로 왼쪽)
+  - Error Log: fixed 토글 버튼 제거 → `Shift+Alt+E` 단축키 이스터에그로만 진입
+- References:
+  - `app/components/AiChat.tsx`
+  - `app/components/ErrorLogPanel.tsx`
+  - `app/components/ControlBar.tsx`
+  - `app/page.tsx`
+  - `app/globals.css`
+
+
+
+### UX-260624-001
+- Status: `done`
+- Source: 2026-06-24 사용자 요청
+- Why: 하단 고정 버튼(Error Log, Kevin AI)이 테이블 스크롤 끝에서 마지막 행을 가림.
+- What: `.table-scroll` `padding-bottom` 6px → 100px 변경.
+- References:
+  - `app/globals.css`
+
+### UX-260624-002
+- Status: `done`
+- Source: 2026-06-24 사용자 요청
+- Why: 새 탭 생성 시 이전 탭 설정이 잔상으로 남아 저장 안 된 상태에서 다른 탭 이동 시 초기화되는 문제. 기존 설정을 유지한 채 새 템플릿을 만들 수 없어 매번 처음부터 설정해야 하는 불편함.
+- What:
+  - 새 빈 탭(+) 생성 시 화면 state 즉시 초기화(잔상 제거)
+  - 우측 액션 버튼 영역에 복제 버튼 추가 (모든 탭에서 표시)
+  - 복제 시 현재 탭 설정 전체를 복사한 새 템플릿 생성, 이름은 "[원본이름] 복사본" 자동 설정
+- References:
+  - `app/page.tsx`
+  - `app/components/ControlBar.tsx`
+
+
 
 ### OPS-260602-001
 - Status: `done`
