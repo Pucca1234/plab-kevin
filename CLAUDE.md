@@ -16,7 +16,7 @@ Claude Code가 이 프로젝트에서 작업할 때 참고하는 컨텍스트입
         ↓
 data_mart.data_mart_1_social_match  (read-only)
         ↓
-[GitHub Actions: Serving Rebuild] ~09:00 KST
+[GitHub Actions: Serving Rebuild] ~08:10-08:20 KST
         ↓
 kevin_serving.weekly_agg / weekly_expanded_agg  ← 대시보드 메인
         ↓
@@ -28,18 +28,20 @@ Next.js API → 대시보드 UI
 - `ANALYTICS_BACKEND=bigquery` → BigQuery provider (운영 기준)
 - 미설정 시 기본값 `supabase` → Supabase fallback (⚠️ 의도치 않은 전환 위험)
 
-## 운영 스케줄러 현황 (2026-06-02 기준)
+## 운영 스케줄러 현황 (2026-08-11 기준)
 
 | 워크플로우 | cron 설정 | 실제 실행 | 상태 |
 |---|---|---|---|
-| BigQuery Serving Rebuild | `0 22 * * *` | ~09:00 KST (GitHub 2h 지연) | ✅ 활성 |
+| BigQuery Serving Rebuild | `38 22 * * *` | ~08:10-08:20 KST (GitHub 지연 ~32-40분) | ✅ 활성 |
 | Weekly MV Rebuild | (비활성화) | — | ⏸ 스케줄 트리거 제거 |
 | Data Validation | (비활성화) | — | ⏸ PR 트리거 제거 |
 
 ### GitHub Actions cron 지연 특성
-- cron 설정 시각 + ~2시간 후 실제 실행 (1h51m~2h07m, 편차 16분으로 안정적)
-- `0 22 * * *` 설정 → 실제 ~09:00 KST 실행
-- source 갱신(~07:40 KST) 대비 최소 1h11m 버퍼
+- ⚠️ 지연 시간은 고정값이 아니라 GitHub 인프라 부하에 따라 변동됨. 2026-06-02 당시 관측(1h51m~2h07m)과 달리, 2026-08-08~08-10 관측치는 31m45s~39m41s로 절반 가까이 줄었음.
+- 드물게 큰 지연(예: 2026-08-07 3h30m)이 발생할 수 있으므로 cron 조정만으로 완료 시각을 완전히 보장할 수는 없음.
+- `38 22 * * *` 설정(2026-08-11 재조정) → 최근 지연 패턴(평균 ~36분) 기준 실제 실행 ~08:10-08:20 KST 목표
+- source 갱신(~07:40 KST) 대비 최소 ~30분 버퍼
+- 지연 패턴이 다시 유의미하게 변하면 최근 실행 이력(`gh run list --workflow=bigquery-serving-rebuild.yml`)으로 재계산 후 cron 재조정 필요
 
 ## 신규 지표 반영 구조
 1. 구글 시트 `metric_store_native`에 지표 추가
