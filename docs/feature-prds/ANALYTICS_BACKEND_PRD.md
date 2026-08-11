@@ -56,7 +56,7 @@
 
 ## 운영 기준
 - source BigQuery 테이블 갱신 기준 시각은 매일 07:50 KST 전후입니다.
-- serving rebuild 기본 기준 시각은 매일 09:00 KST 전후입니다. (cron 22:00 UTC + GitHub Actions ~2h 지연)
+- serving rebuild 기본 기준 시각은 매일 08:10-08:20 KST 전후입니다. (cron 22:38 UTC + GitHub Actions 실측 지연 ~32-40분, 2026-08-11 기준. 지연 폭은 GitHub 인프라 상태에 따라 변동되므로 완료 시각을 완전히 보장하지 않습니다.)
 - source 반영이 지연된 날에는 serving rebuild에 늦은 데이터가 포함되지 않을 수 있으며, 다음 스케줄에서 따라잡는 것을 허용합니다.
 - Vercel 배포 환경에서는 service account JSON 계열 env 사용을 우선합니다.
 
@@ -87,7 +87,7 @@
 ## GitHub Actions 워크플로우 현황
 | 워크플로우 | 파일 | 스케줄 | 상태 | 비고 |
 |---|---|---|---|---|
-| BigQuery Serving Rebuild | `bigquery-serving-rebuild.yml` | 매일 `0 22 * * *` (실제 ~09:00 KST) | ✅ 활성 | Slack 알림 포함 |
+| BigQuery Serving Rebuild | `bigquery-serving-rebuild.yml` | 매일 `38 22 * * *` (실제 ~08:10-08:20 KST) | ✅ 활성 | Slack 알림 포함 |
 | Weekly MV Rebuild | `weekly-mv-rebuild.yml` | 스케줄 트리거 비활성화 | ⏸ 비활성 | BigQuery 전환 후 실효성 없음. 재활성화 시 Supabase 시크릿 3개 등록 필요 |
 | Data Validation | `data-validation.yml` | PR 트리거 비활성화 | ⏸ 비활성 | BigQuery 전환 후 실효성 없음. 재활성화 시 Supabase 시크릿 등록 필요 |
 
@@ -97,5 +97,6 @@
 - 2026-05-19: source-only filter를 명시적으로 source query 경로로 라우팅
 - 2026-05-28: metric dictionary 내 문자열 차원 컬럼을 수치 지표 후보에서 제외하고, serving metric sync 검증 기준 보강
 - 2026-06-02: serving rebuild cron `30 23 * * *` → `0 22 * * *` (GitHub Actions 실제 지연 반영, 실행 ~09:00 KST)
+- 2026-08-11: serving rebuild cron `0 22 * * *` → `38 22 * * *` (GitHub Actions 지연이 ~2h→~32-40분으로 감소해 완료 시각이 07:30-07:40 KST로 앞당겨짐. 목표 완료 시간대(08:00-08:30 KST)에 맞춰 재조정)
 - 2026-06-02: Data Validation 워크플로우 PR 트리거 비활성화 (Supabase MV 검증 실효성 없음, 시크릿 미등록)
 - 2026-06-02: Weekly MV Rebuild 워크플로우 스케줄 트리거 비활성화 (BigQuery 전환 후 실효성 없음, GitHub Actions 시크릿 미등록으로 첫 실행부터 9회 전부 실패)

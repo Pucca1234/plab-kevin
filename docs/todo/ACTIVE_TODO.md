@@ -13,6 +13,16 @@
 
 ## 이번 작업에서 완료한 항목
 
+### OPS-260811-001
+- Status: `done`
+- Source: 2026-08-11 사용자 요청 (오늘 데이터 최신화가 07:40 KST에 끝나 요청한 08:00-08:30 구간보다 이르게 완료됨)
+- Why: GitHub Actions 스케줄 지연이 2026-06-02 설계 당시 관측치(1h51m~2h07m)에서 2026-08-08~08-10 관측치(31m45s~39m41s)로 크게 줄어들면서, 기존 cron(`0 22 * * *`)의 실제 완료 시각이 09:00 KST 목표에서 07:30~07:40 KST로 앞당겨짐.
+- What: cron을 `0 22 * * *` → `38 22 * * *`로 변경. 최근 지연 패턴(평균 ~36분) 기준 예상 완료 08:10~08:20 KST.
+- References:
+  - `.github/workflows/bigquery-serving-rebuild.yml`
+  - `docs/feature-prds/ANALYTICS_BACKEND_PRD.md`
+  - `CLAUDE.md`
+
 ### UX-260701-001
 - Status: `done`
 - Source: 2026-07-01 사용자 요청
