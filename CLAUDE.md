@@ -67,6 +67,11 @@ Next.js API → 대시보드 UI
 Vercel에 `ANALYTICS_BACKEND=bigquery` 미설정 시 Supabase fallback으로 조용히 전환됨.
 설정 여부 반드시 확인 필요.
 
+### Serving Rebuild 자동 비활성화 (2026-10-11 발생, 해결)
+GitHub은 저장소에 60일간 커밋이 없으면 schedule 워크플로우를 `disabled_inactivity`로 끔 → 실행 자체가 없어 슬랙 실패 알림도 안 옴.
+대응: 워크플로우의 `Keepalive` 단계가 매 실행마다 enable API를 호출해 타이머를 리셋 (`permissions: actions: write` 필요).
+그래도 꺼졌다면: Actions → BigQuery Serving Rebuild → Enable workflow → Run workflow.
+
 ### Data Validation 워크플로우 비활성화 (2026-06-02)
 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` 시크릿 미등록 + BigQuery 전환으로 실효성 없음.
 재활성화 시: `data-validation.yml` `on:` 블록 주석 해제 + Supabase 시크릿 등록.
