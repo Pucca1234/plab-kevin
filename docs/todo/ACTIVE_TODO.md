@@ -2,17 +2,6 @@
 
 ## 즉시 처리할 항목
 
-### OPS-261109-002 (사용자 작업 필요)
-- Status: `todo`
-- Source: 2026-11-09 OPS-261109-001 후속
-- Why: 정시 실행의 주 트리거는 레포 밖(cron-job.org)에 있어서 코드만으로는 활성화되지 않습니다. 등록 전까지는 백업 schedule만 돌아 기존처럼 늦게(09~12시) 실행됩니다.
-- Next action:
-  1. GitHub fine-grained PAT 발급 — Repository access: `Pucca1234/plab-kevin`만, Permissions: `Actions: Read and write`만 (heat-wave와 동일 방식, 레포 시크릿이 아니라 cron-job.org에만 저장)
-  2. cron-job.org 잡 생성 — 매일 08:00 (Asia/Seoul), `POST https://api.github.com/repos/Pucca1234/plab-kevin/actions/workflows/bigquery-serving-rebuild.yml/dispatches`, 헤더 `Authorization: Bearer <PAT>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, 본문 `{"ref":"main"}` (응답 204 = 정상)
-  3. 다음 날 Slack 알림의 `트리거` 필드가 `정시 dispatch`인지 확인
-- References:
-  - `.github/workflows/bigquery-serving-rebuild.yml`
-
 ### OPS-001
 - Status: `todo`
 - Source: 2026-06-02 운영 점검
@@ -23,6 +12,19 @@
 
 
 ## 이번 작업에서 완료한 항목
+
+### OPS-261109-002
+- Status: `done` (2026-11-09 cron-job.org 등록, Test run으로 dispatch→rebuild→Slack 정상 확인)
+- Source: 2026-11-09 OPS-261109-001 후속
+- Why: 정시 실행의 주 트리거는 레포 밖(cron-job.org)에 있어서 코드만으로는 활성화되지 않습니다. 등록 전까지는 백업 schedule만 돌아 기존처럼 늦게(09~12시) 실행됩니다.
+- Next action:
+  1. GitHub fine-grained PAT 발급 — Repository access: `Pucca1234/plab-kevin`만, Permissions: `Actions: Read and write`만 (heat-wave와 동일 방식, 레포 시크릿이 아니라 cron-job.org에만 저장)
+  2. cron-job.org 잡 생성 — 매일 08:00 (Asia/Seoul), `POST https://api.github.com/repos/Pucca1234/plab-kevin/actions/workflows/bigquery-serving-rebuild.yml/dispatches`, 헤더 `Authorization: Bearer <PAT>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, 본문 `{"ref":"main"}` (응답 204 = 정상)
+  3. 다음 날 Slack 알림의 `트리거` 필드가 `정시 dispatch`인지 확인
+- References:
+  - `.github/workflows/bigquery-serving-rebuild.yml`
+
+- 참고: 기존 heat-wave용 PAT가 만료되어(2026-11-05경) heat-wave 30분 체크도 멈춰 있었음 → 두 레포 공용 PAT(`cron-job-org-dispatch`)를 새로 발급해 두 잡 모두 교체. **PAT가 만료되면 두 레포 정시 실행이 동시에 멈춤** (plab-kevin은 백업 schedule 알림의 `⚠️ 백업 schedule` 표시로 감지 가능).
 
 ### OPS-261109-001
 - Status: `done`
