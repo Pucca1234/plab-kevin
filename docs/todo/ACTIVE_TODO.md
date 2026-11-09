@@ -2,6 +2,17 @@
 
 ## 즉시 처리할 항목
 
+### OPS-261109-002 (사용자 작업 필요)
+- Status: `todo`
+- Source: 2026-11-09 OPS-261109-001 후속
+- Why: 정시 실행의 주 트리거는 레포 밖(cron-job.org)에 있어서 코드만으로는 활성화되지 않습니다. 등록 전까지는 백업 schedule만 돌아 기존처럼 늦게(09~12시) 실행됩니다.
+- Next action:
+  1. GitHub fine-grained PAT 발급 — Repository access: `Pucca1234/plab-kevin`만, Permissions: `Actions: Read and write`만 (heat-wave와 동일 방식, 레포 시크릿이 아니라 cron-job.org에만 저장)
+  2. cron-job.org 잡 생성 — 매일 08:00 (Asia/Seoul), `POST https://api.github.com/repos/Pucca1234/plab-kevin/actions/workflows/bigquery-serving-rebuild.yml/dispatches`, 헤더 `Authorization: Bearer <PAT>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, 본문 `{"ref":"main"}` (응답 204 = 정상)
+  3. 다음 날 Slack 알림의 `트리거` 필드가 `정시 dispatch`인지 확인
+- References:
+  - `.github/workflows/bigquery-serving-rebuild.yml`
+
 ### OPS-001
 - Status: `todo`
 - Source: 2026-06-02 운영 점검
@@ -12,6 +23,21 @@
 
 
 ## 이번 작업에서 완료한 항목
+
+### OPS-261109-001
+- Status: `done`
+- Source: 2026-11-09 사용자 요청 (폭염/한파 알림처럼 오차 없이 실행되도록 보완)
+- Why: cron `38 22 * * *`(07:38 KST)의 실제 시작이 2026-09-01~11-08 기준 09:10~12:41 KST(지연 1.5~5시간)로, 08-11 재조정 당시(~36분)보다 다시 크게 늘어남. cron 값 재조정만으로는 계속 실패(06-02, 08-11). heat-wave 레포에서도 같은 원인(네이티브 schedule 수시간 지연/드롭)을 확인했고, 외부 크론 → `workflow_dispatch` API 호출로 바꾼 뒤 ±수십 초로 정시 실행 중.
+- What:
+  - 주 트리거를 외부 크론(cron-job.org) dispatch 08:00 KST로 전환 (OPS-261109-002)
+  - 네이티브 schedule(`30 23 * * *`)은 백업으로 유지 — 오늘(KST) 성공 실행이 있으면 guard 잡에서 rebuild/Slack 없이 종료, keepalive는 계속 수행
+  - 정시 실행으로 사라진 버퍼를 보완하기 위해 rebuild 전 소스 테이블 갱신 대기 단계 추가 (`wait-source-fresh.mjs`, 05:00 KST 이후 수정 여부, 최대 60분, 미갱신 시 Slack 경고)
+  - `concurrency`로 중복 실행 방지, Slack 알림에 소스 갱신 시각/트리거 종류 표시, 알림 시각을 완료 시각 기준으로 변경
+- 참고: heat-wave의 "새 러너로 재시도" 체인은 apis.data.go.kr의 IP 차단 이슈 대응이라 여기엔 적용하지 않음 (BigQuery 호출, 최근 60회 실패 0건)
+- References:
+  - `.github/workflows/bigquery-serving-rebuild.yml`
+  - `scripts/bigquery/wait-source-fresh.mjs`
+  - `CLAUDE.md`
 
 ### OPS-260811-001
 - Status: `done`

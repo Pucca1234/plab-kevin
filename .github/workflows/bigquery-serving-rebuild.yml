@@ -1,19 +1,78 @@
 name: BigQuery Serving Rebuild
 
+# ── 트리거 구조 (2026-11-09 재설계, heat-wave 레포 운영 경험 반영) ──────────────────────
+# GitHub 네이티브 schedule은 이 계정에서 지연이 크고 들쭉날쭉하다. 07:38 KST 설정 기준
+# 실제 시작이 09:10~12:41 KST(지연 1.5~5시간, 2026-09~11 실측)였고, cron 값을 당겨서 맞추는
+# 방식은 지연 폭 자체가 계속 변해서 실패했다(06-02, 08-11 두 번 재조정). heat-wave 레포에서도
+# 같은 현상(19:15 예정 → 00:14 실행, 30분 주기 실행 대부분 드롭)을 겪었고, 외부 크론이
+# workflow_dispatch API를 호출하는 방식으로 바꾼 뒤 ±수십 초 이내로 정시 실행되고 있다.
+#
+# 1) 주 트리거: cron-job.org → workflow_dispatch API, 매일 08:00 KST (설정은 레포 밖, README 참고)
+# 2) 백업 트리거: 네이티브 schedule. cron-job.org가 장애/점검일 때만 의미가 있고, 오늘(KST)
+#    이미 성공한 실행이 있으면 guard 잡에서 rebuild/Slack 없이 조용히 종료한다.
+# 3) 정시 실행이 되면 소스 갱신(~07:30 KST)과의 버퍼가 줄어들므로, rebuild 전에 소스 테이블
+#    갱신 여부를 확인하고 늦으면 최대 60분까지 기다린다 (scripts/bigquery/wait-source-fresh.mjs).
 on:
-  schedule:
-    # Daily ~08:10-08:20 KST = 22:38 UTC (GitHub Actions 실측 지연 ~32-40분 반영, 2026-08-11 재조정)
-    - cron: "38 22 * * *"
   workflow_dispatch:
+    inputs:
+      skip_source_wait:
+        description: "소스 갱신 대기 건너뛰기 (수동 실행용)"
+        type: boolean
+        default: false
+  schedule:
+    # 백업 전용. 08:30 KST(23:30 UTC)로 설정하지만 실제로는 1.5~5시간 늦게 돈다.
+    - cron: "30 23 * * *"
 
 permissions:
   contents: read
-  actions: write # keepalive 단계에서 워크플로우 enable API 호출용
+  actions: write # keepalive(enable API) + 오늘 실행 이력 조회용
+
+# cron-job.org 중복 호출/백업 schedule과 겹쳐서 동시에 rebuild가 도는 걸 막는다 (순차 실행).
+concurrency:
+  group: bigquery-serving-rebuild
+  cancel-in-progress: false
 
 jobs:
-  rebuild-and-validate:
+  guard:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - name: Skip backup schedule if already succeeded today (KST)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          today_kst_start="$(TZ=Asia/Seoul date '+%Y-%m-%dT00:00:00')%2B09:00"
+          count="$(gh api "repos/${{ github.repository }}/actions/workflows/bigquery-serving-rebuild.yml/runs?status=success&created=%3E%3D${today_kst_start}&per_page=1" --jq '.total_count')"
+          echo "오늘(KST) 성공한 실행 수: ${count}"
+          if [ "${count}" -gt 0 ]; then
+            echo "::notice::오늘 이미 정시 실행이 성공해서 백업 schedule은 건너뜀"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::오늘 성공한 실행이 없음 - 외부 크론(cron-job.org) 미동작 의심, 백업 schedule로 rebuild 진행"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # GitHub은 60일간 커밋이 없으면 schedule 워크플로우를 자동 비활성화함 (2026-10-11 실제 발생).
+      # 백업 schedule이 살아 있도록 매 실행마다 enable API를 호출해 비활성화 타이머를 리셋한다.
+      # (workflow_dispatch 자체는 비활성화 대상이 아니지만, disabled 상태면 dispatch도 거부됨)
+      - name: Keepalive (prevent inactivity disable)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/bigquery-serving-rebuild.yml/enable"
+
+  rebuild-and-validate:
+    needs: guard
+    if: ${{ needs.guard.outputs.skip != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # 소스 대기 최대 60분 + rebuild/validate
     env:
       BIGQUERY_PROJECT_ID: "plabfootball-51bf5"
       BIGQUERY_LOCATION: "asia-northeast3"
@@ -23,6 +82,7 @@ jobs:
       BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64 }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_CHANNEL_ID: "C0B6ZSZPU7R"
+      TRIGGER_LABEL: ${{ github.event_name == 'schedule' && '⚠️ 백업 schedule (외부 크론 미동작)' || '정시 dispatch' }}
 
     steps:
       - name: Checkout
@@ -42,9 +102,11 @@ jobs:
           set -e
           [ -n "${BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64}" ] || (echo "Missing BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64" && exit 1)
 
-      - name: Get KST time
-        id: kst
-        run: echo "time=$(TZ=Asia/Seoul date '+%Y.%m.%d %H:%M')" >> "$GITHUB_OUTPUT"
+      - name: Wait for source table refresh
+        id: source
+        env:
+          SOURCE_WAIT_MINUTES: ${{ inputs.skip_source_wait && '0' || '60' }}
+        run: node scripts/bigquery/wait-source-fresh.mjs
 
       - name: Rebuild serving layer
         run: npm run bq:build-serving
@@ -52,14 +114,11 @@ jobs:
       - name: Validate serving layer
         run: npm run bq:validate-serving
 
-      # GitHub은 60일간 커밋이 없으면 schedule 워크플로우를 자동 비활성화함 (2026-10-11 실제 발생).
-      # 매 실행마다 enable API를 호출해 비활성화 타이머를 리셋한다.
-      - name: Keepalive (prevent inactivity disable)
+      # 알림 시각은 rebuild가 실제로 끝난 시각으로 찍는다 (예전엔 시작 시각이었음)
+      - name: Get KST time
+        id: kst
         if: always()
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/bigquery-serving-rebuild.yml/enable"
+        run: echo "time=$(TZ=Asia/Seoul date '+%Y.%m.%d %H:%M')" >> "$GITHUB_OUTPUT"
 
       - name: Notify Slack (success)
         if: success() && env.SLACK_BOT_TOKEN != ''
@@ -71,20 +130,22 @@ jobs:
           payload: |
             {
               "channel": "${{ env.SLACK_CHANNEL_ID }}",
-              "text": "[Kevin 대시보드] 데이터 업데이트 완료 ✅",
+              "text": "[Kevin 대시보드] 데이터 업데이트 완료 ✅${{ steps.source.outputs.fresh == 'false' && ' (⚠️ 소스 미갱신)' || '' }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*[Kevin 대시보드] 데이터 업데이트 완료 ✅*"
+                    "text": "*[Kevin 대시보드] 데이터 업데이트 완료 ✅*${{ steps.source.outputs.fresh == 'false' && '\n⚠️ 소스 테이블이 오늘 갱신되지 않아 이전 데이터 기준으로 반영됐습니다.' || '' }}"
                   }
                 },
                 {
                   "type": "section",
                   "fields": [
                     { "type": "mrkdwn", "text": "*상태*\n✅ 성공" },
-                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" }
+                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" },
+                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}" },
+                    { "type": "mrkdwn", "text": "*트리거*\n${{ env.TRIGGER_LABEL }}" }
                   ]
                 },
                 {
@@ -123,7 +184,9 @@ jobs:
                   "type": "section",
                   "fields": [
                     { "type": "mrkdwn", "text": "*상태*\n❌ 실패" },
-                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" }
+                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" },
+                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}" },
+                    { "type": "mrkdwn", "text": "*트리거*\n${{ env.TRIGGER_LABEL }}" }
                   ]
                 },
                 {

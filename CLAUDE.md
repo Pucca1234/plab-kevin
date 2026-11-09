@@ -12,11 +12,12 @@ Claude Code가 이 프로젝트에서 작업할 때 참고하는 컨텍스트입
 
 ### 데이터 흐름
 ```
-[BigQuery 소스 스케줄러] ~07:40 KST
+[BigQuery 소스 스케줄러] ~07:30 KST
         ↓
 data_mart.data_mart_1_social_match  (read-only)
         ↓
-[GitHub Actions: Serving Rebuild] ~08:10-08:20 KST
+[cron-job.org → workflow_dispatch] 08:00 KST 정시  (백업: 네이티브 schedule)
+[GitHub Actions: Serving Rebuild] 소스 갱신 확인(최대 60분 대기) → rebuild → validate → Slack
         ↓
 kevin_serving.weekly_agg / weekly_expanded_agg  ← 대시보드 메인
         ↓
@@ -28,20 +29,20 @@ Next.js API → 대시보드 UI
 - `ANALYTICS_BACKEND=bigquery` → BigQuery provider (운영 기준)
 - 미설정 시 기본값 `supabase` → Supabase fallback (⚠️ 의도치 않은 전환 위험)
 
-## 운영 스케줄러 현황 (2026-08-11 기준)
+## 운영 스케줄러 현황 (2026-11-09 기준)
 
-| 워크플로우 | cron 설정 | 실제 실행 | 상태 |
+| 워크플로우 | 트리거 | 실제 실행 | 상태 |
 |---|---|---|---|
-| BigQuery Serving Rebuild | `38 22 * * *` | ~08:10-08:20 KST (GitHub 지연 ~32-40분) | ✅ 활성 |
+| BigQuery Serving Rebuild | 주: cron-job.org dispatch 08:00 KST / 백업: `30 23 * * *` | 주: 08:00 KST 정시 / 백업: 당일 성공 시 skip | ✅ 활성 |
 | Weekly MV Rebuild | (비활성화) | — | ⏸ 스케줄 트리거 제거 |
 | Data Validation | (비활성화) | — | ⏸ PR 트리거 제거 |
 
-### GitHub Actions cron 지연 특성
-- ⚠️ 지연 시간은 고정값이 아니라 GitHub 인프라 부하에 따라 변동됨. 2026-06-02 당시 관측(1h51m~2h07m)과 달리, 2026-08-08~08-10 관측치는 31m45s~39m41s로 절반 가까이 줄었음.
-- 드물게 큰 지연(예: 2026-08-07 3h30m)이 발생할 수 있으므로 cron 조정만으로 완료 시각을 완전히 보장할 수는 없음.
-- `38 22 * * *` 설정(2026-08-11 재조정) → 최근 지연 패턴(평균 ~36분) 기준 실제 실행 ~08:10-08:20 KST 목표
-- source 갱신(~07:40 KST) 대비 최소 ~30분 버퍼
-- 지연 패턴이 다시 유의미하게 변하면 최근 실행 이력(`gh run list --workflow=bigquery-serving-rebuild.yml`)으로 재계산 후 cron 재조정 필요
+### 정시 실행 구조 (2026-11-09, heat-wave 레포와 동일 원리)
+- **원인**: GitHub 네이티브 schedule은 이 계정에서 지연이 크고 변동이 심함. 07:38 KST 설정이 실제 09:10~12:41 KST에 실행됨(2026-09~11 실측). cron 값을 당겨 맞추는 방식은 지연 폭이 계속 변해서 두 번(06-02, 08-11) 다 깨졌음 → **cron 재조정으로 해결하지 말 것.**
+- **해법**: `workflow_dispatch`는 API 호출 즉시 실행됨(heat-wave에서 ±수십 초 확인). 외부 크론 cron-job.org가 매일 08:00 KST에 `POST /repos/Pucca1234/plab-kevin/actions/workflows/bigquery-serving-rebuild.yml/dispatches` 호출. 인증은 `Actions: Read and write`만 가진 fine-grained PAT (cron-job.org에만 저장, 레포엔 없음).
+- **백업**: cron-job.org 점검/장애 대비로 네이티브 schedule 유지. `guard` 잡이 오늘(KST) 성공 실행이 있으면 rebuild/Slack 없이 종료. 백업으로 rebuild되면 Slack `트리거` 필드에 경고 표시 → cron-job.org 잡 점검.
+- **소스 대기**: 정시 실행이라 소스 갱신과의 버퍼가 작음 → `scripts/bigquery/wait-source-fresh.mjs`가 소스 테이블 `lastModifiedTime`이 05:00 KST 이후인지 확인, 아니면 최대 60분 폴링. 끝까지 미갱신이면 rebuild는 진행하고 Slack에 `⚠️ 소스 미갱신` 표시.
+- 수동 실행 시 `skip_source_wait` 입력으로 대기 생략 가능.
 
 ## 신규 지표 반영 구조
 1. 구글 시트 `metric_store_native`에 지표 추가
@@ -51,7 +52,7 @@ Next.js API → 대시보드 UI
 
 ## Slack 알림
 - 채널: `#plab-kevin-update` (ID: `C0B6ZSZPU7R`)
-- Serving Rebuild 성공/실패 시 자동 알림
+- Serving Rebuild 성공/실패 시 자동 알림 (소스 갱신 시각·트리거 종류 포함, 백업 schedule이 skip한 날은 알림 없음)
 - 시크릿: `SLACK_BOT_TOKEN` (2026-06-01 등록)
 
 ## 주요 문서 위치
@@ -69,7 +70,7 @@ Vercel에 `ANALYTICS_BACKEND=bigquery` 미설정 시 Supabase fallback으로 조
 
 ### Serving Rebuild 자동 비활성화 (2026-10-11 발생, 해결)
 GitHub은 저장소에 60일간 커밋이 없으면 schedule 워크플로우를 `disabled_inactivity`로 끔 → 실행 자체가 없어 슬랙 실패 알림도 안 옴.
-대응: 워크플로우의 `Keepalive` 단계가 매 실행마다 enable API를 호출해 타이머를 리셋 (`permissions: actions: write` 필요).
+대응: 워크플로우 `guard` 잡의 `Keepalive` 단계가 매 실행마다 enable API를 호출해 타이머를 리셋 (`permissions: actions: write` 필요).
 그래도 꺼졌다면: Actions → BigQuery Serving Rebuild → Enable workflow → Run workflow.
 
 ### Data Validation 워크플로우 비활성화 (2026-06-02)
