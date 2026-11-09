@@ -60,11 +60,13 @@ const getToken = async () => {
 
 const getLastModifiedMs = async () => {
   const token = await getToken();
-  const url = `https://bigquery.googleapis.com/bigquery/v2/projects/${projectId}/datasets/${dataset}/tables/${table}?view=BASIC`;
+  const url = `https://bigquery.googleapis.com/bigquery/v2/projects/${projectId}/datasets/${dataset}/tables/${table}`; // view=BASIC은 lastModifiedTime을 빼고 줘서 쓰면 안 됨 (2026-11-09 확인)
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`tables.get failed (${res.status}): ${await res.text()}`);
   const body = await res.json();
-  return Number(body.lastModifiedTime);
+  const ms = Number(body.lastModifiedTime);
+  if (!Number.isFinite(ms) || ms <= 0) throw new Error(`lastModifiedTime 없음: ${JSON.stringify(body.lastModifiedTime)}`);
+  return ms;
 };
 
 const writeOutput = (values) => {
@@ -96,6 +98,14 @@ const main = async () => {
     } catch (error) {
       consecutiveErrors += 1;
       console.warn(`[source] 메타데이터 조회 실패 (${consecutiveErrors}회): ${error.message}`);
+      // 조회 자체가 안 되는 건 기다려도 해결되지 않으므로 오래 붙잡지 않는다.
+      if (consecutiveErrors >= 3) {
+        console.warn("[source] 조회가 3회 연속 실패 → 대기 중단, rebuild 진행");
+        writeOutput({ fresh: "false", source_time: "조회 실패" });
+        return;
+      }
+      await sleep(10_000);
+      continue;
     }
 
     if (Date.now() + pollSeconds * 1000 > deadline) break;
