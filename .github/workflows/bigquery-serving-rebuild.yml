@@ -115,10 +115,21 @@ jobs:
         run: npm run bq:validate-serving
 
       # 알림 시각은 rebuild가 실제로 끝난 시각으로 찍는다 (예전엔 시작 시각이었음)
+      # 소스 갱신 → 반영 완료 사이 간격도 같이 남겨서, 반영이 소스 갱신과 겹치지 않는지 매일 확인할 수 있게 한다.
       - name: Get KST time
         id: kst
         if: always()
-        run: echo "time=$(TZ=Asia/Seoul date '+%Y.%m.%d %H:%M')" >> "$GITHUB_OUTPUT"
+        env:
+          SOURCE_EPOCH: ${{ steps.source.outputs.source_epoch }}
+        run: |
+          now=$(date +%s)
+          echo "time=$(TZ=Asia/Seoul date -d "@${now}" '+%Y.%m.%d %H:%M:%S')" >> "$GITHUB_OUTPUT"
+          if [ -n "${SOURCE_EPOCH}" ]; then
+            gap=$(( now - SOURCE_EPOCH ))
+            echo "gap=$(( gap / 60 ))분 $(( gap % 60 ))초" >> "$GITHUB_OUTPUT"
+          else
+            echo "gap=-" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Notify Slack (success)
         if: success() && env.SLACK_BOT_TOKEN != ''
@@ -145,6 +156,7 @@ jobs:
                     { "type": "mrkdwn", "text": "*상태*\n✅ 성공" },
                     { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" },
                     { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}" },
+                    { "type": "mrkdwn", "text": "*소스 갱신 → 반영 간격*\n${{ steps.kst.outputs.gap }}" },
                     { "type": "mrkdwn", "text": "*트리거*\n${{ env.TRIGGER_LABEL }}" }
                   ]
                 },
