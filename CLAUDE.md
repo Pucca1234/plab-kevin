@@ -43,7 +43,7 @@ Next.js API → 대시보드 UI
 - **백업**: cron-job.org 점검/장애 대비로 네이티브 schedule 유지. `guard` 잡이 오늘(KST) 성공 실행이 있으면 rebuild/Slack 없이 종료. 백업으로 rebuild되면 Slack `트리거` 필드에 경고 표시 → cron-job.org 잡 점검.
 - **소스 대기**: 정시 실행이라 소스 갱신과의 버퍼가 작음 → `scripts/bigquery/wait-source-fresh.mjs`가 소스 테이블 `lastModifiedTime`이 05:00 KST 이후인지 확인, 아니면 최대 60분 폴링. 끝까지 미갱신이면 rebuild는 진행하고 Slack에 `⚠️ 소스 미갱신` 표시.
 - 수동 실행 시 `skip_source_wait` 입력으로 대기 생략 가능.
-- **소스와의 충돌 점검 (2026-11-17)**: Kevin이 읽는 소스는 `data_mart.data_mart_1_social_match` 하나(+ 지표 목록 `googlesheets.metric_store_native`)뿐. 이 테이블은 예약쿼리 `data_mart_1_social_schedule`(07:30 실행, 콘솔상 완료 ~07:31)이 매일 덮어쓰며 테이블 수정 시각은 07:30:1x(11-12~11-17 매일 07:30). 테이블 생성일(2026-01-02)이 유지되므로 CREATE OR REPLACE가 아니라 기존 테이블에 덮어쓰는 방식, rebuild는 08:01:0x~08:01:2x에 읽음 → 간격 약 31분. BigQuery는 테이블 교체가 원자적이라 겹치더라도 "반쯤 갱신된 데이터"를 읽는 일은 없고, 최악은 어제 데이터를 읽는 것인데 소스 대기 단계가 이를 막음. 07:35/07:40/07:45 등에 갱신되는 건 `dashboard.*_data_source_*` 테이블들(다른 스케줄러)로 Kevin과 무관.
+- **소스와의 충돌 점검 (2026-11-17)**: Kevin이 읽는 소스는 `data_mart.data_mart_1_social_match` 하나(+ 지표 목록 `googlesheets.metric_store_native`)뿐. 이 테이블은 예약쿼리 `data_mart_1_social_match_schedule`(07:30 실행, 11-16 실측: 쓰기 작업 07:30:07 시작 → 07:31:07 완료)이 매일 덮어씀. 단, 테이블 lastModifiedTime은 실제 완료보다 ~1분 이른 07:30:1x로 찍힘 (Slack `소스 갱신` 값이 실제 완료보다 ~1분 이름, 권한 확보 후 job 완료 시각으로 교체 예정)(11-12~11-17 매일 07:30). 테이블 생성일(2026-01-02)이 유지되므로 CREATE OR REPLACE가 아니라 기존 테이블에 덮어쓰는 방식, rebuild는 08:01:0x~08:01:2x에 읽음 → 간격 약 31분. BigQuery는 테이블 교체가 원자적이라 겹치더라도 "반쯤 갱신된 데이터"를 읽는 일은 없고, 최악은 어제 데이터를 읽는 것인데 소스 대기 단계가 이를 막음. 07:35/07:40/07:45 등에 갱신되는 건 `dashboard.*_data_source_*` 테이블들(다른 스케줄러)로 Kevin과 무관.
 - Slack 알림의 `소스 갱신`은 소스 테이블명(`data_mart.data_mart_1_social_match`)과 그 테이블의 실제 lastModifiedTime(초 단위), `반영 시각`은 반영 완료 시각(초 단위), `소스 갱신 → 반영 간격`은 둘의 차이.
 
 ## 신규 지표 반영 구조
