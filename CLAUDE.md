@@ -44,7 +44,7 @@ Next.js API → 대시보드 UI
 - **소스 대기**: 정시 실행이라 소스 갱신과의 버퍼가 작음 → `scripts/bigquery/wait-source-fresh.mjs`가 소스 테이블 `lastModifiedTime`이 05:00 KST 이후인지 확인, 아니면 최대 60분 폴링. 끝까지 미갱신이면 rebuild는 진행하고 Slack에 `⚠️ 소스 미갱신` 표시.
 - 수동 실행 시 `skip_source_wait` 입력으로 대기 생략 가능.
 - **소스와의 충돌 점검 (2026-11-17)**: Kevin이 읽는 소스는 `data_mart.data_mart_1_social_match` 하나(+ 지표 목록 `googlesheets.metric_store_native`)뿐. 이 테이블은 매일 07:30:1x에 CREATE OR REPLACE로 한 번에 교체되고(11-12~11-17 매일 07:30), rebuild는 08:01:0x~08:01:2x에 읽음 → 간격 약 31분. BigQuery는 테이블 교체가 원자적이라 겹치더라도 "반쯤 갱신된 데이터"를 읽는 일은 없고, 최악은 어제 데이터를 읽는 것인데 소스 대기 단계가 이를 막음. 07:35/07:40/07:45 등에 갱신되는 건 `dashboard.*_data_source_*` 테이블들(다른 스케줄러)로 Kevin과 무관.
-- Slack 알림의 `소스 갱신`은 테이블의 실제 lastModifiedTime(초 단위), `시각`은 반영 완료 시각(초 단위), `소스 갱신 → 반영 간격`은 둘의 차이.
+- Slack 알림의 `소스 갱신`은 소스 테이블명(`data_mart.data_mart_1_social_match`)과 그 테이블의 실제 lastModifiedTime(초 단위), `시각`은 반영 완료 시각(초 단위), `소스 갱신 → 반영 간격`은 둘의 차이.
 
 ## 신규 지표 반영 구조
 1. 구글 시트 `metric_store_native`에 지표 추가

@@ -82,6 +82,7 @@ jobs:
       BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.BIGQUERY_SERVICE_ACCOUNT_JSON_BASE64 }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_CHANNEL_ID: "C0B6ZSZPU7R"
+      SOURCE_TABLE_LABEL: "data_mart.data_mart_1_social_match" # Slack 알림에 표시할 소스 테이블
       TRIGGER_LABEL: ${{ github.event_name == 'schedule' && '⚠️ 백업 schedule (외부 크론 미동작)' || '정시 dispatch' }}
 
     steps:
@@ -147,7 +148,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*[Kevin 대시보드] 데이터 업데이트 완료 ✅*${{ steps.source.outputs.fresh == 'false' && '\n⚠️ 소스 테이블이 오늘 갱신되지 않아 이전 데이터 기준으로 반영됐습니다.' || '' }}"
+                    "text": "*[Kevin 대시보드] 데이터 업데이트 완료 ✅*${{ steps.source.outputs.fresh == 'false' && '\n⚠️ 소스 테이블(`data_mart_1_social_match`)이 오늘 갱신되지 않아 이전 데이터 기준으로 반영됐습니다.' || '' }}"
                   }
                 },
                 {
@@ -155,7 +156,7 @@ jobs:
                   "fields": [
                     { "type": "mrkdwn", "text": "*상태*\n✅ 성공" },
                     { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" },
-                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}" },
+                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}\n`${{ env.SOURCE_TABLE_LABEL }}`" },
                     { "type": "mrkdwn", "text": "*소스 갱신 → 반영 간격*\n${{ steps.kst.outputs.gap }}" },
                     { "type": "mrkdwn", "text": "*트리거*\n${{ env.TRIGGER_LABEL }}" }
                   ]
@@ -197,7 +198,7 @@ jobs:
                   "fields": [
                     { "type": "mrkdwn", "text": "*상태*\n❌ 실패" },
                     { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" },
-                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}" },
+                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}\n`${{ env.SOURCE_TABLE_LABEL }}`" },
                     { "type": "mrkdwn", "text": "*트리거*\n${{ env.TRIGGER_LABEL }}" }
                   ]
                 },
