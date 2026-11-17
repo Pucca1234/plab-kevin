@@ -132,6 +132,7 @@ jobs:
             echo "gap=-" >> "$GITHUB_OUTPUT"
           fi
 
+      # 알림 본문은 fields(2열 그리드) 대신 한 덩어리 mrkdwn 텍스트로 만들어 항목이 위에서 아래로 한 줄씩 떨어지게 한다.
       - name: Notify Slack (success)
         if: success() && env.SLACK_BOT_TOKEN != ''
         continue-on-error: true
@@ -148,18 +149,8 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*[Kevin 대시보드] 데이터 업데이트 완료 ✅*${{ steps.source.outputs.fresh == 'false' && '\n⚠️ 소스 테이블(`data_mart_1_social_match`)이 오늘 갱신되지 않아 이전 데이터 기준으로 반영됐습니다.' || '' }}"
+                    "text": "*[Kevin 대시보드] 데이터 업데이트 완료 ✅*${{ steps.source.outputs.fresh == 'false' && '\n⚠️ 소스 테이블(`data_mart_1_social_match`)이 오늘 갱신되지 않아 이전 데이터 기준으로 반영됐습니다.' || '' }}\n\n*상태*\n✅ 성공\n\n*반영 시각 (KST)*\n${{ steps.kst.outputs.time }}\n\n*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}\n`${{ env.SOURCE_TABLE_LABEL }}`\n\n*소스 갱신 → 반영 간격*\n${{ steps.kst.outputs.gap }}\n\n*트리거*\n${{ env.TRIGGER_LABEL }}"
                   }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    { "type": "mrkdwn", "text": "*상태*\n✅ 성공" },
-                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" },
-                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}\n`${{ env.SOURCE_TABLE_LABEL }}`" },
-                    { "type": "mrkdwn", "text": "*소스 갱신 → 반영 간격*\n${{ steps.kst.outputs.gap }}" },
-                    { "type": "mrkdwn", "text": "*트리거*\n${{ env.TRIGGER_LABEL }}" }
-                  ]
                 },
                 {
                   "type": "actions",
@@ -190,23 +181,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*[Kevin 대시보드] 데이터 업데이트 실패 ❌*"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    { "type": "mrkdwn", "text": "*상태*\n❌ 실패" },
-                    { "type": "mrkdwn", "text": "*시각 (KST)*\n${{ steps.kst.outputs.time }}" },
-                    { "type": "mrkdwn", "text": "*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}\n`${{ env.SOURCE_TABLE_LABEL }}`" },
-                    { "type": "mrkdwn", "text": "*트리거*\n${{ env.TRIGGER_LABEL }}" }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "워크플로우 로그를 확인해 주세요."
+                    "text": "*[Kevin 대시보드] 데이터 업데이트 실패 ❌*\n\n*상태*\n❌ 실패 (워크플로우 로그를 확인해 주세요)\n\n*실패 시각 (KST)*\n${{ steps.kst.outputs.time }}\n\n*소스 갱신 (KST)*\n${{ steps.source.outputs.source_time || '-' }}\n`${{ env.SOURCE_TABLE_LABEL }}`\n\n*트리거*\n${{ env.TRIGGER_LABEL }}"
                   }
                 },
                 {
