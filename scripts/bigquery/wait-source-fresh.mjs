@@ -26,7 +26,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const formatKst = (ms) => {
   const d = new Date(ms + KST_OFFSET_MS);
   const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}.${pad(d.getUTCMonth() + 1)}.${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  return `${d.getUTCFullYear()}.${pad(d.getUTCMonth() + 1)}.${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 };
 
 // 가장 최근의 "HH:MM KST" 시각(epoch ms)
@@ -92,7 +92,7 @@ const main = async () => {
       consecutiveErrors = 0;
       console.log(`[source] last_modified=${formatKst(lastModified)} KST`);
       if (lastModified >= threshold) {
-        writeOutput({ fresh: "true", source_time: formatKst(lastModified) });
+        writeOutput({ fresh: "true", source_time: formatKst(lastModified), source_epoch: Math.floor(lastModified / 1000) });
         return;
       }
     } catch (error) {
@@ -113,7 +113,7 @@ const main = async () => {
   }
 
   console.warn(`[source] ${waitMinutes}분 대기했지만 소스가 갱신되지 않음 → 기존 소스로 rebuild 진행`);
-  writeOutput({ fresh: "false", source_time: lastModified ? formatKst(lastModified) : "조회 실패" });
+  writeOutput({ fresh: "false", source_time: lastModified ? formatKst(lastModified) : "조회 실패", source_epoch: lastModified ? Math.floor(lastModified / 1000) : "" });
 };
 
 main().catch((error) => {
